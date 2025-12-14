@@ -1,14 +1,18 @@
 (() => {
+  // =========================
+  // Angry Wolves — game.js
+  // =========================
+
   // ===== Config =====
   const COLS = 10;
-  const ROWS = 16;
+  const ROWS = 13;              // was 16 (reduced by 3 to make tiles bigger)
   const CLEAR_THRESHOLD = 10;
 
   const BASE_FALL_MS = 650;
   const MIN_FALL_MS  = 120;
   const LEVEL_EVERY_LOCKS = 12;
 
-  // gesture step distances (NO hold-to-repeat; movement only while finger moves)
+  // gesture step distances (movement happens only while finger moves)
   const STEP_X = 22;
   const STEP_Y = 22;
   const SWIPE_UP_MIN = 26;
@@ -78,8 +82,8 @@
   const SHAPE_KEYS = Object.keys(SHAPES);
 
   const SPECIAL = {
-    WOLVES_2: { matrix:[[1,1],[1,1]], tile:TILE.WOLF, rotates:false },
-    BLACKSHEEP_2: { matrix:[[1,1],[1,1]], tile:TILE.BLACK_SHEEP, rotates:false }
+    WOLVES_2:    { matrix:[[1,1],[1,1]], tile:TILE.WOLF,       rotates:false },
+    BLACKSHEEP_2:{ matrix:[[1,1],[1,1]], tile:TILE.BLACK_SHEEP, rotates:false }
   };
 
   // ===== DOM =====
@@ -93,8 +97,6 @@
 
   const gear = document.getElementById("gear");
   const soundToggle = document.getElementById("soundToggle");
-
-  const toastEl = document.getElementById("toast");
 
   // ===== State =====
   let board = makeBoard();
@@ -113,7 +115,9 @@
   let paused = false;
   let gameOver = false;
 
-  let W=0, H=0, cell=0, pad=10;
+  // render metrics
+  let W=0, H=0, cell=0;
+  let pad = 14;                 // a little more breathing room
 
   // particles
   let particles = [];
@@ -137,14 +141,12 @@
   function saveSoundPref(){
     localStorage.setItem("aw_sound", soundOn ? "1" : "0");
   }
-
   function ensureAudio(){
     if(audioCtx) return;
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     catch { audioCtx = null; }
   }
-
-  function unlockAudio(){
+  function unlockAudioSilently(){
     ensureAudio();
     if(audioCtx && audioCtx.state === "suspended"){
       audioCtx.resume();
@@ -216,6 +218,11 @@
     }
   }
 
+  // ===== Haptics =====
+  function haptic(ms=10){
+    try{ if("vibrate" in navigator) navigator.vibrate(ms); }catch{}
+  }
+
   // ===== Utilities =====
   function makeBoard(){ return Array.from({length: ROWS}, () => Array(COLS).fill(TILE.EMPTY)); }
   function makeOverlay(){ return Array.from({length: ROWS}, () => Array(COLS).fill(POWER.NONE)); }
@@ -234,18 +241,6 @@
     const out = Array.from({length: m}, () => Array(n).fill(0));
     for(let r=0;r<n;r++) for(let c=0;c<m;c++) out[m-1-c][r] = mat[r][c];
     return out;
-  }
-
-  function showToast(msg, ms=900){
-    if(!toastEl) return;
-    toastEl.textContent = msg;
-    toastEl.classList.remove("hidden");
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => toastEl.classList.add("hidden"), ms);
-  }
-
-  function haptic(ms=10){
-    try{ if("vibrate" in navigator) navigator.vibrate(ms); }catch{}
   }
 
   // ===== Pieces =====
@@ -301,13 +296,14 @@
   }
 
   function updateHUD(){
-    scoreEl.textContent = Math.max(0, score|0);
-    levelEl.textContent = level;
-    clearsEl.textContent = herdsCleared;
+    if(scoreEl) scoreEl.textContent = Math.max(0, score|0);
+    if(levelEl) levelEl.textContent = level;
+    if(clearsEl) clearsEl.textContent = herdsCleared;
 
     const best = computeBestGroup();
-    if(!best) bestEl.textContent = "Best: —";
-    else bestEl.textContent = `Best: ${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal]})`;
+    if(bestEl){
+      bestEl.textContent = !best ? "Best: —" : `Best: ${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal]})`;
+    }
   }
 
   function gameOverNow(){
@@ -477,7 +473,7 @@
         }
       }
     }
-    // overlay does NOT fall (background)
+    // overlay does NOT fall
   }
 
   function resolveBoard(){
@@ -488,16 +484,13 @@
       for(const group of clears){
         const { animal, cells } = group;
 
-        // base score
         score += cells.length;
 
-        // fib bonus for >10: 11 => +2, 12 => +3, 13 => +5 ...
         if(cells.length >= 11){
-          const bonusIndex = cells.length - 8;
+          const bonusIndex = cells.length - 8; // 11->3 => fib(3)=2
           score += fib(bonusIndex);
         }
 
-        // overlay multipliers
         let eggs=0, turds=0;
         for(const [x,y] of cells){
           if(overlay[y][x] === POWER.EGG) eggs++;
@@ -506,7 +499,6 @@
         if(eggs) score = Math.floor(score * Math.pow(2, eggs));
         if(turds) score = Math.floor(score / Math.pow(2, turds));
 
-        // clear tiles + overlay under them
         for(const [x,y] of cells){
           board[y][x] = TILE.EMPTY;
           overlay[y][x] = POWER.NONE;
@@ -559,7 +551,6 @@
       return;
     }
 
-    // place
     for(let r=0;r<current.matrix.length;r++){
       for(let c=0;c<current.matrix[r].length;c++){
         const v = current.matrix[r][c];
@@ -571,7 +562,6 @@
       }
     }
 
-    // black sheep convert
     if(current.kind === "BLACKSHEEP"){
       const chosen = chooseConversionAnimalForBlackSheep(current);
       for(const [x,y] of footprintCells(current)){
@@ -658,15 +648,64 @@
     particles = particles.filter(p => p.life > 0);
   }
 
+  // ===== Viewport fit / safe-area (inject CSS so iPhone stops clipping) =====
+  function injectViewportCSS(){
+    const css = `
+      html, body { height: 100%; margin:0; padding:0; overscroll-behavior:none; }
+      body { padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+             padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
+      canvas { display:block; touch-action:none; }
+      .aw-backdrop { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+                     background: rgba(0,0,0,0.62); z-index:9999;
+                     padding-top: env(safe-area-inset-top, 0px);
+                     padding-bottom: env(safe-area-inset-bottom, 0px); }
+      .aw-modal { width:min(92vw, 520px); background:#0b0b10; color:#fff; border-radius:14px;
+                  border:1px solid rgba(255,255,255,0.12); padding:14px 14px 10px; }
+      .aw-modal h2 { margin: 4px 0 10px; font-size: 18px; }
+      .aw-modal .row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; }
+      .aw-modal button { font-size:16px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.18);
+                         background:#141421; color:#fff; }
+      .aw-modal button:active { transform: translateY(1px); }
+    `;
+    const style = document.createElement("style");
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function fitCanvasToViewport(){
+    const vv = window.visualViewport;
+    const vh = vv ? vv.height : window.innerHeight;
+
+    // canvas top relative to viewport
+    const r = canvas.getBoundingClientRect();
+    const top = r.top;
+
+    // leave a little breathing room at bottom
+    const safeBottom = 10;
+    const targetH = Math.max(240, Math.floor(vh - top - safeBottom));
+    canvas.style.width = "100%";
+    canvas.style.height = `${targetH}px`;
+
+    resize(); // recompute internal pixel size based on new rect
+  }
+
   // ===== Drawing =====
   function resize(){
     const rect = canvas.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const targetW = Math.floor(rect.width * dpr);
 
-    cell = Math.floor((targetW - pad*2*dpr) / COLS);
-    W = cell * COLS + pad*2*dpr;
-    H = cell * ROWS + pad*2*dpr;
+    const targetW = Math.floor(rect.width * dpr);
+    const targetH = Math.floor(rect.height * dpr);
+
+    // Fit within BOTH width & height to avoid iPhone clipping
+    const padPx = pad*2*dpr;
+    const cellByW = Math.floor((targetW - padPx) / COLS);
+    const cellByH = Math.floor((targetH - padPx) / ROWS);
+    cell = Math.max(6, Math.min(cellByW, cellByH));
+
+    W = cell * COLS + padPx;
+    H = cell * ROWS + padPx;
+
     canvas.width = W;
     canvas.height = H;
     draw();
@@ -697,18 +736,23 @@
   }
 
   function drawOverlay(px){
+    // Make eggs/turds feel "embedded" (less salient)
+    ctx.save();
+    ctx.globalAlpha = 0.18;                 // was 0.45
+    ctx.filter = "grayscale(0.55) saturate(0.70) contrast(0.92)";
+
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const p = overlay[y][x];
         if(p === POWER.NONE) continue;
+
         const gx = px + x*cell;
         const gy = px + y*cell;
 
         ctx.save();
         ctx.translate(gx + cell/2, gy + cell/2);
-        ctx.rotate((x+y)%2 ? -0.12 : 0.10);
-        ctx.globalAlpha = 0.45;
-        ctx.font = `${Math.floor(cell*0.62)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+        ctx.rotate((x+y)%2 ? -0.10 : 0.08);
+        ctx.font = `${Math.floor(cell*0.52)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "#fff";
@@ -716,6 +760,7 @@
         ctx.restore();
       }
     }
+    ctx.restore();
   }
 
   function drawTile(x,y,t,px,withEmoji){
@@ -739,7 +784,7 @@
     ctx.restore();
 
     if(withEmoji){
-      ctx.font = `${Math.floor(cell*0.68)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+      ctx.font = `${Math.floor(cell*0.66)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.globalAlpha = 0.22;
@@ -781,8 +826,8 @@
 
         ctx.globalAlpha = 0.12;
         roundRectFill(gx+3, gy+3, cell-6, cell-6, 10, "#000");
-        ctx.globalAlpha = 0.26;
-        ctx.strokeStyle = "rgba(255,255,255,0.65)";
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = "rgba(255,255,255,0.60)";
         ctx.lineWidth = Math.max(1, Math.floor(cell*0.055));
         roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
       }
@@ -805,7 +850,6 @@
 
   function draw(){
     ctx.clearRect(0,0,W,H);
-
     roundRectFill(0,0,W,H,18, "#050507");
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -867,15 +911,17 @@
     }
   }
 
-  // ===== Touch controls (step-based, NO hold repeat) =====
+  // ===== Touch controls =====
+  // Changes:
+  // - NO "Sound unlocked" popup
+  // - Swipe up rotates (left = CCW, right/straight = CW)
+  // - Quick tap LEFT half = move left, RIGHT half = move right
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    unlockAudio(); // required on iOS
-    if(audioCtx && soundOn) showToast("Sound unlocked", 550);
-
+    unlockAudioSilently(); // iOS requirement, but silent
     touch = {
       x0: e.clientX, y0: e.clientY,
-      x: e.clientX, y: e.clientY,
+      x: e.clientX,  y: e.clientY,
       movedX: 0, movedY: 0,
       t0: performance.now(),
       didRotate: false
@@ -901,7 +947,7 @@
     const totalUp = touch.y0 - ny;
     if(!touch.didRotate && totalUp >= SWIPE_UP_MIN){
       const totalDx = nx - touch.x0;
-      rotate(totalDx < 0 ? false : true);
+      rotate(totalDx < 0 ? false : true); // up-left CCW, up-right/straight CW
       touch.didRotate = true;
       touch.x0 = nx; touch.y0 = ny;
     }
@@ -911,14 +957,19 @@
     e.preventDefault();
     if(!touch) return;
 
-    // tap = rotate CW
     const dt = performance.now() - touch.t0;
     const dist = Math.hypot((e.clientX - touch.x0),(e.clientY - touch.y0));
-    if(dt < 220 && dist < 10){
-      rotate(true);
+
+    // quick tap => left/right nudge (NOT rotate)
+    if(dt < 230 && dist < 10){
+      const rect = canvas.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      move(e.clientX < cx ? -1 : 1);
     }
+
     touch = null;
   });
+
   canvas.addEventListener("pointercancel", () => { touch = null; });
 
   // ===== Keyboard controls (only when NOT touch) =====
@@ -929,7 +980,6 @@
       const k = e.key;
       const lk = k.toLowerCase();
 
-      // avoid scrolling with arrows
       if(["ArrowLeft","ArrowRight","ArrowDown","ArrowUp"," "].includes(k)) e.preventDefault();
 
       if(lk === "p"){ paused = !paused; draw(); return; }
@@ -945,107 +995,103 @@
     }, { passive:false });
   }
 
-  // ===== Settings (NEW mechanism: native `hidden`, capture-phase delegation) =====
-  function findSettingsContainer(){
-    const sel = [
-      "#modalBackdrop",
-      "#settingsBackdrop",
-      "#settings",
-      ".modalBackdrop",
-      ".modal-backdrop",
-      ".settings-backdrop",
-      ".settingsModal",
-      ".settings"
-    ].join(",");
-    let el = document.querySelector(sel);
-    if(el) return el;
+  // ===== Settings: rebuild as a real modal that always closes =====
+  function buildSettingsModal(){
+    if(!gear) return;
 
-    // fallback: container that contains Settings + Done/Sound
-    const candidates = document.querySelectorAll("section, div, aside, dialog");
-    for(const c of candidates){
-      const txt = (c.innerText || "").toLowerCase();
-      if(txt.includes("settings") && (txt.includes("done") || txt.includes("sound"))){
-        return c;
-      }
+    // find the "Settings" header in the page content
+    const headings = Array.from(document.querySelectorAll("h1,h2,h3"));
+    const h = headings.find(el => (el.textContent || "").trim().toLowerCase() === "settings");
+    if(!h) return;
+
+    // collect nodes from Settings header until end (or until a new h1/h2/h3 after it)
+    const nodes = [];
+    let n = h;
+    while(n){
+      nodes.push(n);
+      const next = n.nextElementSibling;
+      if(!next) break;
+      if(next.matches("h1,h2,h3") && (next.textContent || "").trim().toLowerCase() !== "settings") break;
+      n = next;
     }
-    return null;
+
+    // create modal DOM
+    const backdrop = document.createElement("div");
+    backdrop.className = "aw-backdrop";
+    backdrop.setAttribute("aria-hidden", "true");
+
+    const modal = document.createElement("div");
+    modal.className = "aw-modal";
+    backdrop.appendChild(modal);
+
+    // move the settings nodes into the modal
+    for(const el of nodes){
+      modal.appendChild(el);
+    }
+
+    // remove any lingering "Done" button if it exists; we rewire close
+    // (but keep it if it's already the right element)
+    let doneBtn = modal.querySelector("#closeModal");
+    if(!doneBtn){
+      doneBtn = Array.from(modal.querySelectorAll("button")).find(b => (b.textContent||"").trim().toLowerCase() === "done") || null;
+    }
+    if(!doneBtn){
+      doneBtn = document.createElement("button");
+      doneBtn.textContent = "Done";
+      modal.appendChild(doneBtn);
+    }
+    doneBtn.id = "closeModal";
+
+    // Ensure Sound toggle exists and works (if your HTML has it already, we keep it)
+    if(soundToggle){
+      syncSoundBtn();
+    }
+
+    document.body.appendChild(backdrop);
+
+    function open(){
+      backdrop.style.display = "flex";
+      backdrop.setAttribute("aria-hidden", "false");
+      haptic(8);
+    }
+    function close(){
+      backdrop.style.display = "none";
+      backdrop.setAttribute("aria-hidden", "true");
+      haptic(8);
+    }
+
+    // wire
+    gear.addEventListener("click", (e)=>{ e.preventDefault(); open(); }, {passive:false});
+    gear.addEventListener("touchend", (e)=>{ e.preventDefault(); open(); }, {passive:false});
+
+    doneBtn.addEventListener("click", (e)=>{ e.preventDefault(); close(); }, {passive:false});
+    doneBtn.addEventListener("touchend", (e)=>{ e.preventDefault(); close(); }, {passive:false});
+
+    backdrop.addEventListener("click", (e)=>{ if(e.target === backdrop) close(); }, {passive:true});
+    backdrop.addEventListener("touchend", (e)=>{ if(e.target === backdrop) close(); }, {passive:true});
+
+    // start closed
+    close();
   }
-
-  function openSettings(){
-    const box = findSettingsContainer();
-    if(!box) return;
-    box.hidden = false;
-    box.style.display = "flex";
-    box.setAttribute("aria-hidden", "false");
-    box.classList.add("is-open");
-  }
-
-  function closeSettings(){
-    const box = findSettingsContainer();
-    if(!box) return;
-    box.hidden = true;
-    box.style.display = "none";
-    box.setAttribute("aria-hidden", "true");
-    box.classList.remove("is-open");
-  }
-
-  // start closed no matter what
-  closeSettings();
-
-  // make button label match
-  syncSoundBtn();
 
   function syncSoundBtn(){
     if(!soundToggle) return;
     soundToggle.textContent = soundOn ? "ON" : "OFF";
   }
 
-  // capture-phase handler so taps still work even if something else eats events
-  function settingsHandler(e){
-    const t = e.target;
-
-    // open triggers
-    if(t.closest("#gear, [data-open-settings], .gear, .open-settings")){
-      e.preventDefault(); e.stopPropagation();
-      openSettings();
-      return;
-    }
-
-    // close triggers
-    if(t.closest("#closeModal, [data-close-settings], .closeModal, .close-settings, .done, button[aria-label='Done']")){
-      e.preventDefault(); e.stopPropagation();
-      closeSettings();
-      return;
-    }
-
-    // toggle sound
-    if(t.closest("#soundToggle, [data-toggle-sound]")){
-      e.preventDefault(); e.stopPropagation();
+  // Sound toggle (works even after modal rebuild)
+  if(soundToggle){
+    const onTap = (e) => {
+      e.preventDefault();
       soundOn = !soundOn;
       saveSoundPref();
       syncSoundBtn();
-      unlockAudio();
+      unlockAudioSilently();
       playTone({type:"sine", f1: soundOn ? 520 : 180, f2: soundOn ? 380 : 120, dur:0.06, gain:0.06});
-      return;
-    }
-
-    // tap outside (backdrop itself) closes
-    const box = findSettingsContainer();
-    if(box && !box.hidden && t === box){
-      closeSettings();
-    }
+    };
+    soundToggle.addEventListener("click", onTap, {passive:false});
+    soundToggle.addEventListener("touchend", onTap, {passive:false});
   }
-
-  document.addEventListener("click", settingsHandler, true);
-  document.addEventListener("touchend", settingsHandler, true);
-  document.addEventListener("pointerup", settingsHandler, true);
-
-  document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape") closeSettings();
-  }, true);
-
-  // expose for console debugging
-  window.__AW_SETTINGS__ = { open: openSettings, close: closeSettings };
 
   // ===== Game loop =====
   function tick(){
@@ -1086,19 +1132,33 @@
   }
 
   // ===== Init =====
-  function setupResize(){
-    const ro = new ResizeObserver(() => resize());
-    ro.observe(canvas);
-    window.addEventListener("resize", resize, {passive:true});
-  }
-
   function init(){
-    setupResize();
+    injectViewportCSS();
+
+    // overlay
     sprinkleOverlay();
+
+    // pieces
     next = newPiece();
     spawnNext();
+
+    // HUD
     updateHUD();
-    resize();
+
+    // settings modal (fixes “won’t close” permanently)
+    buildSettingsModal();
+
+    // fit to viewport + resize observers
+    fitCanvasToViewport();
+    const ro = new ResizeObserver(() => fitCanvasToViewport());
+    ro.observe(canvas);
+
+    window.addEventListener("resize", fitCanvasToViewport, {passive:true});
+    if(window.visualViewport){
+      window.visualViewport.addEventListener("resize", fitCanvasToViewport, {passive:true});
+      window.visualViewport.addEventListener("scroll", fitCanvasToViewport, {passive:true});
+    }
+
     requestAnimationFrame(tick);
   }
 
