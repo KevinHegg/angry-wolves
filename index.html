@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Angry Wolves (Prototype)</title>
+  <title>Angry Wolves</title>
   <style>
     :root{
       --bg:#0b0f14;
@@ -14,6 +14,7 @@
       --btn:#1a2636;
       --btn2:#223247;
       --accent:#ffd166;
+      --ok:#7dd3fc;
     }
     html,body{
       height:100%;
@@ -36,9 +37,7 @@
       gap:12px;
       margin-bottom:10px;
     }
-    .title{
-      line-height:1.05;
-    }
+    .title{ line-height:1.05; }
     .title h1{
       font-size: 20px;
       margin:0;
@@ -52,16 +51,24 @@
     .hud{
       text-align:right;
       font-variant-numeric: tabular-nums;
+      min-width: 160px;
     }
     .hud .score{
       font-size: 18px;
-      font-weight: 700;
+      font-weight: 800;
       color: var(--accent);
     }
     .hud .meta{
       font-size: 12px;
       color: var(--muted);
+      line-height: 1.3;
     }
+    .hud .best{
+      font-size: 12px;
+      color: var(--ok);
+      margin-top: 2px;
+    }
+
     canvas{
       width: 100%;
       height: auto;
@@ -69,7 +76,9 @@
       background: linear-gradient(180deg, #0f1620 0%, #0b0f14 100%);
       border-radius: 14px;
       box-shadow: 0 6px 26px rgba(0,0,0,0.45);
+      -webkit-tap-highlight-color: transparent;
     }
+
     .controls{
       margin-top:12px;
       background: var(--panel);
@@ -97,7 +106,7 @@
       color: var(--txt);
       border-radius: 12px;
       padding: 14px 12px;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 14px;
       letter-spacing: 0.2px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.25);
@@ -106,9 +115,8 @@
       transform: translateY(1px);
       background: var(--btn2);
     }
-    .big{
-      font-size: 16px;
-    }
+    .big{ font-size: 16px; }
+
     .row2{
       margin-top:10px;
       display:flex;
@@ -135,28 +143,30 @@
       text-align:right;
       white-space: nowrap;
     }
-    .danger{
-      color:#ff6b6b;
-      font-weight:700;
-    }
+    .danger{ color:#ff6b6b; font-weight:800; }
+
+    /* Touch devices: hide desktop controls */
+    .touch-only .controls,
+    .touch-only .desktop-hint { display: none !important; }
   </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap">
   <header>
     <div class="title">
       <h1>Angry Wolves</h1>
-      <div class="sub">Tetris-ish herds • clear groups ≥10 • wolves bomb • black sheep converts</div>
+      <div class="sub">Clear herds ≥10 • 🐑‍⬛ converts • 🐺 smashes</div>
     </div>
     <div class="hud">
       <div class="score"><span id="score">0</span> 🪙</div>
-      <div class="meta">Level <span id="level">1</span> · Lines? nah · Herds cleared <span id="clears">0</span></div>
+      <div class="meta">Level <span id="level">1</span> · Herds cleared <span id="clears">0</span></div>
+      <div class="best" id="best">Best: —</div>
     </div>
   </header>
 
-  <!-- internal resolution is set by JS; CSS makes it fill width -->
   <canvas id="c"></canvas>
 
+  <!-- Desktop-only controls -->
   <div class="controls">
     <div class="cluster">
       <button id="left" class="big">◀︎</button>
@@ -173,12 +183,12 @@
   <div class="row2">
     <div class="pill">
       <div class="hint">
-        Swipe <b>←/→</b> move · Swipe <b>↓</b> drop · Tap board rotate<br/>
-        Desktop: arrows + <b>Z/X</b> rotate · <b>Space</b> hard drop · <b>P</b> pause
+        <span class="desktop-hint">Desktop: arrows · Z/X rotate · Space hard drop · P pause</span>
+        <span class="touch-hint">Touch: swipe ←/→ move (hold to repeat) · swipe ↓ hard drop · tap rotate</span>
       </div>
       <div class="kbd">
-        <span class="danger">Cow pie</span> -5 🪙<br/>
-        Golden egg +5 🪙
+        <span class="danger">💩</span> -5 🪙<br/>
+        🥚 +5 🪙
       </div>
     </div>
   </div>
@@ -188,11 +198,31 @@
 (() => {
   // ======= CONFIG =======
   const COLS = 10;
-  const ROWS = 20;
+  const ROWS = 16;               // fewer rows for mobile readability (try 14–16)
   const CLEAR_THRESHOLD = 10;
 
-  // Tile codes
-  // 1..5 animals, 6 cow pie, 7 golden egg, 8 wolves, 9 black sheep (special piece marker only; becomes animal on lock)
+  // Drop tuning
+  const BASE_FALL_MS = 650;
+  const MIN_FALL_MS = 120;
+  const LEVEL_EVERY_LOCKS = 12;
+
+  // Movement repeat (for swipe-hold)
+  const HOLD_REPEAT_MS = 70;
+
+  // Hard drop gesture
+  const HARD_SWIPE_DY = 35;      // smaller = easier to trigger on phone
+  const HARD_SWIPE_DT = 180;     // ms: must be fast
+
+  // Spawn weights
+  const WEIGHT_NORMAL = 0.88;
+  const WEIGHT_BLACKSHEEP = 0.08;
+  const WEIGHT_WOLVES = 0.04;
+
+  // Powerups in normal pieces (these are “board tiles” that score when cleared inside herds)
+  const P_EGG = 0.03;
+  const P_PIE = 0.03;
+
+  // ======= TILE CODES =======
   const TILE = {
     EMPTY: 0,
     SHEEP: 1,
@@ -220,7 +250,6 @@
     [TILE.BLACK_SHEEP]: "🐑‍⬛",
   };
 
-  // Lightweight palette (we still draw emoji, but color helps fallback)
   const TILE_COLOR = {
     [TILE.SHEEP]: "#cbd5e1",
     [TILE.GOAT]: "#d4b483",
@@ -233,7 +262,16 @@
     [TILE.BLACK_SHEEP]: "#111827",
   };
 
-  // 7 tetriminos in 4x4 matrices (standard)
+  // Proper group names
+  const GROUP_NAME = {
+    [TILE.SHEEP]: "flock",
+    [TILE.GOAT]: "herd",
+    [TILE.CHICKEN]: "flock",
+    [TILE.COW]: "herd",
+    [TILE.PIG]: "sounder",
+  };
+
+  // ======= TETRIMINOS (standard 4x4) =======
   const SHAPES = {
     I: [
       [0,0,0,0],
@@ -280,52 +318,26 @@
   };
   const SHAPE_KEYS = Object.keys(SHAPES);
 
-  // Special 2x2 pieces:
-  // Wolves bomb: 2x2 block of WOLF. On lock: clears its 2x2 footprint (removes what was there) and disappears.
-  // Black sheep convert: 2x2 of BLACK_SHEEP. On lock: converts to chosen animal type (based on adjacency) and stays.
+  // Specials 2x2 (no rotate)
   const SPECIAL = {
-    WOLVES_2: {
-      name: "Wolves 2x2",
-      matrix: [
-        [1,1],
-        [1,1],
-      ],
-      tile: TILE.WOLF,
-      rotates: false
-    },
-    BLACKSHEEP_2: {
-      name: "Black Sheep 2x2",
-      matrix: [
-        [1,1],
-        [1,1],
-      ],
-      tile: TILE.BLACK_SHEEP,
-      rotates: false
-    }
+    WOLVES_2: { matrix: [[1,1],[1,1]], tile: TILE.WOLF },
+    BLACKSHEEP_2: { matrix: [[1,1],[1,1]], tile: TILE.BLACK_SHEEP },
   };
 
-  // Spawn weights
-  const WEIGHT_NORMAL = 0.88;
-  const WEIGHT_BLACKSHEEP = 0.08;
-  const WEIGHT_WOLVES = 0.04;
-
-  // Powerups as occasional replacement tiles inside normal pieces
-  const P_EGG = 0.03;
-  const P_PIE = 0.03;
-
-  // Speed curve
-  const BASE_FALL_MS = 700;     // level 1
-  const MIN_FALL_MS = 120;
-  const LEVEL_EVERY_LOCKS = 12; // increase every X locked pieces
-
-  // ======= STATE =======
+  // ======= DOM =======
+  const wrap = document.getElementById("wrap");
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
   const scoreEl = document.getElementById("score");
   const levelEl = document.getElementById("level");
   const clearsEl = document.getElementById("clears");
+  const bestEl = document.getElementById("best");
 
-  let W = 0, H = 0, cell = 0, pad = 10;
+  // Detect touch device; if touch, we run gesture-only.
+  const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
+  if(IS_TOUCH) wrap.classList.add("touch-only");
+
+  // ======= STATE =======
   let board = makeBoard();
   let current = null;
   let next = null;
@@ -340,30 +352,28 @@
   let paused = false;
   let gameOver = false;
 
+  // Canvas sizing
+  let W=0, H=0, cell=0, pad=10;
+
+  // Audio (must start on user gesture)
+  let audioCtx = null;
+
+  // Clear feedback banner
+  let banner = { text:"", t:0, ttl: 1100 }; // ms
+
   // ======= HELPERS =======
   function makeBoard(){
     return Array.from({length: ROWS}, () => Array(COLS).fill(TILE.EMPTY));
   }
-
-  function cloneMatrix(m){
-    return m.map(r => r.slice());
-  }
+  function cloneMatrix(m){ return m.map(r => r.slice()); }
+  function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
   function rotateCW(mat){
     const n = mat.length;
     const m = mat[0].length;
-    // For our 4x4 or 2x2, handle rectangular too:
     const out = Array.from({length: m}, () => Array(n).fill(0));
-    for(let r=0;r<n;r++){
-      for(let c=0;c<m;c++){
-        out[c][n-1-r] = mat[r][c];
-      }
-    }
+    for(let r=0;r<n;r++) for(let c=0;c<m;c++) out[c][n-1-r] = mat[r][c];
     return out;
-  }
-
-  function randChoice(arr){
-    return arr[Math.floor(Math.random()*arr.length)];
   }
 
   function weightedSpawnKind(){
@@ -383,41 +393,18 @@
   function newPiece(){
     const kind = weightedSpawnKind();
     if(kind === "WOLVES"){
-      return {
-        kind,
-        x: Math.floor(COLS/2) - 1,
-        y: 0,
-        matrix: cloneMatrix(SPECIAL.WOLVES_2.matrix),
-        tile: TILE.WOLF,
-        rotates: false,
-        // For special 2x2, matrix is 2x2 with 1s
-      };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: cloneMatrix(SPECIAL.WOLVES_2.matrix), tile: TILE.WOLF, rotates: false };
     }
     if(kind === "BLACKSHEEP"){
-      return {
-        kind,
-        x: Math.floor(COLS/2) - 1,
-        y: 0,
-        matrix: cloneMatrix(SPECIAL.BLACKSHEEP_2.matrix),
-        tile: TILE.BLACK_SHEEP,
-        rotates: false,
-      };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: cloneMatrix(SPECIAL.BLACKSHEEP_2.matrix), tile: TILE.BLACK_SHEEP, rotates: false };
     }
 
-    // NORMAL
     const shapeKey = randChoice(SHAPE_KEYS);
     const animal = randChoice(ANIMALS);
-    // Build a matrix where 1s become tiles (animal or powerups)
     const base = SHAPES[shapeKey];
+
     const m = base.map(row => row.map(v => v ? maybePowerTile(animal) : 0));
-    return {
-      kind,
-      shapeKey,
-      x: Math.floor(COLS/2) - 2,
-      y: 0,
-      matrix: m,
-      rotates: true
-    };
+    return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates: true };
   }
 
   function collides(piece, dx=0, dy=0, testMatrix=null){
@@ -435,32 +422,252 @@
     return false;
   }
 
+  function spawnNext(){
+    current = next ?? newPiece();
+    next = newPiece();
+    if(collides(current,0,0)) gameOverNow();
+  }
+
+  function updateLevel(){
+    level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
+    fallInterval = Math.max(MIN_FALL_MS, Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1)));
+    updateHUD();
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = Math.max(0, score|0);
+    levelEl.textContent = level;
+    clearsEl.textContent = herdsCleared;
+
+    const best = computeBestGroup();
+    if(!best) bestEl.textContent = "Best: —";
+    else {
+      const emoji = TILE_LABEL[best.animal] || "•";
+      const gname = GROUP_NAME[best.animal] || "group";
+      bestEl.textContent = `Best: ${best.count} ${emoji} (${gname})`;
+    }
+  }
+
+  function gameOverNow(){
+    gameOver = true;
+    paused = true;
+    draw();
+    setTimeout(() => {
+      alert("Game Over!\n\nTap OK to restart.");
+      restart();
+    }, 30);
+  }
+
+  function restart(){
+    board = makeBoard();
+    score = 0;
+    level = 1;
+    locks = 0;
+    herdsCleared = 0;
+    fallInterval = BASE_FALL_MS;
+    paused = false;
+    gameOver = false;
+    current = null;
+    next = null;
+    banner = {text:"", t:0, ttl: 1100};
+    spawnNext();
+    updateHUD();
+    draw();
+  }
+
+  // ======= SCORING =======
+  function applyTileScoreOnClear(tile){
+    if(ANIMALS.includes(tile)) score += 1;
+    else if(tile === TILE.EGG) score += 5;
+    else if(tile === TILE.PIE) score -= 5;
+  }
+
+  // ======= BLACK SHEEP CONVERSION =======
+  function chooseConversionAnimalForBlackSheep(piece){
+    const counts = new Map(ANIMALS.map(a => [a,0]));
+    const footprint = [];
+    for(let r=0;r<piece.matrix.length;r++){
+      for(let c=0;c<piece.matrix[r].length;c++){
+        if(piece.matrix[r][c]) footprint.push([piece.x + c, piece.y + r]);
+      }
+    }
+
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [x,y] of footprint){
+      for(const [dx,dy] of dirs){
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        const t = board[ny][nx];
+        if(ANIMALS.includes(t)) counts.set(t, counts.get(t)+1);
+      }
+    }
+
+    let best = ANIMALS[0], bestCount = -1;
+    for(const a of ANIMALS){
+      const v = counts.get(a);
+      if(v > bestCount){ bestCount = v; best = a; }
+    }
+    return (bestCount > 0) ? best : randChoice(ANIMALS);
+  }
+
+  // ======= HERD CLEARING (animals + power tiles inside the herd) =======
+  // Rule: herds are for ANIMALS only, but PIE/EGG can be cleared if they are connected inside that herd.
+  // PIE/EGG are treated as “wild” tiles that can be part of the herd, but they cannot bridge between different animal types.
+  function resolveBoard(){
+    let anyClears = false;
+
+    while(true){
+      const clears = findAnimalHerdsToClear();
+      if(clears.length === 0) break;
+
+      anyClears = true;
+      herdsCleared += clears.length;
+
+      // Clear + score
+      for(const herd of clears){
+        const { animal, cells } = herd;
+
+        // Feedback + sound once per herd
+        const gname = GROUP_NAME[animal] || "group";
+        const emoji = TILE_LABEL[animal] || "•";
+        banner.text = `Cleared ${cells.length} ${emoji} (${gname})`;
+        banner.t = performance.now();
+
+        playHerdSound(animal, cells.length);
+
+        for(const [x,y] of cells){
+          applyTileScoreOnClear(board[y][x]);
+          board[y][x] = TILE.EMPTY;
+        }
+      }
+
+      applyGravity();
+    }
+
+    if(anyClears) updateHUD();
+    else updateHUD();
+  }
+
+  function findAnimalHerdsToClear(){
+    const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
+    const out = [];
+
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(seen[y][x]) continue;
+        const t = board[y][x];
+        if(!ANIMALS.includes(t)){
+          // mark non-animal as seen (prevents pointless flood from PIE/EGG alone)
+          seen[y][x] = true;
+          continue;
+        }
+
+        const cells = floodAnimalWithWild(x,y,t,seen);
+        if(cells.length >= CLEAR_THRESHOLD){
+          out.push({ animal: t, cells });
+        }
+      }
+    }
+    return out;
+  }
+
+  function floodAnimalWithWild(sx,sy,animal,seen){
+    const q = [[sx,sy]];
+    const cells = [];
+    seen[sy][sx] = true;
+
+    const isWild = (t) => (t === TILE.EGG || t === TILE.PIE);
+
+    while(q.length){
+      const [x,y] = q.pop();
+      cells.push([x,y]);
+
+      const here = board[y][x];
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+
+      for(const [dx,dy] of dirs){
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        if(seen[ny][nx]) continue;
+
+        const t = board[ny][nx];
+
+        // From an animal tile: can go to same animal OR wild
+        if(ANIMALS.includes(here)){
+          if(t === animal || isWild(t)){
+            seen[ny][nx] = true;
+            q.push([nx,ny]);
+          }
+        } else if(isWild(here)){
+          // From a wild tile: can go to wild OR the SAME target animal only
+          if(t === animal || isWild(t)){
+            seen[ny][nx] = true;
+            q.push([nx,ny]);
+          }
+        }
+      }
+    }
+
+    return cells;
+  }
+
+  function applyGravity(){
+    for(let x=0;x<COLS;x++){
+      let write = ROWS-1;
+      for(let y=ROWS-1;y>=0;y--){
+        const t = board[y][x];
+        if(t !== TILE.EMPTY){
+          if(write !== y){
+            board[write][x] = t;
+            board[y][x] = TILE.EMPTY;
+          }
+          write--;
+        }
+      }
+    }
+  }
+
+  function computeBestGroup(){
+    // biggest “almost herd” currently on board (animals + wild in that herd)
+    const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
+    let best = null;
+
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(seen[y][x]) continue;
+        const t = board[y][x];
+        if(!ANIMALS.includes(t)){
+          seen[y][x] = true;
+          continue;
+        }
+        const cells = floodAnimalWithWild(x,y,t,seen);
+        if(!best || cells.length > best.count){
+          best = { animal: t, count: cells.length };
+        }
+      }
+    }
+    return best;
+  }
+
+  // ======= LOCKING PIECES =======
   function lockPiece(){
-    // Special wolves: clear 2x2 footprint and disappear
+    // Wolves: smash tiles directly below its 2x2 footprint, then vanish.
     if(current.kind === "WOLVES"){
       for(let r=0;r<current.matrix.length;r++){
         for(let c=0;c<current.matrix[r].length;c++){
           if(!current.matrix[r][c]) continue;
           const x = current.x + c;
           const y = current.y + r;
-          if(y>=0 && y<ROWS && x>=0 && x<COLS){
-            // Destroy whatever was here (empty already, but if you allow overlap in future, still works)
-            // In this prototype, piece locks on empty cells; but we still "bomb" a 2x2 area by clearing surrounding too.
-            // Bomb behavior: clear the footprint + the tiles directly under it (optional). We'll do footprint only for clarity.
-            // Since footprint is empty, make it more fun: clear the tiles directly UNDER each wolf block too, if present.
-            const belowY = y + 1;
-            if(belowY >= 0 && belowY < ROWS){
-              if(board[belowY][x] !== TILE.EMPTY){
-                const t = board[belowY][x];
-                // score for destroyed animals/powerups same as if cleared by herd
-                applyTileScoreOnClear(t, 1);
-                board[belowY][x] = TILE.EMPTY;
-              }
+          const belowY = y + 1;
+          if(belowY >= 0 && belowY < ROWS && x>=0 && x<COLS){
+            if(board[belowY][x] !== TILE.EMPTY){
+              // smashed tiles score as if cleared
+              applyTileScoreOnClear(board[belowY][x]);
+              board[belowY][x] = TILE.EMPTY;
             }
           }
         }
       }
-      // Wolves vanish. Then gravity + herd resolve.
       locks++;
       updateLevel();
       resolveBoard();
@@ -480,7 +687,7 @@
       }
     }
 
-    // Special black sheep conversion
+    // Black sheep: convert to best-adjacent animal on lock
     if(current.kind === "BLACKSHEEP"){
       const chosen = chooseConversionAnimalForBlackSheep(current);
       for(let r=0;r<current.matrix.length;r++){
@@ -488,9 +695,7 @@
           if(!current.matrix[r][c]) continue;
           const x = current.x + c;
           const y = current.y + r;
-          if(y>=0 && y<ROWS && x>=0 && x<COLS){
-            board[y][x] = chosen;
-          }
+          board[y][x] = chosen;
         }
       }
     }
@@ -501,211 +706,103 @@
     spawnNext();
   }
 
-  function chooseConversionAnimalForBlackSheep(piece){
-    // Count adjacent animals around the 2x2 footprint
-    const counts = new Map(ANIMALS.map(a => [a,0]));
-    const footprint = [];
-    for(let r=0;r<piece.matrix.length;r++){
-      for(let c=0;c<piece.matrix[r].length;c++){
-        if(piece.matrix[r][c]){
-          footprint.push([piece.x + c, piece.y + r]);
-        }
-      }
+  // ======= INPUT / MOVEMENT =======
+  function move(dx){
+    if(paused) return;
+    if(!collides(current, dx, 0)){
+      current.x += dx;
+      draw();
     }
-
-    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-    for(const [x,y] of footprint){
-      for(const [dx,dy] of dirs){
-        const nx = x+dx, ny=y+dy;
-        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
-        const t = board[ny][nx];
-        if(ANIMALS.includes(t)){
-          counts.set(t, counts.get(t)+1);
-        }
-      }
-    }
-
-    // Pick max; tie-break by "lowest-left contact": check tile below the bottom-left of footprint first.
-    let best = ANIMALS[0];
-    let bestCount = -1;
-    for(const a of ANIMALS){
-      const v = counts.get(a);
-      if(v > bestCount){
-        bestCount = v;
-        best = a;
-      }
-    }
-    if(bestCount > 0) return best;
-
-    // If no adjacency, convert to random animal
-    return randChoice(ANIMALS);
   }
 
-  function applyTileScoreOnClear(tile, tilesClearedCount=1){
-    // Base: +1 per cleared tile for animal tiles
-    if(ANIMALS.includes(tile)){
-      score += 1 * tilesClearedCount;
-      return;
-    }
-    if(tile === TILE.EGG){
-      score += 5;
-      return;
-    }
-    if(tile === TILE.PIE){
-      score -= 5;
-      return;
-    }
-    // Others (wolf/black sheep) shouldn't be on board after lock in this prototype.
-  }
-
-  function resolveBoard(){
-    // Repeatedly: find herds >= threshold, clear them, gravity, repeat.
-    let any = false;
-    while(true){
-      const groups = findClearGroups();
-      if(groups.length === 0) break;
-      any = true;
-      herdsCleared += groups.length;
-
-      // Clear
-      for(const g of groups){
-        // compute scoring per tile
-        for(const [x,y] of g.cells){
-          const t = board[y][x];
-          applyTileScoreOnClear(t, 1);
-          board[y][x] = TILE.EMPTY;
-        }
-      }
-
-      // Gravity
-      applyGravity();
-    }
-    if(any){
-      updateHUD();
+  function softDrop(){
+    if(paused) return;
+    if(!collides(current, 0, 1)){
+      current.y += 1;
+      draw();
     } else {
-      updateHUD();
+      lockPiece();
+      draw();
     }
   }
 
-  function findClearGroups(){
-    const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
-    const groups = [];
-
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
-        if(seen[y][x]) continue;
-        const t = board[y][x];
-        if(t === TILE.EMPTY) { seen[y][x]=true; continue; }
-
-        // Groups are only for "same tile code" including powerups; but you want herds only for animals.
-        // We'll do: animals group with animals; pies/eggs clear only if connected to same type (rare but possible).
-        // (You can later change so pies/eggs only clear when included in an animal herd.)
-        const target = t;
-        const cells = floodCollect(x,y,target,seen);
-
-        // Herd rule:
-        // If animal tile and size>=threshold => clear
-        // If powerup tile, require size>=threshold too (keeps it simple)
-        if(cells.length >= CLEAR_THRESHOLD){
-          groups.push({tile: target, cells});
-        }
-      }
-    }
-    return groups;
-  }
-
-  function floodCollect(sx,sy,target,seen){
-    const q = [[sx,sy]];
-    const out = [];
-    seen[sy][sx] = true;
-    while(q.length){
-      const [x,y] = q.pop();
-      out.push([x,y]);
-      const n = [[1,0],[-1,0],[0,1],[0,-1]];
-      for(const [dx,dy] of n){
-        const nx=x+dx, ny=y+dy;
-        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
-        if(seen[ny][nx]) continue;
-        if(board[ny][nx] === target){
-          seen[ny][nx] = true;
-          q.push([nx,ny]);
-        }
-      }
-    }
-    return out;
-  }
-
-  function applyGravity(){
-    for(let x=0;x<COLS;x++){
-      let write = ROWS-1;
-      for(let y=ROWS-1;y>=0;y--){
-        const t = board[y][x];
-        if(t !== TILE.EMPTY){
-          if(write !== y){
-            board[write][x] = t;
-            board[y][x] = TILE.EMPTY;
-          }
-          write--;
-        }
-      }
-    }
-  }
-
-  function spawnNext(){
-    current = next ?? newPiece();
-    next = newPiece();
-    // if collides at spawn => game over
-    if(collides(current, 0, 0)){
-      gameOverNow();
-    }
-  }
-
-  function gameOverNow(){
-    gameOver = true;
-    paused = true;
+  function hardDrop(){
+    if(paused) return;
+    current.y = getGhostY(current);
+    lockPiece();
     draw();
-    // simple overlay
-    setTimeout(() => {
-      alert("Game Over!\n\nTap OK to restart.");
-      restart();
-    }, 30);
   }
 
-  function restart(){
-    board = makeBoard();
-    score = 0;
-    level = 1;
-    locks = 0;
-    herdsCleared = 0;
-    fallInterval = BASE_FALL_MS;
-    paused = false;
-    gameOver = false;
-    current = null;
-    next = null;
-    spawnNext();
-    updateHUD();
+  function rotate(){
+    if(paused) return;
+    if(!current.rotates) return;
+    const test = rotateCW(current.matrix);
+    const kicks = [0, -1, 1, -2, 2];
+    for(const k of kicks){
+      if(!collides(current, k, 0, test)){
+        current.matrix = test;
+        current.x += k;
+        draw();
+        return;
+      }
+    }
   }
 
-  function updateLevel(){
-    level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
-    fallInterval = Math.max(MIN_FALL_MS, Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1)));
-    updateHUD();
+  function getGhostY(piece){
+    let y = piece.y;
+    while(!collides(piece, 0, (y - piece.y) + 1)) y++;
+    return y;
   }
 
-  function updateHUD(){
-    scoreEl.textContent = Math.max(0, score|0); // clamp to 0 for display if you want; remove if you want debt.
-    levelEl.textContent = level;
-    clearsEl.textContent = herdsCleared;
+  // ======= AUDIO: simple synthesized “animal-ish” stingers =======
+  function ensureAudio(){
+    if(audioCtx) return;
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }catch(e){
+      audioCtx = null;
+    }
+  }
+
+  function playHerdSound(animal, size){
+    if(!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    const dur = 0.14 + Math.min(0.10, size/200);
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    // Different “character” per animal
+    let type = "sine";
+    let f1 = 220, f2 = 120;
+
+    if(animal === TILE.PIG){ type="square"; f1=180; f2=90; }
+    if(animal === TILE.COW){ type="sawtooth"; f1=140; f2=70; }
+    if(animal === TILE.SHEEP){ type="triangle"; f1=380; f2=260; }
+    if(animal === TILE.GOAT){ type="triangle"; f1=320; f2=160; }
+    if(animal === TILE.CHICKEN){ type="square"; f1=520; f2=350; }
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(f1, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40,f2), t0 + dur);
+
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(t0);
+    osc.stop(t0 + dur);
   }
 
   // ======= DRAWING =======
   function resize(){
     const rect = canvas.getBoundingClientRect();
-    // Make internal resolution crisp
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
     const targetW = Math.floor(rect.width * dpr);
-    // Maintain aspect ratio based on rows/cols
-    // We'll compute cell size from width, and set height from it.
+
     cell = Math.floor((targetW - pad*2*dpr) / COLS);
     W = cell * COLS + pad*2*dpr;
     H = cell * ROWS + pad*2*dpr;
@@ -716,32 +813,28 @@
 
   function draw(){
     ctx.clearRect(0,0,W,H);
-
-    // background
     roundRect(ctx, 0,0,W,H, 18, true, false);
 
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
     const px = pad*dpr;
 
-    // board
+    // Board
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         drawCell(x,y, board[y][x], px);
       }
     }
 
-    // ghost piece
+    // Ghost
     if(current && !paused){
       const ghostY = getGhostY(current);
       drawPiece(current, 0, ghostY - current.y, px, true);
     }
 
-    // current piece
-    if(current){
-      drawPiece(current, 0, 0, px, false);
-    }
+    // Current
+    if(current) drawPiece(current, 0, 0, px, false);
 
-    // border grid overlay
+    // Grid overlay
     ctx.globalAlpha = 0.10;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
@@ -759,9 +852,32 @@
     }
     ctx.globalAlpha = 1;
 
+    // Banner
+    if(banner.text){
+      const now = performance.now();
+      const age = now - banner.t;
+      if(age < banner.ttl){
+        const a = Math.max(0, 1 - age / banner.ttl);
+        ctx.save();
+        ctx.globalAlpha = 0.75 * a;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0,0,W, Math.floor(cell*1.2));
+        ctx.globalAlpha = 1 * a;
+        ctx.fillStyle = "#fff";
+        ctx.font = `${Math.floor(cell*0.55)}px system-ui`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(banner.text, W/2, Math.floor(cell*0.6));
+        ctx.restore();
+      } else {
+        banner.text = "";
+      }
+    }
+
+    // Pause overlay
     if(paused && !gameOver){
       ctx.save();
-      ctx.globalAlpha = 0.65;
+      ctx.globalAlpha = 0.6;
       ctx.fillStyle = "#000";
       ctx.fillRect(0,0,W,H);
       ctx.globalAlpha = 1;
@@ -777,7 +893,6 @@
     const gx = px + x*cell;
     const gy = px + y*cell;
 
-    // empty cell subtle
     if(tile === TILE.EMPTY){
       ctx.globalAlpha = 0.08;
       ctx.fillStyle = "#ffffff";
@@ -786,13 +901,11 @@
       return;
     }
 
-    // filled
     ctx.fillStyle = TILE_COLOR[tile] || "#ddd";
     ctx.globalAlpha = 0.95;
     roundRect(ctx, gx+1, gy+1, cell-2, cell-2, 10, true, false);
     ctx.globalAlpha = 1;
 
-    // emoji label
     ctx.font = `${Math.floor(cell*0.7)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -802,9 +915,7 @@
   function drawPiece(piece, dx, dy, px, ghost){
     const m = piece.matrix;
     ctx.save();
-    if(ghost){
-      ctx.globalAlpha = 0.22;
-    }
+    if(ghost) ctx.globalAlpha = 0.22;
     for(let r=0;r<m.length;r++){
       for(let c=0;c<m[r].length;c++){
         const v = m[r][c];
@@ -834,73 +945,100 @@
     if(stroke) ctx.stroke();
   }
 
-  // ======= INPUT =======
-  function move(dx){
-    if(paused) return;
-    if(!collides(current, dx, 0)){
-      current.x += dx;
-      draw();
+  // ======= TOUCH GESTURES (gesture-only on touch devices) =======
+  let touchStart = null;
+  let holdTimer = null;
+  let holdDir = 0;
+
+  function clearHold(){
+    if(holdTimer){
+      clearInterval(holdTimer);
+      holdTimer = null;
     }
+    holdDir = 0;
   }
 
-  function softDrop(){
-    if(paused) return;
-    if(!collides(current, 0, 1)){
-      current.y += 1;
-      draw();
-    } else {
-      lockPiece();
-      draw();
+  function startHold(dir){
+    clearHold();
+    holdDir = dir;
+    move(dir);
+    holdTimer = setInterval(() => move(dir), HOLD_REPEAT_MS);
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    ensureAudio();
+    if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+
+    touchStart = {x: e.clientX, y: e.clientY, t: performance.now()};
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if(!IS_TOUCH) return;
+    if(!touchStart) return;
+    const dx = e.clientX - touchStart.x;
+    const dy = e.clientY - touchStart.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    // If user drags horizontally enough, begin repeating movement while held.
+    if(absX > 22 && absX > absY){
+      startHold(dx < 0 ? -1 : 1);
+      // reset start point so movement feels continuous
+      touchStart.x = e.clientX;
+      touchStart.y = e.clientY;
+      touchStart.t = performance.now();
     }
-  }
+  });
 
-  function hardDrop(){
-    if(paused) return;
-    current.y = getGhostY(current);
-    lockPiece();
-    draw();
-  }
+  canvas.addEventListener("pointerup", (e) => {
+    e.preventDefault();
+    clearHold();
+    if(!touchStart) return;
 
-  function rotate(dir){
-    if(paused) return;
-    if(!current.rotates) return;
-    // rotate CW for both buttons (simple); you can add CCW later
-    let test = rotateCW(current.matrix);
-    // Wall kicks (simple)
-    const kicks = [0, -1, 1, -2, 2];
-    for(const k of kicks){
-      if(!collides(current, k, 0, test)){
-        current.matrix = test;
-        current.x += k;
-        draw();
-        return;
-      }
+    const dx = e.clientX - touchStart.x;
+    const dy = e.clientY - touchStart.y;
+    const dt = performance.now() - touchStart.t;
+
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    // Tap = rotate
+    if(absX < 12 && absY < 12 && dt < 260){
+      rotate();
+      touchStart = null;
+      return;
     }
-  }
 
-  function getGhostY(piece){
-    let y = piece.y;
-    while(!collides(piece, 0, (y - piece.y) + 1)){
-      y++;
+    // Swipe down: hard drop if fast and big enough
+    if(absY > absX && dy > 0){
+      if(absY >= HARD_SWIPE_DY && dt <= HARD_SWIPE_DT) hardDrop();
+      else softDrop();
+      touchStart = null;
+      return;
     }
-    return y;
-  }
 
-  // Buttons: tap + hold support
+    // Non-hold horizontal swipe = single nudge
+    if(absX > absY){
+      move(dx < 0 ? -1 : 1);
+    }
+
+    touchStart = null;
+  });
+
+  canvas.addEventListener("pointercancel", () => { clearHold(); touchStart = null; });
+
+  // ======= DESKTOP CONTROLS (only if NOT touch) =======
   function bindHold(btn, onTick, ms=60){
     let timer = null;
     const start = (e) => {
       e.preventDefault();
-      if(timer) return;
       onTick();
       timer = setInterval(onTick, ms);
     };
     const stop = (e) => {
       e.preventDefault();
-      if(timer){
-        clearInterval(timer);
-        timer = null;
-      }
+      if(timer){ clearInterval(timer); timer = null; }
     };
     btn.addEventListener("pointerdown", start);
     btn.addEventListener("pointerup", stop);
@@ -908,77 +1046,38 @@
     btn.addEventListener("pointerleave", stop);
   }
 
-  const leftBtn = document.getElementById("left");
-  const rightBtn = document.getElementById("right");
-  const dropLBtn = document.getElementById("dropL");
-  const dropRBtn = document.getElementById("dropR");
-  const rotLBtn = document.getElementById("rotL");
-  const rotRBtn = document.getElementById("rotR");
+  if(!IS_TOUCH){
+    const leftBtn = document.getElementById("left");
+    const rightBtn = document.getElementById("right");
+    const dropLBtn = document.getElementById("dropL");
+    const dropRBtn = document.getElementById("dropR");
+    const rotLBtn = document.getElementById("rotL");
+    const rotRBtn = document.getElementById("rotR");
 
-  bindHold(leftBtn, () => move(-1), 70);
-  bindHold(rightBtn, () => move(1), 70);
-  bindHold(dropLBtn, () => softDrop(), 40);
-  bindHold(dropRBtn, () => softDrop(), 40);
-  rotLBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(-1); });
-  rotRBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(1); });
+    bindHold(leftBtn, () => move(-1), 70);
+    bindHold(rightBtn, () => move(1), 70);
+    bindHold(dropLBtn, () => softDrop(), 40);
+    bindHold(dropRBtn, () => softDrop(), 40);
+    rotLBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(); });
+    rotRBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(); });
 
-  // Tap board to rotate; swipe to move/drop
-  let touchStart = null;
-  canvas.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    touchStart = {x: e.clientX, y: e.clientY, t: performance.now()};
-  });
-  canvas.addEventListener("pointerup", (e) => {
-    e.preventDefault();
-    if(!touchStart) return;
-    const dx = e.clientX - touchStart.x;
-    const dy = e.clientY - touchStart.y;
-    const dt = performance.now() - touchStart.t;
-    touchStart = null;
+    window.addEventListener("keydown", (e) => {
+      const k = e.key.toLowerCase();
+      if(k === "p"){ paused = !paused; draw(); return; }
+      if(paused) return;
 
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    // Tap = rotate
-    if(absX < 12 && absY < 12 && dt < 250){
-      rotate(1);
-      return;
-    }
-
-    // Swipe
-    if(absX > absY){
-      if(dx < 0) move(-1);
-      else move(1);
-    } else {
-      if(dy > 0){
-        // swipe down = hard drop if strong, else soft
-        if(absY > 80) hardDrop();
-        else softDrop();
-      }
-    }
-  });
-
-  // Keyboard
-  window.addEventListener("keydown", (e) => {
-    const k = e.key.toLowerCase();
-    if(k === "p"){
-      paused = !paused;
-      draw();
-      return;
-    }
-    if(paused) return;
-
-    if(e.key === "ArrowLeft") move(-1);
-    else if(e.key === "ArrowRight") move(1);
-    else if(e.key === "ArrowDown") softDrop();
-    else if(e.key === " "){ e.preventDefault(); hardDrop(); }
-    else if(k === "z" || e.key === "ArrowUp") rotate(-1);
-    else if(k === "x") rotate(1);
-    else if(k === "r") restart();
-  });
+      if(e.key === "ArrowLeft") move(-1);
+      else if(e.key === "ArrowRight") move(1);
+      else if(e.key === "ArrowDown") softDrop();
+      else if(e.key === " "){ e.preventDefault(); hardDrop(); }
+      else if(k === "z" || e.key === "ArrowUp") rotate();
+      else if(k === "x") rotate();
+      else if(k === "r") restart();
+    });
+  }
 
   // ======= GAME LOOP =======
-  function tick(ts){
+  function tick(){
     requestAnimationFrame(tick);
     if(paused || gameOver) return;
 
@@ -989,7 +1088,7 @@
       return;
     }
 
-    fallTimer += 16; // approx; keep simple for prototype
+    fallTimer += 16;
     if(fallTimer >= fallInterval){
       fallTimer = 0;
       if(!collides(current, 0, 1)){
@@ -1003,9 +1102,7 @@
 
   // ======= INIT =======
   function init(){
-    // Set canvas css height automatically by internal resolution; but we can trigger a resize.
     window.addEventListener("resize", resize, {passive:true});
-    // Make canvas aspect stable by setting its CSS height based on width and board ratio
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
 
