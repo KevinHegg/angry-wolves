@@ -8,7 +8,7 @@
   const MIN_FALL_MS  = 120;
   const LEVEL_EVERY_LOCKS = 12;
 
-  // gesture step distances (no “hold-to-repeat”)
+  // gesture step distances (NO hold-to-repeat; movement only while finger moves)
   const STEP_X = 22;
   const STEP_Y = 22;
   const SWIPE_UP_MIN = 26;
@@ -18,7 +18,7 @@
   const WEIGHT_BLACKSHEEP = 0.08;
   const WEIGHT_WOLVES = 0.04;
 
-  // background overlay counts
+  // background overlay counts (do NOT block falling)
   const INITIAL_EGGS = 10;
   const INITIAL_TURDS = 10;
 
@@ -65,6 +65,7 @@
     [TILE.PIG]: "sounder",
   };
 
+  // ===== Shapes =====
   const SHAPES = {
     I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
     O: [[0,1,1,0],[0,1,1,0],[0,0,0,0],[0,0,0,0]],
@@ -129,6 +130,7 @@
   // ===== Audio =====
   let audioCtx = null;
   let soundOn = loadSoundPref();
+  let ambienceClock = 0;
 
   function loadSoundPref(){
     const v = localStorage.getItem("aw_sound");
@@ -237,6 +239,7 @@
   }
 
   function showToast(msg, ms=900){
+    if(!toastEl) return;
     toastEl.textContent = msg;
     toastEl.classList.remove("hidden");
     clearTimeout(showToast._t);
@@ -419,7 +422,7 @@
     return b;
   }
 
-  // ===== Cluster clearing (ONLY animals; no rows) =====
+  // ===== Cluster clearing (ONLY animals; NOT rows) =====
   function findAnimalGroupsToClear(){
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
     const out = [];
@@ -476,7 +479,7 @@
         }
       }
     }
-    // overlay does NOT fall
+    // overlay does NOT fall (background)
   }
 
   function resolveBoard(){
@@ -490,13 +493,13 @@
         // base
         score += cells.length;
 
-        // fib bonus for >10
+        // fib bonus for >10: 11 => +2, 12 => +3, 13 => +5 ...
         if(cells.length >= 11){
-          const bonusIndex = cells.length - 8; // 11->3 => +2
+          const bonusIndex = cells.length - 8; // 11->3 => 2
           score += fib(bonusIndex);
         }
 
-        // collect overlays
+        // collect overlays (multiplier)
         let eggs=0, turds=0;
         for(const [x,y] of cells){
           if(overlay[y][x] === POWER.EGG) eggs++;
@@ -702,6 +705,7 @@
         if(p === POWER.NONE) continue;
         const gx = px + x*cell;
         const gy = px + y*cell;
+
         ctx.save();
         ctx.translate(gx + cell/2, gy + cell/2);
         ctx.rotate((x+y)%2 ? -0.12 : 0.10);
@@ -773,6 +777,7 @@
         const x = piece.x + c + dx;
         const y = piece.y + r + dy;
         if(y < 0) continue;
+
         const gx = px + x*cell;
         const gy = px + y*cell;
 
@@ -803,7 +808,6 @@
   function draw(){
     ctx.clearRect(0,0,W,H);
 
-    // dark frame
     roundRectFill(0,0,W,H,18, "#050507");
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -821,10 +825,10 @@
       }
     }
 
-    // overlay behind
+    // overlay behind tiles
     drawOverlay(px);
 
-    // tiles
+    // placed tiles
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const t = board[y][x];
@@ -832,13 +836,13 @@
       }
     }
 
-    // ghost
+    // ghost shadow
     if(current && !paused){
       const gy = getGhostY(current);
       drawShadow(current, 0, gy-current.y, px);
     }
 
-    // current
+    // current piece
     if(current) drawPiece(current,0,0,px);
 
     // particles
@@ -865,10 +869,10 @@
     }
   }
 
-  // ===== Touch controls (step-based, no hold repeat) =====
+  // ===== Touch controls (step-based, NO hold repeat) =====
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    unlockAudio(); // key for iOS
+    unlockAudio(); // required on iOS
     if(audioCtx && soundOn) showToast("Sound unlocked", 550);
 
     touch = {
@@ -909,6 +913,7 @@
     e.preventDefault();
     if(!touch) return;
 
+    // tap = rotate CW
     const dt = performance.now() - touch.t0;
     const dist = Math.hypot((e.clientX - touch.x0),(e.clientY - touch.y0));
     if(dt < 220 && dist < 10){
@@ -918,18 +923,92 @@
   });
   canvas.addEventListener("pointercancel", () => { touch = null; });
 
-  // ===== Settings UI =====
-  function openModal(){ modalBackdrop.classList.remove("hidden"); }
-  function closeModalFn(){ modalBackdrop.classList.add("hidden"); }
-  gear.addEventListener("pointerdown", (e) => { e.preventDefault(); openModal(); });
-  closeModal.addEventListener("pointerdown", (e) => { e.preventDefault(); closeModalFn(); });
-  modalBackdrop.addEventListener("pointerdown", (e) => { if(e.target === modalBackdrop) closeModalFn(); });
+  // ===== Keyboard controls (only when NOT touch) =====
+  if(!IS_TOUCH){
+    window.addEventListener("keydown", (e) => {
+      if(gameOver) return;
+
+      const k = e.key;
+      const lk = k.toLowerCase();
+
+      // avoid scrolling with arrows
+      if(["ArrowLeft","ArrowRight","ArrowDown","ArrowUp"," "].includes(k)) e.preventDefault();
+
+      if(lk === "p"){ paused = !paused; draw(); return; }
+      if(lk === "r"){ restart(); return; }
+      if(paused) return;
+
+      if(k === "ArrowLeft" || lk === "a") move(-1);
+      else if(k === "ArrowRight" || lk === "d") move(1);
+      else if(k === "ArrowDown" || lk === "s") dropOne();
+      else if(k === "ArrowUp" || lk === "x") rotate(true);
+      else if(lk === "z") rotate(false);
+      else if(k === " ") dropOne();
+    }, { passive:false });
+  }
+
+  // ===== Settings UI (FIXED: closes reliably on iOS) =====
+  syncSoundBtn();
+
+  function openModal(){
+    if(!modalBackdrop) return;
+    modalBackdrop.classList.remove("hidden");
+    modalBackdrop.style.display = "flex"; // hard override in case .hidden CSS is busted
+  }
+
+  function closeModalFn(){
+    if(!modalBackdrop) return;
+    modalBackdrop.classList.add("hidden");
+    modalBackdrop.style.display = "none"; // hard override
+  }
+
+  // de-dupe events (click + touchend + pointerup)
+  let lastTapTs = 0;
+  function bindTap(el, fn){
+    if(!el) return;
+    const handler = (e) => {
+      const now = performance.now();
+      if(now - lastTapTs < 250) return;
+      lastTapTs = now;
+      e.preventDefault();
+      e.stopPropagation();
+      fn();
+    };
+    el.addEventListener("pointerup", handler, { passive:false });
+    el.addEventListener("touchend", handler, { passive:false });
+    el.addEventListener("click", handler, { passive:false });
+  }
+
+  bindTap(gear, openModal);
+  bindTap(closeModal, closeModalFn);
+
+  // tap outside modal closes
+  if(modalBackdrop){
+    modalBackdrop.addEventListener("click", (e) => {
+      if(e.target === modalBackdrop) closeModalFn();
+    }, { passive:true });
+    modalBackdrop.addEventListener("touchend", (e) => {
+      if(e.target === modalBackdrop) closeModalFn();
+    }, { passive:true });
+
+    // prevent inside taps from bubbling to backdrop
+    const modalPanel = modalBackdrop.querySelector(".modal");
+    if(modalPanel){
+      modalPanel.addEventListener("click", (e) => e.stopPropagation());
+      modalPanel.addEventListener("touchend", (e) => e.stopPropagation());
+      modalPanel.addEventListener("pointerup", (e) => e.stopPropagation());
+    }
+
+    // start hidden (hard)
+    closeModalFn();
+  }
 
   function syncSoundBtn(){
+    if(!soundToggle) return;
     soundToggle.textContent = soundOn ? "ON" : "OFF";
   }
-  soundToggle.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
+
+  bindTap(soundToggle, () => {
     soundOn = !soundOn;
     saveSoundPref();
     syncSoundBtn();
@@ -943,12 +1022,18 @@
     if(paused || gameOver) return;
 
     fallTimer += 16;
+    ambienceClock += 16;
+
+    if(ambienceClock > 500){
+      ambienceClock = 0;
+      playAmbienceTick();
+    }
+
     if(fallTimer >= fallInterval){
       fallTimer = 0;
       if(!collides(current,0,1)) current.y += 1;
       else lockPiece();
       draw();
-      playAmbienceTick();
     } else if(particles.length || banner.text){
       draw();
     }
@@ -969,23 +1054,15 @@
     draw();
   }
 
-  function sprinkleOverlay(){
-    overlay = makeOverlay();
-    const startRow = Math.max(ROWS-7, 0);
-    placeOverlay(POWER.EGG, INITIAL_EGGS, startRow);
-    placeOverlay(POWER.TURD, INITIAL_TURDS, startRow);
-  }
-
   // ===== Init =====
-  function resizeObserver(){
+  function setupResize(){
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
     window.addEventListener("resize", resize, {passive:true});
   }
 
   function init(){
-    syncSoundBtn();
-    resizeObserver();
+    setupResize();
     sprinkleOverlay();
     next = newPiece();
     spawnNext();
