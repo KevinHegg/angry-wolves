@@ -168,3 +168,4 @@ canvas{
   font-size: 12px;
   color: var(--muted);
 }
+.hidden { display: none !important; }
