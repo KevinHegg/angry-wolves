@@ -184,11 +184,11 @@
     <div class="pill">
       <div class="hint">
         <span class="desktop-hint">Desktop: arrows · Z/X rotate · Space hard drop · P pause</span>
-        <span class="touch-hint">Touch: swipe ←/→ move (hold to repeat) · swipe ↓ hard drop · tap rotate</span>
+        <span class="touch-hint">Touch: swipe ←/→ move (hold) · swipe ↑ rotate · swipe ↓ soft drop (hold) · tap rotate</span>
       </div>
       <div class="kbd">
-        <span class="danger">💩</span> -5 🪙<br/>
-        🥚 +5 🪙
+        <span class="danger">💩</span> halves score<br/>
+        🥚 doubles score
       </div>
     </div>
   </div>
@@ -198,29 +198,27 @@
 (() => {
   // ======= CONFIG =======
   const COLS = 10;
-  const ROWS = 16;               // fewer rows for mobile readability (try 14–16)
+  const ROWS = 16;
   const CLEAR_THRESHOLD = 10;
 
-  // Drop tuning
   const BASE_FALL_MS = 650;
   const MIN_FALL_MS = 120;
   const LEVEL_EVERY_LOCKS = 12;
 
-  // Movement repeat (for swipe-hold)
   const HOLD_REPEAT_MS = 70;
+  const SOFT_DROP_REPEAT_MS = 40;
 
-  // Hard drop gesture
-  const HARD_SWIPE_DY = 35;      // smaller = easier to trigger on phone
-  const HARD_SWIPE_DT = 180;     // ms: must be fast
+  // gesture thresholds
+  const SWIPE_MIN = 18;
+  const SWIPE_UP_MIN = 22;
 
-  // Spawn weights
   const WEIGHT_NORMAL = 0.88;
   const WEIGHT_BLACKSHEEP = 0.08;
   const WEIGHT_WOLVES = 0.04;
 
-  // Powerups in normal pieces (these are “board tiles” that score when cleared inside herds)
-  const P_EGG = 0.03;
-  const P_PIE = 0.03;
+  // NOTE: power tiles are now sprinkled on board at start (not inside pieces)
+  const INITIAL_EGGS = 8;
+  const INITIAL_TURDS = 8;
 
   // ======= TILE CODES =======
   const TILE = {
@@ -230,7 +228,7 @@
     CHICKEN: 3,
     COW: 4,
     PIG: 5,
-    PIE: 6,
+    TURD: 6,
     EGG: 7,
     WOLF: 8,
     BLACK_SHEEP: 9,
@@ -244,7 +242,7 @@
     [TILE.CHICKEN]: "🐔",
     [TILE.COW]: "🐄",
     [TILE.PIG]: "🐖",
-    [TILE.PIE]: "💩",
+    [TILE.TURD]: "💩",
     [TILE.EGG]: "🥚",
     [TILE.WOLF]: "🐺",
     [TILE.BLACK_SHEEP]: "🐑‍⬛",
@@ -256,13 +254,12 @@
     [TILE.CHICKEN]: "#f3e8a3",
     [TILE.COW]: "#b8c0ff",
     [TILE.PIG]: "#ffb3c1",
-    [TILE.PIE]: "#a07855",
+    [TILE.TURD]: "#a07855",
     [TILE.EGG]: "#ffe08a",
     [TILE.WOLF]: "#94a3b8",
     [TILE.BLACK_SHEEP]: "#111827",
   };
 
-  // Proper group names
   const GROUP_NAME = {
     [TILE.SHEEP]: "flock",
     [TILE.GOAT]: "herd",
@@ -271,7 +268,7 @@
     [TILE.PIG]: "sounder",
   };
 
-  // ======= TETRIMINOS (standard 4x4) =======
+  // ======= SHAPES =======
   const SHAPES = {
     I: [
       [0,0,0,0],
@@ -318,7 +315,6 @@
   };
   const SHAPE_KEYS = Object.keys(SHAPES);
 
-  // Specials 2x2 (no rotate)
   const SPECIAL = {
     WOLVES_2: { matrix: [[1,1],[1,1]], tile: TILE.WOLF },
     BLACKSHEEP_2: { matrix: [[1,1],[1,1]], tile: TILE.BLACK_SHEEP },
@@ -333,7 +329,6 @@
   const clearsEl = document.getElementById("clears");
   const bestEl = document.getElementById("best");
 
-  // Detect touch device; if touch, we run gesture-only.
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
   if(IS_TOUCH) wrap.classList.add("touch-only");
 
@@ -352,14 +347,20 @@
   let paused = false;
   let gameOver = false;
 
-  // Canvas sizing
   let W=0, H=0, cell=0, pad=10;
 
-  // Audio (must start on user gesture)
+  // Audio (starts on gesture)
   let audioCtx = null;
 
-  // Clear feedback banner
-  let banner = { text:"", t:0, ttl: 1100 }; // ms
+  // haptics helper (iOS Safari usually ignores this)
+  function haptic(ms=10){
+    try{
+      if("vibrate" in navigator) navigator.vibrate(ms);
+    }catch{}
+  }
+
+  // banner
+  let banner = { text:"", t:0, ttl: 900 };
 
   // ======= HELPERS =======
   function makeBoard(){
@@ -369,10 +370,16 @@
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
   function rotateCW(mat){
-    const n = mat.length;
-    const m = mat[0].length;
+    const n = mat.length, m = mat[0].length;
     const out = Array.from({length: m}, () => Array(n).fill(0));
     for(let r=0;r<n;r++) for(let c=0;c<m;c++) out[c][n-1-r] = mat[r][c];
+    return out;
+  }
+  function rotateCCW(mat){
+    // CCW = 3x CW, but do direct:
+    const n = mat.length, m = mat[0].length;
+    const out = Array.from({length: m}, () => Array(n).fill(0));
+    for(let r=0;r<n;r++) for(let c=0;c<m;c++) out[m-1-c][r] = mat[r][c];
     return out;
   }
 
@@ -383,13 +390,6 @@
     return "NORMAL";
   }
 
-  function maybePowerTile(baseAnimal){
-    const r = Math.random();
-    if(r < P_EGG) return TILE.EGG;
-    if(r < P_EGG + P_PIE) return TILE.PIE;
-    return baseAnimal;
-  }
-
   function newPiece(){
     const kind = weightedSpawnKind();
     if(kind === "WOLVES"){
@@ -398,12 +398,11 @@
     if(kind === "BLACKSHEEP"){
       return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: cloneMatrix(SPECIAL.BLACKSHEEP_2.matrix), tile: TILE.BLACK_SHEEP, rotates: false };
     }
-
     const shapeKey = randChoice(SHAPE_KEYS);
     const animal = randChoice(ANIMALS);
     const base = SHAPES[shapeKey];
-
-    const m = base.map(row => row.map(v => v ? maybePowerTile(animal) : 0));
+    // Normal pieces are purely animals now
+    const m = base.map(row => row.map(v => v ? animal : 0));
     return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates: true };
   }
 
@@ -458,8 +457,30 @@
     }, 30);
   }
 
+  function sprinklePowerTiles(){
+    // place eggs/turds in bottom 6 rows randomly, avoiding filled cells
+    const startRow = Math.max(ROWS-6, 0);
+
+    function place(tile, n){
+      let tries = 0;
+      while(n > 0 && tries < 5000){
+        tries++;
+        const x = Math.floor(Math.random()*COLS);
+        const y = startRow + Math.floor(Math.random()*(ROWS-startRow));
+        if(board[y][x] === TILE.EMPTY){
+          board[y][x] = tile;
+          n--;
+        }
+      }
+    }
+
+    place(TILE.EGG, INITIAL_EGGS);
+    place(TILE.TURD, INITIAL_TURDS);
+  }
+
   function restart(){
     board = makeBoard();
+    sprinklePowerTiles();
     score = 0;
     level = 1;
     locks = 0;
@@ -469,20 +490,13 @@
     gameOver = false;
     current = null;
     next = null;
-    banner = {text:"", t:0, ttl: 1100};
+    banner = {text:"", t:0, ttl: 900};
     spawnNext();
     updateHUD();
     draw();
   }
 
-  // ======= SCORING =======
-  function applyTileScoreOnClear(tile){
-    if(ANIMALS.includes(tile)) score += 1;
-    else if(tile === TILE.EGG) score += 5;
-    else if(tile === TILE.PIE) score -= 5;
-  }
-
-  // ======= BLACK SHEEP CONVERSION =======
+  // ======= BLACK SHEEP =======
   function chooseConversionAnimalForBlackSheep(piece){
     const counts = new Map(ANIMALS.map(a => [a,0]));
     const footprint = [];
@@ -510,43 +524,76 @@
     return (bestCount > 0) ? best : randChoice(ANIMALS);
   }
 
-  // ======= HERD CLEARING (animals + power tiles inside the herd) =======
-  // Rule: herds are for ANIMALS only, but PIE/EGG can be cleared if they are connected inside that herd.
-  // PIE/EGG are treated as “wild” tiles that can be part of the herd, but they cannot bridge between different animal types.
-  function resolveBoard(){
-    let anyClears = false;
+  // ======= SCORING =======
+  function fib(n){
+    // fib(1)=1 fib(2)=1 fib(3)=2 ...
+    if(n <= 0) return 0;
+    if(n === 1 || n === 2) return 1;
+    let a=1,b=1;
+    for(let i=3;i<=n;i++){
+      const c=a+b;
+      a=b; b=c;
+    }
+    return b;
+  }
 
+  // ======= CLEARING =======
+  function resolveBoard(){
     while(true){
       const clears = findAnimalHerdsToClear();
       if(clears.length === 0) break;
 
-      anyClears = true;
-      herdsCleared += clears.length;
-
-      // Clear + score
       for(const herd of clears){
         const { animal, cells } = herd;
 
-        // Feedback + sound once per herd
+        // Count eggs/turds inside this cleared herd
+        let eggs = 0, turds = 0, animalTiles = 0;
+
+        for(const [x,y] of cells){
+          const t = board[y][x];
+          if(t === TILE.EGG) eggs++;
+          else if(t === TILE.TURD) turds++;
+          else if(ANIMALS.includes(t)) animalTiles++;
+        }
+
+        // base points
+        score += animalTiles; // +1 per animal tile
+
+        // Fibonacci bonus for >10
+        if(cells.length >= 11){
+          const bonusIndex = cells.length - 8; // 11->3 => 2, 12->4 => 3, 13->5 => 5
+          score += fib(bonusIndex);
+        }
+
+        // apply multipliers
+        if(eggs > 0){
+          score = Math.floor(score * Math.pow(2, eggs));
+        }
+        if(turds > 0){
+          score = Math.floor(score / Math.pow(2, turds));
+        }
+
+        // clear
+        for(const [x,y] of cells) board[y][x] = TILE.EMPTY;
+
+        herdsCleared++;
+
         const gname = GROUP_NAME[animal] || "group";
         const emoji = TILE_LABEL[animal] || "•";
-        banner.text = `Cleared ${cells.length} ${emoji} (${gname})`;
+        banner.text = `Cleared ${cells.length} ${emoji} (${gname})  x${(eggs?("2^"+eggs):"")} ${(turds?("÷2^"+turds):"")}`.trim();
         banner.t = performance.now();
 
         playHerdSound(animal, cells.length);
-
-        for(const [x,y] of cells){
-          applyTileScoreOnClear(board[y][x]);
-          board[y][x] = TILE.EMPTY;
-        }
+        haptic(12);
       }
 
       applyGravity();
     }
 
-    if(anyClears) updateHUD();
-    else updateHUD();
+    updateHUD();
   }
+
+  function isWild(t){ return t === TILE.EGG || t === TILE.TURD; }
 
   function findAnimalHerdsToClear(){
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
@@ -557,7 +604,6 @@
         if(seen[y][x]) continue;
         const t = board[y][x];
         if(!ANIMALS.includes(t)){
-          // mark non-animal as seen (prevents pointless flood from PIE/EGG alone)
           seen[y][x] = true;
           continue;
         }
@@ -576,8 +622,6 @@
     const cells = [];
     seen[sy][sx] = true;
 
-    const isWild = (t) => (t === TILE.EGG || t === TILE.PIE);
-
     while(q.length){
       const [x,y] = q.pop();
       cells.push([x,y]);
@@ -592,14 +636,12 @@
 
         const t = board[ny][nx];
 
-        // From an animal tile: can go to same animal OR wild
         if(ANIMALS.includes(here)){
           if(t === animal || isWild(t)){
             seen[ny][nx] = true;
             q.push([nx,ny]);
           }
         } else if(isWild(here)){
-          // From a wild tile: can go to wild OR the SAME target animal only
           if(t === animal || isWild(t)){
             seen[ny][nx] = true;
             q.push([nx,ny]);
@@ -628,7 +670,6 @@
   }
 
   function computeBestGroup(){
-    // biggest “almost herd” currently on board (animals + wild in that herd)
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
     let best = null;
 
@@ -649,9 +690,9 @@
     return best;
   }
 
-  // ======= LOCKING PIECES =======
+  // ======= LOCKING =======
   function lockPiece(){
-    // Wolves: smash tiles directly below its 2x2 footprint, then vanish.
+    // Wolves smash tiles directly below their footprint, then vanish
     if(current.kind === "WOLVES"){
       for(let r=0;r<current.matrix.length;r++){
         for(let c=0;c<current.matrix[r].length;c++){
@@ -661,8 +702,6 @@
           const belowY = y + 1;
           if(belowY >= 0 && belowY < ROWS && x>=0 && x<COLS){
             if(board[belowY][x] !== TILE.EMPTY){
-              // smashed tiles score as if cleared
-              applyTileScoreOnClear(board[belowY][x]);
               board[belowY][x] = TILE.EMPTY;
             }
           }
@@ -672,6 +711,7 @@
       updateLevel();
       resolveBoard();
       spawnNext();
+      haptic(15);
       return;
     }
 
@@ -687,7 +727,7 @@
       }
     }
 
-    // Black sheep: convert to best-adjacent animal on lock
+    // Black sheep converts on lock
     if(current.kind === "BLACKSHEEP"){
       const chosen = chooseConversionAnimalForBlackSheep(current);
       for(let r=0;r<current.matrix.length;r++){
@@ -704,18 +744,22 @@
     updateLevel();
     resolveBoard();
     spawnNext();
+    haptic(12);
   }
 
-  // ======= INPUT / MOVEMENT =======
+  // ======= MOVEMENT =======
   function move(dx){
     if(paused) return;
     if(!collides(current, dx, 0)){
       current.x += dx;
       draw();
+    } else {
+      // edge bump haptic
+      haptic(6);
     }
   }
 
-  function softDrop(){
+  function softDropOnce(){
     if(paused) return;
     if(!collides(current, 0, 1)){
       current.y += 1;
@@ -733,19 +777,24 @@
     draw();
   }
 
-  function rotate(){
+  function rotate(dirCW=true){
     if(paused) return;
     if(!current.rotates) return;
-    const test = rotateCW(current.matrix);
+
+    const test = dirCW ? rotateCW(current.matrix) : rotateCCW(current.matrix);
     const kicks = [0, -1, 1, -2, 2];
+
     for(const k of kicks){
       if(!collides(current, k, 0, test)){
         current.matrix = test;
         current.x += k;
         draw();
+        haptic(6);
         return;
       }
     }
+    // rotate failed
+    haptic(6);
   }
 
   function getGhostY(piece){
@@ -754,7 +803,7 @@
     return y;
   }
 
-  // ======= AUDIO: simple synthesized “animal-ish” stingers =======
+  // ======= AUDIO =======
   function ensureAudio(){
     if(audioCtx) return;
     try{
@@ -767,12 +816,11 @@
   function playHerdSound(animal, size){
     if(!audioCtx) return;
     const t0 = audioCtx.currentTime;
-    const dur = 0.14 + Math.min(0.10, size/200);
+    const dur = 0.12 + Math.min(0.12, size/180);
 
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    // Different “character” per animal
     let type = "sine";
     let f1 = 220, f2 = 120;
 
@@ -780,14 +828,14 @@
     if(animal === TILE.COW){ type="sawtooth"; f1=140; f2=70; }
     if(animal === TILE.SHEEP){ type="triangle"; f1=380; f2=260; }
     if(animal === TILE.GOAT){ type="triangle"; f1=320; f2=160; }
-    if(animal === TILE.CHICKEN){ type="square"; f1=520; f2=350; }
+    if(animal === TILE.CHICKEN){ type="square"; f1=560; f2=360; }
 
     osc.type = type;
     osc.frequency.setValueAtTime(f1, t0);
     osc.frequency.exponentialRampToValueAtTime(Math.max(40,f2), t0 + dur);
 
     gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
 
     osc.connect(gain);
@@ -818,41 +866,23 @@
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
     const px = pad*dpr;
 
-    // Board
+    // board
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
-        drawCell(x,y, board[y][x], px);
+        drawCell(x,y, board[y][x], px, false);
       }
     }
 
-    // Ghost
+    // ghost “shadow”
     if(current && !paused){
       const ghostY = getGhostY(current);
-      drawPiece(current, 0, ghostY - current.y, px, true);
+      drawPieceShadow(current, 0, ghostY - current.y, px);
     }
 
-    // Current
-    if(current) drawPiece(current, 0, 0, px, false);
+    // current
+    if(current) drawPiece(current, 0, 0, px);
 
-    // Grid overlay
-    ctx.globalAlpha = 0.10;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1;
-    for(let x=0;x<=COLS;x++){
-      ctx.beginPath();
-      ctx.moveTo(px + x*cell, px);
-      ctx.lineTo(px + x*cell, px + ROWS*cell);
-      ctx.stroke();
-    }
-    for(let y=0;y<=ROWS;y++){
-      ctx.beginPath();
-      ctx.moveTo(px, px + y*cell);
-      ctx.lineTo(px + COLS*cell, px + y*cell);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-
-    // Banner
+    // banner
     if(banner.text){
       const now = performance.now();
       const age = now - banner.t;
@@ -874,7 +904,7 @@
       }
     }
 
-    // Pause overlay
+    // pause overlay
     if(paused && !gameOver){
       ctx.save();
       ctx.globalAlpha = 0.6;
@@ -889,7 +919,7 @@
     }
   }
 
-  function drawCell(x,y,tile, px){
+  function drawCell(x,y,tile, px, isPiece){
     const gx = px + x*cell;
     const gy = px + y*cell;
 
@@ -901,21 +931,35 @@
       return;
     }
 
+    // main fill
     ctx.fillStyle = TILE_COLOR[tile] || "#ddd";
-    ctx.globalAlpha = 0.95;
+    ctx.globalAlpha = 0.96;
     roundRect(ctx, gx+1, gy+1, cell-2, cell-2, 10, true, false);
     ctx.globalAlpha = 1;
 
-    ctx.font = `${Math.floor(cell*0.7)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+    // jazz: border + subtle highlight strip
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = Math.max(1, Math.floor(cell*0.06));
+    roundRectStroke(ctx, gx+2, gy+2, cell-4, cell-4, 9);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, gx+3, gy+3, cell-6, Math.floor((cell-6)*0.38), 8, true, false);
+    ctx.restore();
+
+    // emoji
+    ctx.font = `${Math.floor(cell*0.68)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(TILE_LABEL[tile] || "?", gx + cell/2, gy + cell/2 + 1);
   }
 
-  function drawPiece(piece, dx, dy, px, ghost){
+  function drawPiece(piece, dx, dy, px){
     const m = piece.matrix;
-    ctx.save();
-    if(ghost) ctx.globalAlpha = 0.22;
     for(let r=0;r<m.length;r++){
       for(let c=0;c<m[r].length;c++){
         const v = m[r][c];
@@ -923,7 +967,36 @@
         const x = piece.x + c + dx;
         const y = piece.y + r + dy;
         if(y < 0) continue;
-        drawCell(x,y,v,px);
+        drawCell(x,y,v,px,true);
+      }
+    }
+  }
+
+  function drawPieceShadow(piece, dx, dy, px){
+    // looks like a shadow: outline only, low alpha, no emoji
+    const m = piece.matrix;
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    for(let r=0;r<m.length;r++){
+      for(let c=0;c<m[r].length;c++){
+        const v = m[r][c];
+        if(!v) continue;
+        const x = piece.x + c + dx;
+        const y = piece.y + r + dy;
+        if(y < 0) continue;
+
+        const gx = px + x*cell;
+        const gy = px + y*cell;
+
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = Math.max(1, Math.floor(cell*0.06));
+        roundRectStroke(ctx, gx+3, gy+3, cell-6, cell-6, 10);
+
+        // faint fill so it reads as “shadow”
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = "#000000";
+        roundRect(ctx, gx+3, gy+3, cell-6, cell-6, 10, true, false);
+        ctx.globalAlpha = 0.25;
       }
     }
     ctx.restore();
@@ -939,30 +1012,46 @@
     ctx.arcTo(x, y, x+w, y, rr);
     ctx.closePath();
     if(fill){
-      ctx.fillStyle = "#0d141e";
+      ctx.fillStyle = ctx.fillStyle || "#0d141e";
       ctx.fill();
     }
     if(stroke) ctx.stroke();
   }
 
-  // ======= TOUCH GESTURES (gesture-only on touch devices) =======
-  let touchStart = null;
-  let holdTimer = null;
-  let holdDir = 0;
-
-  function clearHold(){
-    if(holdTimer){
-      clearInterval(holdTimer);
-      holdTimer = null;
-    }
-    holdDir = 0;
+  function roundRectStroke(ctx, x, y, w, h, r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+    ctx.stroke();
   }
 
-  function startHold(dir){
-    clearHold();
-    holdDir = dir;
+  // ======= TOUCH GESTURES =======
+  let touchStart = null;
+  let holdMoveTimer = null;
+  let holdDropTimer = null;
+
+  function clearHoldMove(){
+    if(holdMoveTimer){ clearInterval(holdMoveTimer); holdMoveTimer = null; }
+  }
+  function clearHoldDrop(){
+    if(holdDropTimer){ clearInterval(holdDropTimer); holdDropTimer = null; }
+  }
+
+  function startHoldMove(dir){
+    clearHoldMove();
     move(dir);
-    holdTimer = setInterval(() => move(dir), HOLD_REPEAT_MS);
+    holdMoveTimer = setInterval(() => move(dir), HOLD_REPEAT_MS);
+  }
+
+  function startHoldDrop(){
+    clearHoldDrop();
+    softDropOnce();
+    holdDropTimer = setInterval(() => softDropOnce(), SOFT_DROP_REPEAT_MS);
   }
 
   canvas.addEventListener("pointerdown", (e) => {
@@ -974,26 +1063,37 @@
   });
 
   canvas.addEventListener("pointermove", (e) => {
-    if(!IS_TOUCH) return;
-    if(!touchStart) return;
+    if(!IS_TOUCH || !touchStart) return;
+
     const dx = e.clientX - touchStart.x;
     const dy = e.clientY - touchStart.y;
+
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    // If user drags horizontally enough, begin repeating movement while held.
-    if(absX > 22 && absX > absY){
-      startHold(dx < 0 ? -1 : 1);
-      // reset start point so movement feels continuous
+    // horizontal hold move
+    if(absX > SWIPE_MIN && absX > absY){
+      startHoldMove(dx < 0 ? -1 : 1);
       touchStart.x = e.clientX;
       touchStart.y = e.clientY;
       touchStart.t = performance.now();
+      return;
+    }
+
+    // downward hold soft drop
+    if(absY > SWIPE_MIN && absY > absX && dy > 0){
+      startHoldDrop();
+      touchStart.x = e.clientX;
+      touchStart.y = e.clientY;
+      touchStart.t = performance.now();
+      return;
     }
   });
 
   canvas.addEventListener("pointerup", (e) => {
     e.preventDefault();
-    clearHold();
+    clearHoldMove();
+    clearHoldDrop();
     if(!touchStart) return;
 
     const dx = e.clientX - touchStart.x;
@@ -1003,32 +1103,44 @@
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    // Tap = rotate
-    if(absX < 12 && absY < 12 && dt < 260){
-      rotate();
+    // Tap = rotate clockwise (nice fallback)
+    if(absX < 10 && absY < 10 && dt < 260){
+      rotate(true);
       touchStart = null;
       return;
     }
 
-    // Swipe down: hard drop if fast and big enough
-    if(absY > absX && dy > 0){
-      if(absY >= HARD_SWIPE_DY && dt <= HARD_SWIPE_DT) hardDrop();
-      else softDrop();
+    // Swipe UP = rotate (dir by dx)
+    if(absY > absX && dy < -SWIPE_UP_MIN){
+      const cw = (dx >= 0); // up-left => CCW, up-right/straight => CW
+      rotate(cw);
       touchStart = null;
       return;
     }
 
-    // Non-hold horizontal swipe = single nudge
-    if(absX > absY){
+    // Swipe DOWN (quick) = a few drops (not hard drop)
+    if(absY > absX && dy > SWIPE_MIN){
+      // one extra soft drop on release
+      softDropOnce();
+      touchStart = null;
+      return;
+    }
+
+    // single nudge
+    if(absX > absY && absX > SWIPE_MIN){
       move(dx < 0 ? -1 : 1);
     }
 
     touchStart = null;
   });
 
-  canvas.addEventListener("pointercancel", () => { clearHold(); touchStart = null; });
+  canvas.addEventListener("pointercancel", () => {
+    clearHoldMove();
+    clearHoldDrop();
+    touchStart = null;
+  });
 
-  // ======= DESKTOP CONTROLS (only if NOT touch) =======
+  // ======= DESKTOP CONTROLS =======
   function bindHold(btn, onTick, ms=60){
     let timer = null;
     const start = (e) => {
@@ -1056,10 +1168,10 @@
 
     bindHold(leftBtn, () => move(-1), 70);
     bindHold(rightBtn, () => move(1), 70);
-    bindHold(dropLBtn, () => softDrop(), 40);
-    bindHold(dropRBtn, () => softDrop(), 40);
-    rotLBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(); });
-    rotRBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(); });
+    bindHold(dropLBtn, () => softDropOnce(), 40);
+    bindHold(dropRBtn, () => softDropOnce(), 40);
+    rotLBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(false); });
+    rotRBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(true); });
 
     window.addEventListener("keydown", (e) => {
       const k = e.key.toLowerCase();
@@ -1068,10 +1180,10 @@
 
       if(e.key === "ArrowLeft") move(-1);
       else if(e.key === "ArrowRight") move(1);
-      else if(e.key === "ArrowDown") softDrop();
+      else if(e.key === "ArrowDown") softDropOnce();
       else if(e.key === " "){ e.preventDefault(); hardDrop(); }
-      else if(k === "z" || e.key === "ArrowUp") rotate();
-      else if(k === "x") rotate();
+      else if(k === "z") rotate(false);
+      else if(k === "x" || e.key === "ArrowUp") rotate(true);
       else if(k === "r") restart();
     });
   }
@@ -1105,6 +1217,9 @@
     window.addEventListener("resize", resize, {passive:true});
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
+
+    // initial board has power tiles
+    sprinklePowerTiles();
 
     next = newPiece();
     spawnNext();
