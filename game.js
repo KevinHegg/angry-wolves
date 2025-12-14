@@ -1,30 +1,35 @@
 (() => {
   // =========================
-  // Angry Wolves — game.js (tap=move only, swipe-up=rotate only)
+  // Angry Wolves — game.js
+  // Tap left/right halves = move
+  // Swipe up = rotate only
   // =========================
 
   // ===== Config =====
   const COLS = 10;
-  const ROWS = 13;                 // fewer rows => bigger tiles
+  const ROWS = 13;                 // bigger tiles (reduced rows)
   const CLEAR_THRESHOLD = 10;
 
   const BASE_FALL_MS = 650;
   const MIN_FALL_MS  = 120;
   const LEVEL_EVERY_LOCKS = 12;
 
-  // gesture step distances (movement happens only while finger moves)
+  // movement while finger moves
   const STEP_X = 22;
   const STEP_Y = 22;
-  const SWIPE_UP_MIN = 28;
+
+  // rotate gesture
+  const SWIPE_UP_MIN = 34;         // higher to prevent accidental rotation
+  const UP_DOMINANCE = 1.25;       // must be this much more vertical than horizontal
 
   // special spawn weights
   const WEIGHT_NORMAL = 0.88;
   const WEIGHT_BLACKSHEEP = 0.08;
   const WEIGHT_WOLVES = 0.04;
 
-  // background overlay counts (does NOT block falling)
-  const EGGS_COUNT  = 9;   // more eggs than poop
-  const TURDS_COUNT = 4;   // sparse
+  // background overlay counts (sparse + more eggs than poop)
+  const EGGS_COUNT  = 8;
+  const TURDS_COUNT = 3;
 
   // ===== Tiles =====
   const TILE = {
@@ -121,15 +126,13 @@
 
   // particles
   let particles = [];
-
-  // banner
   let banner = { text:"", t:0, ttl: 900 };
 
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
   let gesture = null;
 
-  // ===== Audio (iOS-safe) =====
+  // ===== Audio (silent unlock, no popups) =====
   let audioCtx = null;
   let masterGain = null;
   let soundOn = loadSoundPref();
@@ -143,49 +146,34 @@
   function saveSoundPref(){
     localStorage.setItem("aw_sound", soundOn ? "1" : "0");
   }
-
   function ensureAudio(){
     if(audioCtx) return;
-    try {
+    try{
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 0.95; // louder than before (still safe)
+      masterGain.gain.value = 1.0;
       masterGain.connect(audioCtx.destination);
-    } catch {
-      audioCtx = null;
-      masterGain = null;
+    }catch{
+      audioCtx = null; masterGain = null;
     }
   }
-
-  // call only from a user gesture
   function unlockAudioSilently(){
     if(!soundOn) return;
     ensureAudio();
     if(!audioCtx) return;
-    if(audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
+    if(audioCtx.state === "suspended") audioCtx.resume();
     audioUnlocked = true;
   }
 
-  function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.14, noise=false}){
-    if(!soundOn) return;
-    if(!audioUnlocked) return; // only after a touch gesture
-    if(!audioCtx || !masterGain) return;
-
-    // If iOS re-suspends, try to resume without UI spam.
-    if(audioCtx.state === "suspended") {
-      audioCtx.resume();
-      // Don't early-return: sometimes it resumes fast enough.
-    }
+  function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.16, noise=false}){
+    if(!soundOn || !audioUnlocked || !audioCtx || !masterGain) return;
+    if(audioCtx.state === "suspended") audioCtx.resume();
 
     const t0 = audioCtx.currentTime;
-
     const g = audioCtx.createGain();
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.exponentialRampToValueAtTime(gain, t0 + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
     g.connect(masterGain);
 
     if(noise){
@@ -213,30 +201,30 @@
   }
 
   function playBarnyard(animal, size){
-    const big = Math.min(0.20, 0.10 + size/180);
+    const big = Math.min(0.22, 0.10 + size/170);
     if(animal === TILE.COW){
-      playTone({type:"sawtooth", f1:150, f2:70, dur:0.16+big, gain:0.16});
-      playTone({type:"sine", f1:95, f2:55, dur:0.18+big, gain:0.12});
+      playTone({type:"sawtooth", f1:150, f2:70, dur:0.16+big, gain:0.18});
+      playTone({type:"sine", f1:95, f2:55, dur:0.18+big, gain:0.13});
     } else if(animal === TILE.PIG){
-      playTone({type:"square", f1:210, f2:95, dur:0.12+big, gain:0.15});
-      playTone({type:"square", f1:170, f2:85, dur:0.10+big, gain:0.12});
+      playTone({type:"square", f1:210, f2:95, dur:0.12+big, gain:0.17});
+      playTone({type:"square", f1:170, f2:85, dur:0.10+big, gain:0.13});
     } else if(animal === TILE.SHEEP){
-      playTone({type:"triangle", f1:450, f2:300, dur:0.11+big, gain:0.13});
+      playTone({type:"triangle", f1:450, f2:300, dur:0.11+big, gain:0.14});
     } else if(animal === TILE.GOAT){
-      playTone({type:"triangle", f1:340, f2:170, dur:0.14+big, gain:0.13});
-      playTone({type:"sine", f1:280, f2:150, dur:0.10+big, gain:0.10});
+      playTone({type:"triangle", f1:340, f2:170, dur:0.14+big, gain:0.14});
+      playTone({type:"sine", f1:280, f2:150, dur:0.10+big, gain:0.11});
     } else if(animal === TILE.CHICKEN){
-      playTone({noise:true, dur:0.06+big, gain:0.11});
-      playTone({type:"square", f1:720, f2:460, dur:0.07+big, gain:0.10});
+      playTone({noise:true, dur:0.06+big, gain:0.12});
+      playTone({type:"square", f1:720, f2:460, dur:0.07+big, gain:0.11});
     } else {
-      playTone({type:"sine", f1:240, f2:120, dur:0.10+big, gain:0.10});
+      playTone({type:"sine", f1:240, f2:120, dur:0.10+big, gain:0.11});
     }
   }
 
   function playAmbienceTick(){
     if(!soundOn || !audioUnlocked) return;
     if(Math.random() < 0.03){
-      playTone({type:"sine", f1:110 + Math.random()*30, f2:80, dur:0.06, gain:0.04});
+      playTone({type:"sine", f1:110 + Math.random()*30, f2:80, dur:0.06, gain:0.045});
     }
   }
 
@@ -277,10 +265,10 @@
     const kind = weightedSpawnKind();
 
     if(kind === "WOLVES"){
-      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.WOLVES_2.matrix), tile: TILE.WOLF, rotates:false };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.WOLVES_2.matrix), rotates:false };
     }
     if(kind === "BLACKSHEEP"){
-      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.BLACKSHEEP_2.matrix), tile: TILE.BLACK_SHEEP, rotates:false };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.BLACKSHEEP_2.matrix), rotates:false };
     }
 
     const shapeKey = randChoice(SHAPE_KEYS);
@@ -338,17 +326,21 @@
     }, 20);
   }
 
-  // ===== Overlay pattern: geometric lattice with random phase =====
+  // ===== Overlay: geometric lattice, sparse, more eggs than poop =====
+  function shuffleInPlace(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+  }
+
   function sprinkleOverlayGeometric(){
     overlay = makeOverlay();
 
-    // only paint the lower ~55% of the board (background flavor)
-    const startRow = Math.floor(ROWS * 0.45);
-
-    // random phase shift so each run differs but stays geometric
-    const eggPhase  = Math.floor(Math.random()*6);   // modulus 6
-    const turdPhase = Math.floor(Math.random()*11);  // modulus 11
-    const xShift = Math.floor(Math.random()*3);      // small shift
+    const startRow = Math.floor(ROWS * 0.45); // only lower part
+    const eggPhase  = Math.floor(Math.random()*6);
+    const turdPhase = Math.floor(Math.random()*11);
+    const xShift = Math.floor(Math.random()*3);
 
     const eggCandidates = [];
     const turdCandidates = [];
@@ -357,39 +349,35 @@
       for(let x=0; x<COLS; x++){
         const xx = (x + xShift) % COLS;
 
-        // egg lattice: gentle diagonal/chevron feel (regular, not dense)
-        // (xx + 2y) mod 6 hits ~1/6 of cells
+        // eggs: 1/6-ish density lattice
         if(((xx + 2*y + eggPhase) % 6) === 1){
           eggCandidates.push([x,y]);
         }
 
-        // turd lattice: rarer, different rhythm
-        // (xx + y) mod 11 hits ~1/11 of cells
+        // turds: rarer rhythm
         if(((xx + y + turdPhase) % 11) === 4){
           turdCandidates.push([x,y]);
         }
       }
     }
 
-    // prefer spacing: don’t place adjacent overlays
-    const used = new Set();
+    shuffleInPlace(eggCandidates);
+    shuffleInPlace(turdCandidates);
+
+    const blocked = new Set();
     const blockAround = (x,y) => {
       for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
         const nx=x+dx, ny=y+dy;
         if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
-        used.add(ny*COLS+nx);
+        blocked.add(ny*COLS+nx);
       }
     };
-
-    // Shuffle candidates but keep geometry (we shuffle within the candidate list)
-    shuffleInPlace(eggCandidates);
-    shuffleInPlace(turdCandidates);
 
     let eggsLeft = EGGS_COUNT;
     for(const [x,y] of eggCandidates){
       if(eggsLeft <= 0) break;
       const key = y*COLS+x;
-      if(used.has(key)) continue;
+      if(blocked.has(key)) continue;
       overlay[y][x] = POWER.EGG;
       blockAround(x,y);
       eggsLeft--;
@@ -399,17 +387,10 @@
     for(const [x,y] of turdCandidates){
       if(turdsLeft <= 0) break;
       const key = y*COLS+x;
-      if(used.has(key)) continue;
+      if(blocked.has(key)) continue;
       overlay[y][x] = POWER.TURD;
       blockAround(x,y);
       turdsLeft--;
-    }
-  }
-
-  function shuffleInPlace(arr){
-    for(let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]] = [arr[j],arr[i]];
     }
   }
 
@@ -455,8 +436,8 @@
       spawnPopParticles(popped);
       banner.text = `🐺 BOOM (${popped.length} tiles)`;
       banner.t = performance.now();
-      playTone({type:"sawtooth", f1:120, f2:45, dur:0.20, gain:0.18});
-      playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.14});
+      playTone({type:"sawtooth", f1:120, f2:45, dur:0.20, gain:0.20});
+      playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.16});
       haptic(18);
     }
   }
@@ -502,9 +483,7 @@
           continue;
         }
         const cells = floodSameAnimal(x,y,t,seen);
-        if(cells.length >= CLEAR_THRESHOLD){
-          out.push({ animal: t, cells });
-        }
+        if(cells.length >= CLEAR_THRESHOLD) out.push({ animal: t, cells });
       }
     }
     return out;
@@ -545,7 +524,6 @@
         }
       }
     }
-    // overlay does NOT fall
   }
 
   function resolveBoard(){
@@ -556,16 +534,13 @@
       for(const group of clears){
         const { animal, cells } = group;
 
-        // base: 1 coin per tile cleared
         score += cells.length;
 
-        // Fibonacci bonus for 11+ (bonus starts at 11)
         if(cells.length >= 11){
           const bonusIndex = cells.length - 8; // 11->3 => fib(3)=2
           score += fib(bonusIndex);
         }
 
-        // egg/turd modifiers: doubles / halves (per overlay hit)
         let eggs=0, turds=0;
         for(const [x,y] of cells){
           if(overlay[y][x] === POWER.EGG) eggs++;
@@ -574,7 +549,6 @@
         if(eggs)  score = Math.floor(score * Math.pow(2, eggs));
         if(turds) score = Math.floor(score / Math.pow(2, turds));
 
-        // clear tiles + clear overlay marks
         for(const [x,y] of cells){
           board[y][x] = TILE.EMPTY;
           overlay[y][x] = POWER.NONE;
@@ -591,7 +565,6 @@
 
       applyGravity();
     }
-
     updateHUD();
   }
 
@@ -608,9 +581,7 @@
           continue;
         }
         const cells = floodSameAnimal(x,y,t,seen);
-        if(!best || cells.length > best.count){
-          best = { animal: t, count: cells.length };
-        }
+        if(!best || cells.length > best.count) best = { animal: t, count: cells.length };
       }
     }
     return best;
@@ -640,9 +611,7 @@
 
     if(current.kind === "BLACKSHEEP"){
       const chosen = chooseConversionAnimalForBlackSheep(current);
-      for(const [x,y] of footprintCells(current)){
-        board[y][x] = chosen;
-      }
+      for(const [x,y] of footprintCells(current)) board[y][x] = chosen;
     }
 
     locks++;
@@ -655,21 +624,15 @@
   // ===== Movement =====
   function move(dx){
     if(paused) return;
-    if(!collides(current, dx, 0)){
-      current.x += dx;
-    } else {
-      haptic(6);
-    }
+    if(!collides(current, dx, 0)) current.x += dx;
+    else haptic(6);
     draw();
   }
 
   function dropOne(){
     if(paused) return;
-    if(!collides(current, 0, 1)){
-      current.y += 1;
-    } else {
-      lockPiece();
-    }
+    if(!collides(current, 0, 1)) current.y += 1;
+    else lockPiece();
     draw();
   }
 
@@ -731,15 +694,6 @@
       body { padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
              padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
       canvas { display:block; touch-action:none; }
-      .aw-backdrop { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-                     background: rgba(0,0,0,0.62); z-index:9999;
-                     padding-top: env(safe-area-inset-top, 0px);
-                     padding-bottom: env(safe-area-inset-bottom, 0px); }
-      .aw-modal { width:min(92vw, 520px); background:#0b0b10; color:#fff; border-radius:14px;
-                  border:1px solid rgba(255,255,255,0.12); padding:14px 14px 10px; }
-      .aw-modal h2 { margin: 4px 0 10px; font-size: 18px; }
-      .aw-modal button { font-size:16px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.18);
-                         background:#141421; color:#fff; }
     `;
     const style = document.createElement("style");
     style.textContent = css;
@@ -806,8 +760,8 @@
   function drawOverlay(px){
     // subtle, embedded look
     ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.filter = "grayscale(0.60) saturate(0.65) contrast(0.92)";
+    ctx.globalAlpha = 0.14;
+    ctx.filter = "grayscale(0.65) saturate(0.60) contrast(0.92)";
 
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
@@ -840,7 +794,7 @@
     ctx.globalAlpha = 1;
 
     ctx.save();
-    ctx.globalAlpha = 0.26;
+    ctx.globalAlpha = 0.24;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = Math.max(1, Math.floor(cell*0.06));
     roundRectStroke(gx+2, gy+2, cell-4, cell-4, 9);
@@ -918,7 +872,6 @@
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const px = pad*dpr;
 
-    // faint grid
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const gx = px + x*cell;
@@ -932,7 +885,6 @@
 
     drawOverlay(px);
 
-    // placed tiles
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const t = board[y][x];
@@ -940,18 +892,15 @@
       }
     }
 
-    // ghost shadow
     if(current && !paused){
       const gy = getGhostY(current);
       drawShadow(current, 0, gy-current.y, px);
     }
-
     if(current) drawPiece(current,0,0,px);
 
     stepParticles();
     drawParticles();
 
-    // banner
     if(banner.text){
       const age = performance.now() - banner.t;
       if(age < banner.ttl){
@@ -971,23 +920,21 @@
     }
   }
 
-  // ===== Touch controls (tap=move only; swipe-up=rotate only) =====
+  // ===== Tap/Swipe behavior FIX =====
+  // Tap: move only (left/right half)
+  // Swipe up: rotate only
   function onPointerDown(e){
     e.preventDefault();
-
-    // Unlock audio silently (no popups)
     unlockAudioSilently();
-    suppressAnySoundUnlockedToasts();
-
     gesture = {
       startX: e.clientX,
       startY: e.clientY,
-      lastX: e.clientX,
-      lastY: e.clientY,
+      lastX:  e.clientX,
+      lastY:  e.clientY,
       movedX: 0,
       movedY: 0,
       t0: performance.now(),
-      rotated: false,
+      rotated: false
     };
   }
 
@@ -1002,19 +949,17 @@
     gesture.movedX += dx;
     gesture.movedY += dy;
 
-    // horizontal drift => step moves
     while(gesture.movedX <= -STEP_X){ move(-1); gesture.movedX += STEP_X; }
     while(gesture.movedX >=  STEP_X){ move( 1); gesture.movedX -= STEP_X; }
+    while(gesture.movedY >=  STEP_Y){ dropOne(); gesture.movedY -= STEP_Y; }
 
-    // downward drift => step drops
-    while(gesture.movedY >= STEP_Y){ dropOne(); gesture.movedY -= STEP_Y; }
+    const totalDx = nx - gesture.startX;
+    const totalDy = ny - gesture.startY;
+    const upDist  = -totalDy;
 
-    // swipe-up => rotate (once per gesture)
-    const upDist = gesture.startY - ny;
-    if(!gesture.rotated && upDist >= SWIPE_UP_MIN){
-      const totalDx = nx - gesture.startX;
-      // up-left => CCW, up-right or straight => CW
-      rotate(totalDx < 0 ? false : true);
+    // Rotate ONLY on a clear upward swipe (dominantly vertical), once per gesture
+    if(!gesture.rotated && upDist >= SWIPE_UP_MIN && upDist >= Math.abs(totalDx) * UP_DOMINANCE){
+      rotate(totalDx < 0 ? false : true); // up-left CCW, up-right/straight CW
       gesture.rotated = true;
     }
   }
@@ -1023,11 +968,11 @@
     e.preventDefault();
     if(!gesture) return;
 
-    // TAP: move 1 tile left/right based on screen half.
-    // Tap should NEVER rotate.
-    const dt = performance.now() - gesture.t0;
+    const dt   = performance.now() - gesture.t0;
     const dist = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY);
 
+    // TAP: move one tile based on which half of screen was tapped
+    // (Never rotate on tap)
     if(dt < 260 && dist < 10){
       const rect = canvas.getBoundingClientRect();
       const mid = rect.left + rect.width/2;
@@ -1039,14 +984,13 @@
 
   canvas.addEventListener("pointerdown", onPointerDown, {passive:false});
   canvas.addEventListener("pointermove", onPointerMove, {passive:true});
-  canvas.addEventListener("pointerup", onPointerUp, {passive:false});
+  canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
   canvas.addEventListener("pointercancel", () => { gesture = null; });
 
-  // ===== Keyboard controls (only when NOT touch) =====
+  // ===== Keyboard (non-touch) =====
   if(!IS_TOUCH){
     window.addEventListener("keydown", (e) => {
       if(gameOver) return;
-
       const k = e.key;
       const lk = k.toLowerCase();
       if(["ArrowLeft","ArrowRight","ArrowDown","ArrowUp"," "].includes(k)) e.preventDefault();
@@ -1060,115 +1004,64 @@
       else if(k === "ArrowDown" || lk === "s") dropOne();
       else if(k === "ArrowUp" || lk === "x") rotate(true);
       else if(lk === "z") rotate(false);
-      else if(k === " ") dropOne();
     }, { passive:false });
   }
 
-  // ===== Settings modal (close always works) =====
-  function buildSettingsModal(){
-    if(!gear) return;
-
-    const headings = Array.from(document.querySelectorAll("h1,h2,h3"));
-    const h = headings.find(el => (el.textContent || "").trim().toLowerCase() === "settings");
-    if(!h) return;
-
-    const nodes = [];
-    let n = h;
-    while(n){
-      nodes.push(n);
-      const next = n.nextElementSibling;
-      if(!next) break;
-      if(next.matches("h1,h2,h3") && (next.textContent || "").trim().toLowerCase() !== "settings") break;
-      n = next;
-    }
-
-    const backdrop = document.createElement("div");
-    backdrop.className = "aw-backdrop";
-    backdrop.setAttribute("aria-hidden", "true");
-
-    const modal = document.createElement("div");
-    modal.className = "aw-modal";
-    backdrop.appendChild(modal);
-
+  // ===== “Sound unlocked” popup killer =====
+  function killSoundUnlockedToasts(){
+    const nodes = Array.from(document.querySelectorAll("*"));
     for(const el of nodes){
-      modal.appendChild(el);
+      const t = (el.textContent || "").trim().toLowerCase();
+      if(t === "sound unlocked"){
+        el.style.display = "none";
+        el.setAttribute("aria-hidden","true");
+      }
     }
-
-    let doneBtn = modal.querySelector("#closeModal");
-    if(!doneBtn){
-      doneBtn = Array.from(modal.querySelectorAll("button")).find(b => (b.textContent||"").trim().toLowerCase() === "done") || null;
-    }
-    if(!doneBtn){
-      doneBtn = document.createElement("button");
-      doneBtn.textContent = "Done";
-      modal.appendChild(doneBtn);
-    }
-    doneBtn.id = "closeModal";
-
-    document.body.appendChild(backdrop);
-
-    function open(){
-      backdrop.style.display = "flex";
-      backdrop.setAttribute("aria-hidden", "false");
-      haptic(8);
-    }
-    function close(){
-      backdrop.style.display = "none";
-      backdrop.setAttribute("aria-hidden", "true");
-      haptic(8);
-    }
-
-    gear.addEventListener("click", (e)=>{ e.preventDefault(); open(); }, {passive:false});
-    gear.addEventListener("touchend", (e)=>{ e.preventDefault(); open(); }, {passive:false});
-
-    doneBtn.addEventListener("click", (e)=>{ e.preventDefault(); close(); }, {passive:false});
-    doneBtn.addEventListener("touchend", (e)=>{ e.preventDefault(); close(); }, {passive:false});
-
-    backdrop.addEventListener("click", (e)=>{ if(e.target === backdrop) close(); }, {passive:true});
-    backdrop.addEventListener("touchend", (e)=>{ if(e.target === backdrop) close(); }, {passive:true});
-
-    close();
+  }
+  function installToastObserver(){
+    killSoundUnlockedToasts();
+    const mo = new MutationObserver(() => killSoundUnlockedToasts());
+    mo.observe(document.documentElement, {subtree:true, childList:true, characterData:true});
   }
 
+  // ===== Fix the on-page help line (since you aren’t editing index.html) =====
+  function patchHelpLine(){
+    const els = Array.from(document.querySelectorAll("body *"));
+    for(const el of els){
+      if(!el.textContent) continue;
+      if(el.textContent.includes("Tap = rotate")){
+        el.textContent = "Touch: swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap left/right halves = nudge.";
+        break;
+      }
+    }
+  }
+
+  // ===== Settings toggle (simple) =====
   function syncSoundBtn(){
-    if(!soundToggle) return;
-    soundToggle.textContent = soundOn ? "ON" : "OFF";
+    if(soundToggle) soundToggle.textContent = soundOn ? "ON" : "OFF";
   }
-
   if(soundToggle){
     const onTap = (e) => {
       e.preventDefault();
       soundOn = !soundOn;
       saveSoundPref();
       syncSoundBtn();
-      // re-unlock if user turned it on
-      if(soundOn) unlockAudioSilently();
+      // if user turns it ON, it will unlock on the next touch
     };
     soundToggle.addEventListener("click", onTap, {passive:false});
     soundToggle.addEventListener("touchend", onTap, {passive:false});
   }
 
-  // ===== Suppress “Sound unlocked” toast if any exists =====
-  function suppressAnySoundUnlockedToasts(){
-    // If you have a custom toast element, hide it.
-    const toasts = Array.from(document.querySelectorAll("*"))
-      .filter(el => el && el.textContent && el.textContent.trim().toLowerCase() === "sound unlocked");
-    for(const el of toasts){
-      el.style.display = "none";
-      el.setAttribute("aria-hidden", "true");
-    }
+  // ===== Spawn / Level =====
+  function spawnNext(){
+    current = next ?? newPiece();
+    next = newPiece();
+    if(collides(current,0,0)) gameOverNow();
   }
-
-  // ===== Fix help text if your HTML still says tap rotates =====
-  function patchHelpText(){
-    const all = Array.from(document.querySelectorAll("body *"));
-    for(const el of all){
-      if(!el || !el.textContent) continue;
-      if(el.textContent.includes("Tap = rotate")){
-        el.textContent = "Touch: swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap left/right halves = nudge.";
-        break;
-      }
-    }
+  function updateLevel(){
+    level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
+    fallInterval = Math.max(MIN_FALL_MS, Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1)));
+    updateHUD();
   }
 
   // ===== Game loop =====
@@ -1179,7 +1072,7 @@
     fallTimer += 16;
     ambienceClock += 16;
 
-    if(ambienceClock > 500){
+    if(ambienceClock > 520){
       ambienceClock = 0;
       playAmbienceTick();
     }
@@ -1212,7 +1105,8 @@
   // ===== Init =====
   function init(){
     injectViewportCSS();
-    patchHelpText();
+    patchHelpLine();
+    installToastObserver();
 
     sprinkleOverlayGeometric();
 
@@ -1220,7 +1114,6 @@
     spawnNext();
 
     updateHUD();
-    buildSettingsModal();
     syncSoundBtn();
 
     fitCanvasToViewport();
