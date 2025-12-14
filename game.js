@@ -92,8 +92,6 @@
   const bestEl   = document.getElementById("best");
 
   const gear = document.getElementById("gear");
-  const modalBackdrop = document.getElementById("modalBackdrop");
-  const closeModal = document.getElementById("closeModal");
   const soundToggle = document.getElementById("soundToggle");
 
   const toastEl = document.getElementById("toast");
@@ -490,16 +488,16 @@
       for(const group of clears){
         const { animal, cells } = group;
 
-        // base
+        // base score
         score += cells.length;
 
         // fib bonus for >10: 11 => +2, 12 => +3, 13 => +5 ...
         if(cells.length >= 11){
-          const bonusIndex = cells.length - 8; // 11->3 => 2
+          const bonusIndex = cells.length - 8;
           score += fib(bonusIndex);
         }
 
-        // collect overlays (multiplier)
+        // overlay multipliers
         let eggs=0, turds=0;
         for(const [x,y] of cells){
           if(overlay[y][x] === POWER.EGG) eggs++;
@@ -508,7 +506,7 @@
         if(eggs) score = Math.floor(score * Math.pow(2, eggs));
         if(turds) score = Math.floor(score / Math.pow(2, turds));
 
-        // clear tiles + overlays under them
+        // clear tiles + overlay under them
         for(const [x,y] of cells){
           board[y][x] = TILE.EMPTY;
           overlay[y][x] = POWER.NONE;
@@ -947,74 +945,107 @@
     }, { passive:false });
   }
 
-  // ===== Settings UI (FIXED: closes reliably on iOS) =====
-  syncSoundBtn();
+  // ===== Settings (NEW mechanism: native `hidden`, capture-phase delegation) =====
+  function findSettingsContainer(){
+    const sel = [
+      "#modalBackdrop",
+      "#settingsBackdrop",
+      "#settings",
+      ".modalBackdrop",
+      ".modal-backdrop",
+      ".settings-backdrop",
+      ".settingsModal",
+      ".settings"
+    ].join(",");
+    let el = document.querySelector(sel);
+    if(el) return el;
 
-  function openModal(){
-    if(!modalBackdrop) return;
-    modalBackdrop.classList.remove("hidden");
-    modalBackdrop.style.display = "flex"; // hard override in case .hidden CSS is busted
-  }
-
-  function closeModalFn(){
-    if(!modalBackdrop) return;
-    modalBackdrop.classList.add("hidden");
-    modalBackdrop.style.display = "none"; // hard override
-  }
-
-  // de-dupe events (click + touchend + pointerup)
-  let lastTapTs = 0;
-  function bindTap(el, fn){
-    if(!el) return;
-    const handler = (e) => {
-      const now = performance.now();
-      if(now - lastTapTs < 250) return;
-      lastTapTs = now;
-      e.preventDefault();
-      e.stopPropagation();
-      fn();
-    };
-    el.addEventListener("pointerup", handler, { passive:false });
-    el.addEventListener("touchend", handler, { passive:false });
-    el.addEventListener("click", handler, { passive:false });
-  }
-
-  bindTap(gear, openModal);
-  bindTap(closeModal, closeModalFn);
-
-  // tap outside modal closes
-  if(modalBackdrop){
-    modalBackdrop.addEventListener("click", (e) => {
-      if(e.target === modalBackdrop) closeModalFn();
-    }, { passive:true });
-    modalBackdrop.addEventListener("touchend", (e) => {
-      if(e.target === modalBackdrop) closeModalFn();
-    }, { passive:true });
-
-    // prevent inside taps from bubbling to backdrop
-    const modalPanel = modalBackdrop.querySelector(".modal");
-    if(modalPanel){
-      modalPanel.addEventListener("click", (e) => e.stopPropagation());
-      modalPanel.addEventListener("touchend", (e) => e.stopPropagation());
-      modalPanel.addEventListener("pointerup", (e) => e.stopPropagation());
+    // fallback: container that contains Settings + Done/Sound
+    const candidates = document.querySelectorAll("section, div, aside, dialog");
+    for(const c of candidates){
+      const txt = (c.innerText || "").toLowerCase();
+      if(txt.includes("settings") && (txt.includes("done") || txt.includes("sound"))){
+        return c;
+      }
     }
-
-    // start hidden (hard)
-    closeModalFn();
+    return null;
   }
+
+  function openSettings(){
+    const box = findSettingsContainer();
+    if(!box) return;
+    box.hidden = false;
+    box.style.display = "flex";
+    box.setAttribute("aria-hidden", "false");
+    box.classList.add("is-open");
+  }
+
+  function closeSettings(){
+    const box = findSettingsContainer();
+    if(!box) return;
+    box.hidden = true;
+    box.style.display = "none";
+    box.setAttribute("aria-hidden", "true");
+    box.classList.remove("is-open");
+  }
+
+  // start closed no matter what
+  closeSettings();
+
+  // make button label match
+  syncSoundBtn();
 
   function syncSoundBtn(){
     if(!soundToggle) return;
     soundToggle.textContent = soundOn ? "ON" : "OFF";
   }
 
-  bindTap(soundToggle, () => {
-    soundOn = !soundOn;
-    saveSoundPref();
-    syncSoundBtn();
-    unlockAudio();
-    playTone({type:"sine", f1: soundOn ? 520 : 180, f2: soundOn ? 380 : 120, dur:0.06, gain:0.06});
-  });
+  // capture-phase handler so taps still work even if something else eats events
+  function settingsHandler(e){
+    const t = e.target;
+
+    // open triggers
+    if(t.closest("#gear, [data-open-settings], .gear, .open-settings")){
+      e.preventDefault(); e.stopPropagation();
+      openSettings();
+      return;
+    }
+
+    // close triggers
+    if(t.closest("#closeModal, [data-close-settings], .closeModal, .close-settings, .done, button[aria-label='Done']")){
+      e.preventDefault(); e.stopPropagation();
+      closeSettings();
+      return;
+    }
+
+    // toggle sound
+    if(t.closest("#soundToggle, [data-toggle-sound]")){
+      e.preventDefault(); e.stopPropagation();
+      soundOn = !soundOn;
+      saveSoundPref();
+      syncSoundBtn();
+      unlockAudio();
+      playTone({type:"sine", f1: soundOn ? 520 : 180, f2: soundOn ? 380 : 120, dur:0.06, gain:0.06});
+      return;
+    }
+
+    // tap outside (backdrop itself) closes
+    const box = findSettingsContainer();
+    if(box && !box.hidden && t === box){
+      closeSettings();
+    }
+  }
+
+  document.addEventListener("click", settingsHandler, true);
+  document.addEventListener("touchend", settingsHandler, true);
+  document.addEventListener("pointerup", settingsHandler, true);
+
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape") closeSettings();
+  }, true);
+
+  // expose for console debugging
+  window.__AW_SETTINGS__ = { open: openSettings, close: closeSettings };
 
   // ===== Game loop =====
   function tick(){
