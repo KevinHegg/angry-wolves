@@ -6,20 +6,21 @@
   <title>Angry Wolves</title>
   <style>
     :root{
-      --bg:#0b0f14;
-      --panel:#111823;
-      --panel2:#0f1620;
-      --txt:#e8eef7;
-      --muted:#9bb0c9;
-      --btn:#1a2636;
-      --btn2:#223247;
+      --bg:#060608;
+      --txt:#e8e3d8;
+      --muted:#a39a8b;
       --accent:#ffd166;
       --ok:#7dd3fc;
+      --panel:#0b0b10cc;
+      --panel2:#0e0e14;
+      --btn:#151523;
+      --btn2:#1e1e31;
+      --danger:#ff6b6b;
     }
     html,body{
       height:100%;
       margin:0;
-      background:var(--bg);
+      background: radial-gradient(1200px 800px at 50% 0%, #0b0b10 0%, #050506 60%, #030304 100%);
       color:var(--txt);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       overscroll-behavior: none;
@@ -29,19 +30,25 @@
       max-width: 520px;
       margin: 0 auto;
       padding: 10px 12px 18px;
+      position: relative;
     }
     header{
       display:flex;
       justify-content:space-between;
       align-items:flex-end;
-      gap:12px;
+      gap:10px;
       margin-bottom:10px;
     }
-    .title{ line-height:1.05; }
+    .title{
+      line-height:1.05;
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+    }
     .title h1{
       font-size: 20px;
       margin:0;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.3px;
     }
     .title .sub{
       font-size: 12px;
@@ -55,13 +62,13 @@
     }
     .hud .score{
       font-size: 18px;
-      font-weight: 800;
+      font-weight: 900;
       color: var(--accent);
     }
     .hud .meta{
       font-size: 12px;
-      color: var(--muted);
-      line-height: 1.3;
+      color:var(--muted);
+      line-height:1.25;
     }
     .hud .best{
       font-size: 12px;
@@ -69,128 +76,202 @@
       margin-top: 2px;
     }
 
+    /* Gear button */
+    .gear{
+      position:absolute;
+      top: 10px;
+      left: 12px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(10,10,16,0.65);
+      color: var(--txt);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 18px;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+    }
+    .gear:active{ transform: translateY(1px); }
+
     canvas{
       width: 100%;
       height: auto;
       display:block;
-      background: linear-gradient(180deg, #0f1620 0%, #0b0f14 100%);
       border-radius: 14px;
-      box-shadow: 0 6px 26px rgba(0,0,0,0.45);
+      box-shadow: 0 12px 34px rgba(0,0,0,0.60);
       -webkit-tap-highlight-color: transparent;
-    }
-
-    .controls{
-      margin-top:12px;
-      background: var(--panel);
-      border-radius: 14px;
-      padding: 10px;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      user-select:none;
-      -webkit-user-select:none;
-    }
-    .cluster{
-      background: var(--panel2);
-      border-radius: 12px;
-      padding: 10px;
-      display:grid;
-      grid-template-columns: 1.1fr 0.9fr 0.9fr;
-      gap: 10px;
-      align-items: stretch;
-    }
-    button{
-      appearance:none;
+      background:
+        /* “barn wood” planks */
+        linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.65)),
+        repeating-linear-gradient(
+          90deg,
+          rgba(90,60,35,0.16) 0px,
+          rgba(90,60,35,0.16) 14px,
+          rgba(60,40,22,0.12) 14px,
+          rgba(60,40,22,0.12) 26px
+        );
       border: 1px solid rgba(255,255,255,0.06);
-      background: var(--btn);
-      color: var(--txt);
-      border-radius: 12px;
-      padding: 14px 12px;
-      font-weight: 800;
-      font-size: 14px;
-      letter-spacing: 0.2px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
     }
-    button:active{
-      transform: translateY(1px);
-      background: var(--btn2);
-    }
-    .big{ font-size: 16px; }
 
-    .row2{
-      margin-top:10px;
-      display:flex;
-      gap:10px;
-    }
     .pill{
-      flex:1;
-      background: var(--panel);
+      margin-top:10px;
+      background: rgba(10,10,16,0.65);
       border-radius: 14px;
       padding: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
       display:flex;
       justify-content:space-between;
-      align-items:center;
+      align-items:flex-start;
       gap:10px;
-    }
-    .pill .hint{
       color: var(--muted);
       font-size: 12px;
       line-height: 1.25;
     }
-    .pill .kbd{
-      font-size: 12px;
-      color: var(--muted);
+    .pill b{ color: var(--txt); }
+    .pill .right{
       text-align:right;
       white-space: nowrap;
     }
-    .danger{ color:#ff6b6b; font-weight:800; }
+    .danger{ color: var(--danger); font-weight: 900; }
 
-    /* Touch devices: hide desktop controls */
-    .touch-only .controls,
-    .touch-only .desktop-hint { display: none !important; }
+    /* Settings modal */
+    .modalBackdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 10;
+      padding: 16px;
+    }
+    .modal{
+      width: min(520px, 100%);
+      background: rgba(10,10,16,0.92);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.75);
+      color: var(--txt);
+    }
+    .modal h2{
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+    }
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 10px 8px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .switch{
+      width: 52px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.12);
+      position: relative;
+    }
+    .knob{
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      position:absolute;
+      top: 2px;
+      left: 2px;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+      transition: transform 120ms ease;
+    }
+    .switch.on{
+      background: rgba(255,209,102,0.28);
+      border-color: rgba(255,209,102,0.22);
+    }
+    .switch.on .knob{ transform: translateX(22px); }
+
+    .closeBtn{
+      margin-top: 12px;
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
+      color: var(--txt);
+      font-weight: 900;
+      letter-spacing: 0.2px;
+    }
+    .closeBtn:active{ transform: translateY(1px); }
   </style>
 </head>
 <body>
 <div class="wrap" id="wrap">
+  <div class="gear" id="gear" title="Settings">⚙️</div>
+
   <header>
-    <div class="title">
-      <h1>Angry Wolves</h1>
-      <div class="sub">Clear herds ≥10 • 🐑‍⬛ converts • 🐺 smashes</div>
+    <div>
+      <div class="title">
+        <h1>Angry Wolves</h1>
+      </div>
+      <div class="sub" style="font-size:12px;color:var(--muted);margin-top:4px;">
+        Clear 10+ contiguous same animals • 🐑‍⬛ adapts • 🐺 explodes
+      </div>
     </div>
     <div class="hud">
       <div class="score"><span id="score">0</span> 🪙</div>
-      <div class="meta">Level <span id="level">1</span> · Herds cleared <span id="clears">0</span></div>
+      <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span></div>
       <div class="best" id="best">Best: —</div>
     </div>
   </header>
 
   <canvas id="c"></canvas>
 
-  <!-- Desktop-only controls -->
-  <div class="controls">
-    <div class="cluster">
-      <button id="left" class="big">◀︎</button>
-      <button id="dropL">⤓</button>
-      <button id="rotL">⟲</button>
+  <div class="pill">
+    <div>
+      <b>Touch:</b> swipe ←/→ to move · swipe ↓ to drop · swipe ↑ to rotate<br/>
+      (Up-left = CCW, Up-right/straight = CW). Tap = CW rotate.
     </div>
-    <div class="cluster">
-      <button id="right" class="big">▶︎</button>
-      <button id="dropR">⤓</button>
-      <button id="rotR">⟳</button>
+    <div class="right">
+      🥚 doubles score<br/>
+      <span class="danger">💩</span> halves score
     </div>
   </div>
+</div>
 
-  <div class="row2">
-    <div class="pill">
-      <div class="hint">
-        <span class="desktop-hint">Desktop: arrows · Z/X rotate · Space hard drop · P pause</span>
-        <span class="touch-hint">Touch: swipe ←/→ move (hold) · swipe ↑ rotate · swipe ↓ soft drop (hold) · tap rotate</span>
+<!-- Settings modal -->
+<div class="modalBackdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2>Settings</h2>
+    <div class="row">
+      <div class="toggle">
+        <div style="font-size:18px;">🔊</div>
+        <div>
+          <div style="font-weight:900;">Sound</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Barnyard sounds + ambience</div>
+        </div>
       </div>
-      <div class="kbd">
-        <span class="danger">💩</span> halves score<br/>
-        🥚 doubles score
+      <div class="switch on" id="soundSwitch" role="switch" aria-checked="true">
+        <div class="knob"></div>
       </div>
     </div>
+    <button class="closeBtn" id="closeModal">Done</button>
   </div>
 </div>
 
@@ -205,20 +286,22 @@
   const MIN_FALL_MS = 120;
   const LEVEL_EVERY_LOCKS = 12;
 
-  const HOLD_REPEAT_MS = 70;
-  const SOFT_DROP_REPEAT_MS = 40;
-
   // gesture thresholds
-  const SWIPE_MIN = 18;
-  const SWIPE_UP_MIN = 22;
+  const SWIPE_STEP_X = 22;   // move one column per step of finger travel
+  const SWIPE_STEP_Y = 22;   // drop one row per step of finger travel
+  const SWIPE_UP_MIN  = 26;  // must be this far up to be a rotate swipe
 
+  // Spawn weights for specials
   const WEIGHT_NORMAL = 0.88;
   const WEIGHT_BLACKSHEEP = 0.08;
   const WEIGHT_WOLVES = 0.04;
 
-  // NOTE: power tiles are now sprinkled on board at start (not inside pieces)
-  const INITIAL_EGGS = 8;
-  const INITIAL_TURDS = 8;
+  // Background power tiles (overlays, not blocking)
+  const INITIAL_EGGS = 10;
+  const INITIAL_TURDS = 10;
+
+  // Explosion radius for wolves: footprint + all adjacent (8-neighborhood) around each footprint cell
+  const WOLF_BLAST = true;
 
   // ======= TILE CODES =======
   const TILE = {
@@ -228,10 +311,14 @@
     CHICKEN: 3,
     COW: 4,
     PIG: 5,
-    TURD: 6,
-    EGG: 7,
-    WOLF: 8,
-    BLACK_SHEEP: 9,
+    WOLF: 6,
+    BLACK_SHEEP: 7,
+  };
+
+  const POWER = {
+    NONE: 0,
+    EGG: 1,
+    TURD: 2,
   };
 
   const ANIMALS = [TILE.SHEEP, TILE.GOAT, TILE.CHICKEN, TILE.COW, TILE.PIG];
@@ -242,24 +329,22 @@
     [TILE.CHICKEN]: "🐔",
     [TILE.COW]: "🐄",
     [TILE.PIG]: "🐖",
-    [TILE.TURD]: "💩",
-    [TILE.EGG]: "🥚",
     [TILE.WOLF]: "🐺",
     [TILE.BLACK_SHEEP]: "🐑‍⬛",
   };
 
+  // “medieval-ish” muted palette (board stays dark; tiles get the color)
   const TILE_COLOR = {
     [TILE.SHEEP]: "#cbd5e1",
-    [TILE.GOAT]: "#d4b483",
-    [TILE.CHICKEN]: "#f3e8a3",
-    [TILE.COW]: "#b8c0ff",
-    [TILE.PIG]: "#ffb3c1",
-    [TILE.TURD]: "#a07855",
-    [TILE.EGG]: "#ffe08a",
-    [TILE.WOLF]: "#94a3b8",
-    [TILE.BLACK_SHEEP]: "#111827",
+    [TILE.GOAT]: "#d7b68c",
+    [TILE.CHICKEN]: "#f3e6a4",
+    [TILE.COW]: "#b9c7ff",
+    [TILE.PIG]: "#ffc0cb",
+    [TILE.WOLF]: "#7b8799",
+    [TILE.BLACK_SHEEP]: "#12121a",
   };
 
+  // Proper group names
   const GROUP_NAME = {
     [TILE.SHEEP]: "flock",
     [TILE.GOAT]: "herd",
@@ -316,12 +401,11 @@
   const SHAPE_KEYS = Object.keys(SHAPES);
 
   const SPECIAL = {
-    WOLVES_2: { matrix: [[1,1],[1,1]], tile: TILE.WOLF },
-    BLACKSHEEP_2: { matrix: [[1,1],[1,1]], tile: TILE.BLACK_SHEEP },
+    WOLVES_2: { matrix: [[1,1],[1,1]], tile: TILE.WOLF, rotates:false },
+    BLACKSHEEP_2: { matrix: [[1,1],[1,1]], tile: TILE.BLACK_SHEEP, rotates:false },
   };
 
   // ======= DOM =======
-  const wrap = document.getElementById("wrap");
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
   const scoreEl = document.getElementById("score");
@@ -329,11 +413,18 @@
   const clearsEl = document.getElementById("clears");
   const bestEl = document.getElementById("best");
 
+  const gear = document.getElementById("gear");
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const soundSwitch = document.getElementById("soundSwitch");
+  const closeModal = document.getElementById("closeModal");
+
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
-  if(IS_TOUCH) wrap.classList.add("touch-only");
 
   // ======= STATE =======
   let board = makeBoard();
+  // powerOverlay[y][x] = POWER.EGG/TURD/NONE (does not block tiles)
+  let powerOverlay = makeOverlay();
+
   let current = null;
   let next = null;
 
@@ -347,27 +438,29 @@
   let paused = false;
   let gameOver = false;
 
+  // Canvas sizing
   let W=0, H=0, cell=0, pad=10;
 
-  // Audio (starts on gesture)
+  // Audio
   let audioCtx = null;
+  let soundOn = true;
+  let ambienceTimer = 0;
 
-  // haptics helper (iOS Safari usually ignores this)
-  function haptic(ms=10){
-    try{
-      if("vibrate" in navigator) navigator.vibrate(ms);
-    }catch{}
-  }
-
-  // banner
+  // Feedback banner
   let banner = { text:"", t:0, ttl: 900 };
+
+  // Particles
+  let particles = [];
 
   // ======= HELPERS =======
   function makeBoard(){
     return Array.from({length: ROWS}, () => Array(COLS).fill(TILE.EMPTY));
   }
-  function cloneMatrix(m){ return m.map(r => r.slice()); }
+  function makeOverlay(){
+    return Array.from({length: ROWS}, () => Array(COLS).fill(POWER.NONE));
+  }
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
   function rotateCW(mat){
     const n = mat.length, m = mat[0].length;
@@ -376,7 +469,6 @@
     return out;
   }
   function rotateCCW(mat){
-    // CCW = 3x CW, but do direct:
     const n = mat.length, m = mat[0].length;
     const out = Array.from({length: m}, () => Array(n).fill(0));
     for(let r=0;r<n;r++) for(let c=0;c<m;c++) out[m-1-c][r] = mat[r][c];
@@ -393,18 +485,19 @@
   function newPiece(){
     const kind = weightedSpawnKind();
     if(kind === "WOLVES"){
-      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: cloneMatrix(SPECIAL.WOLVES_2.matrix), tile: TILE.WOLF, rotates: false };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.WOLVES_2.matrix), tile: TILE.WOLF, rotates:false };
     }
     if(kind === "BLACKSHEEP"){
-      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: cloneMatrix(SPECIAL.BLACKSHEEP_2.matrix), tile: TILE.BLACK_SHEEP, rotates: false };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.BLACKSHEEP_2.matrix), tile: TILE.BLACK_SHEEP, rotates:false };
     }
+
     const shapeKey = randChoice(SHAPE_KEYS);
     const animal = randChoice(ANIMALS);
     const base = SHAPES[shapeKey];
-    // Normal pieces are purely animals now
     const m = base.map(row => row.map(v => v ? animal : 0));
-    return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates: true };
+    return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates:true };
   }
+  function clone2(m){ return m.map(r => r.slice()); }
 
   function collides(piece, dx=0, dy=0, testMatrix=null){
     const m = testMatrix ?? piece.matrix;
@@ -457,30 +550,29 @@
     }, 30);
   }
 
-  function sprinklePowerTiles(){
-    // place eggs/turds in bottom 6 rows randomly, avoiding filled cells
-    const startRow = Math.max(ROWS-6, 0);
-
-    function place(tile, n){
-      let tries = 0;
-      while(n > 0 && tries < 5000){
-        tries++;
-        const x = Math.floor(Math.random()*COLS);
-        const y = startRow + Math.floor(Math.random()*(ROWS-startRow));
-        if(board[y][x] === TILE.EMPTY){
-          board[y][x] = tile;
-          n--;
-        }
+  // Background power tiles: don’t block; they’re “in the mud underfoot”
+  function sprinklePowerOverlay(){
+    powerOverlay = makeOverlay();
+    const startRow = Math.max(ROWS-7, 0);
+    placeOverlay(POWER.EGG, INITIAL_EGGS, startRow);
+    placeOverlay(POWER.TURD, INITIAL_TURDS, startRow);
+  }
+  function placeOverlay(type, n, startRow){
+    let tries = 0;
+    while(n > 0 && tries < 6000){
+      tries++;
+      const x = Math.floor(Math.random()*COLS);
+      const y = startRow + Math.floor(Math.random()*(ROWS-startRow));
+      if(powerOverlay[y][x] === POWER.NONE){
+        powerOverlay[y][x] = type;
+        n--;
       }
     }
-
-    place(TILE.EGG, INITIAL_EGGS);
-    place(TILE.TURD, INITIAL_TURDS);
   }
 
   function restart(){
     board = makeBoard();
-    sprinklePowerTiles();
+    sprinklePowerOverlay();
     score = 0;
     level = 1;
     locks = 0;
@@ -491,23 +583,113 @@
     current = null;
     next = null;
     banner = {text:"", t:0, ttl: 900};
+    particles = [];
     spawnNext();
     updateHUD();
     draw();
   }
 
-  // ======= BLACK SHEEP =======
-  function chooseConversionAnimalForBlackSheep(piece){
-    const counts = new Map(ANIMALS.map(a => [a,0]));
-    const footprint = [];
-    for(let r=0;r<piece.matrix.length;r++){
-      for(let c=0;c<piece.matrix[r].length;c++){
-        if(piece.matrix[r][c]) footprint.push([piece.x + c, piece.y + r]);
+  // ======= HAPTICS (best-effort) =======
+  function haptic(ms=10){
+    try{
+      if("vibrate" in navigator) navigator.vibrate(ms);
+    }catch{}
+  }
+
+  // ======= AUDIO =======
+  function ensureAudio(){
+    if(audioCtx) return;
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch{ audioCtx = null; }
+  }
+  function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.12, noise=false}){
+    if(!audioCtx || !soundOn) return;
+    const t0 = audioCtx.currentTime;
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    if(noise){
+      // tiny burst of noise for “peck/cluck”
+      const bufferSize = Math.floor(audioCtx.sampleRate * dur);
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<bufferSize;i++){
+        data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufferSize, 2);
       }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(g);
+      g.connect(audioCtx.destination);
+      src.start(t0);
+      src.stop(t0 + dur);
+      return;
     }
 
+    const osc = audioCtx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f1, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40,f2), t0 + dur);
+
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur);
+  }
+
+  function playBarnyard(animal, size){
+    // Simple “cartoon barnyard” synth motifs
+    const big = Math.min(0.18, 0.10 + size/200);
+    if(animal === TILE.COW){
+      playTone({type:"sawtooth", f1:150, f2:70, dur:0.16+big, gain:0.14});
+      playTone({type:"sine", f1:95, f2:55, dur:0.18+big, gain:0.10});
+    } else if(animal === TILE.PIG){
+      playTone({type:"square", f1:190, f2:90, dur:0.12+big, gain:0.13});
+      playTone({type:"square", f1:160, f2:80, dur:0.10+big, gain:0.10});
+    } else if(animal === TILE.SHEEP){
+      playTone({type:"triangle", f1:430, f2:280, dur:0.11+big, gain:0.12});
+    } else if(animal === TILE.GOAT){
+      playTone({type:"triangle", f1:320, f2:160, dur:0.14+big, gain:0.12});
+      playTone({type:"sine", f1:260, f2:140, dur:0.10+big, gain:0.09});
+    } else if(animal === TILE.CHICKEN){
+      playTone({noise:true, dur:0.06+big, gain:0.10});
+      playTone({type:"square", f1:700, f2:420, dur:0.07+big, gain:0.09});
+    } else {
+      playTone({type:"sine", f1:240, f2:120, dur:0.10+big, gain:0.10});
+    }
+  }
+
+  function playTick(){
+    // tiny ambience: faint “wood creak” ticks
+    if(!audioCtx || !soundOn) return;
+    if(Math.random() < 0.03){
+      playTone({type:"sine", f1:110 + Math.random()*30, f2:80, dur:0.06, gain:0.035});
+    }
+  }
+
+  // ======= SCORING =======
+  // Clear ONLY same-animal contiguous groups >= 10.
+  // Egg/Turd are overlays: collected if a cleared herd covers them:
+  //   eggs: double score per egg; turds: halve score per turd (both after base + bonus).
+  function fib(n){
+    // fib(1)=1, fib(2)=1, fib(3)=2 ...
+    if(n <= 0) return 0;
+    if(n === 1 || n === 2) return 1;
+    let a=1,b=1;
+    for(let i=3;i<=n;i++){ const c=a+b; a=b; b=c; }
+    return b;
+  }
+
+  // ======= BLACK SHEEP CONVERSION =======
+  function chooseConversionAnimalForBlackSheep(piece){
+    // Look at adjacency around the 2x2 footprint; pick the most frequent animal touched.
+    const counts = new Map(ANIMALS.map(a => [a,0]));
+    const cells = footprintCells(piece);
+
     const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-    for(const [x,y] of footprint){
+    for(const [x,y] of cells){
       for(const [dx,dy] of dirs){
         const nx=x+dx, ny=y+dy;
         if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
@@ -516,75 +698,121 @@
       }
     }
 
-    let best = ANIMALS[0], bestCount = -1;
+    let best = null, bestCount = -1;
     for(const a of ANIMALS){
       const v = counts.get(a);
       if(v > bestCount){ bestCount = v; best = a; }
     }
-    return (bestCount > 0) ? best : randChoice(ANIMALS);
+    if(bestCount <= 0) return randChoice(ANIMALS);
+    // If tie, randomly among tied
+    const tied = ANIMALS.filter(a => counts.get(a) === bestCount);
+    return tied.length ? randChoice(tied) : best;
   }
 
-  // ======= SCORING =======
-  function fib(n){
-    // fib(1)=1 fib(2)=1 fib(3)=2 ...
-    if(n <= 0) return 0;
-    if(n === 1 || n === 2) return 1;
-    let a=1,b=1;
-    for(let i=3;i<=n;i++){
-      const c=a+b;
-      a=b; b=c;
+  // ======= WOLVES EXPLOSION =======
+  function footprintCells(piece){
+    const cells = [];
+    const m = piece.matrix;
+    for(let r=0;r<m.length;r++){
+      for(let c=0;c<m[r].length;c++){
+        if(!m[r][c]) continue;
+        const x = piece.x + c;
+        const y = piece.y + r;
+        if(x>=0 && x<COLS && y>=0 && y<ROWS) cells.push([x,y]);
+      }
     }
-    return b;
+    return cells;
   }
 
-  // ======= CLEARING =======
+  function wolvesExplode(piece){
+    // explode footprint + adjacent (8-neighborhood) around each footprint cell
+    const blast = new Set();
+    const cells = footprintCells(piece);
+
+    const around = [
+      [0,0],[1,0],[-1,0],[0,1],[0,-1],
+      [1,1],[1,-1],[-1,1],[-1,-1]
+    ];
+
+    for(const [x,y] of cells){
+      for(const [dx,dy] of around){
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        blast.add(ny*COLS + nx);
+      }
+    }
+
+    // Remove tiles, spawn particles. Overlays are also cleared in blast area.
+    const popped = [];
+    for(const key of blast){
+      const x = key % COLS;
+      const y = Math.floor(key / COLS);
+      if(board[y][x] !== TILE.EMPTY){
+        popped.push([x,y, board[y][x]]);
+        board[y][x] = TILE.EMPTY;
+      }
+      powerOverlay[y][x] = POWER.NONE;
+    }
+
+    if(popped.length){
+      spawnPopParticles(popped);
+      banner.text = `🐺 BOOM (${popped.length} tiles)`;
+      banner.t = performance.now();
+      if(soundOn){
+        playTone({type:"sawtooth", f1:120, f2:45, dur:0.20, gain:0.18});
+        playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.12});
+      }
+      haptic(18);
+    }
+  }
+
+  // ======= CLEARING / GRAVITY =======
   function resolveBoard(){
     while(true){
-      const clears = findAnimalHerdsToClear();
+      const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
 
-      for(const herd of clears){
-        const { animal, cells } = herd;
+      for(const group of clears){
+        const { animal, cells } = group;
 
-        // Count eggs/turds inside this cleared herd
-        let eggs = 0, turds = 0, animalTiles = 0;
-
-        for(const [x,y] of cells){
-          const t = board[y][x];
-          if(t === TILE.EGG) eggs++;
-          else if(t === TILE.TURD) turds++;
-          else if(ANIMALS.includes(t)) animalTiles++;
-        }
-
-        // base points
-        score += animalTiles; // +1 per animal tile
+        // base: +1 per tile cleared
+        score += cells.length;
 
         // Fibonacci bonus for >10
         if(cells.length >= 11){
-          const bonusIndex = cells.length - 8; // 11->3 => 2, 12->4 => 3, 13->5 => 5
+          const bonusIndex = cells.length - 8; // 11->3 => +2, 12->4 => +3, 13->5 => +5 ...
           score += fib(bonusIndex);
         }
 
-        // apply multipliers
-        if(eggs > 0){
-          score = Math.floor(score * Math.pow(2, eggs));
-        }
-        if(turds > 0){
-          score = Math.floor(score / Math.pow(2, turds));
+        // overlay multipliers
+        let eggs = 0, turds = 0;
+        for(const [x,y] of cells){
+          if(powerOverlay[y][x] === POWER.EGG) eggs++;
+          if(powerOverlay[y][x] === POWER.TURD) turds++;
         }
 
-        // clear
-        for(const [x,y] of cells) board[y][x] = TILE.EMPTY;
+        if(eggs > 0) score = Math.floor(score * Math.pow(2, eggs));
+        if(turds > 0) score = Math.floor(score / Math.pow(2, turds));
+
+        // clear tiles + clear overlays within those cells
+        for(const [x,y] of cells){
+          board[y][x] = TILE.EMPTY;
+          powerOverlay[y][x] = POWER.NONE;
+        }
 
         herdsCleared++;
 
+        // feedback
         const gname = GROUP_NAME[animal] || "group";
         const emoji = TILE_LABEL[animal] || "•";
-        banner.text = `Cleared ${cells.length} ${emoji} (${gname})  x${(eggs?("2^"+eggs):"")} ${(turds?("÷2^"+turds):"")}`.trim();
+        const multTxt = `${eggs?(` 🥚x${eggs}`):""}${turds?(` 💩x${turds}`):""}`;
+        banner.text = `Cleared ${cells.length} ${emoji} (${gname})${multTxt}`;
         banner.t = performance.now();
 
-        playHerdSound(animal, cells.length);
+        playBarnyard(animal, cells.length);
         haptic(12);
+
+        spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
       }
 
       applyGravity();
@@ -593,9 +821,7 @@
     updateHUD();
   }
 
-  function isWild(t){ return t === TILE.EGG || t === TILE.TURD; }
-
-  function findAnimalHerdsToClear(){
+  function findAnimalGroupsToClear(){
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
     const out = [];
 
@@ -607,8 +833,7 @@
           seen[y][x] = true;
           continue;
         }
-
-        const cells = floodAnimalWithWild(x,y,t,seen);
+        const cells = floodSameAnimal(x,y,t,seen);
         if(cells.length >= CLEAR_THRESHOLD){
           out.push({ animal: t, cells });
         }
@@ -617,7 +842,7 @@
     return out;
   }
 
-  function floodAnimalWithWild(sx,sy,animal,seen){
+  function floodSameAnimal(sx,sy,animal,seen){
     const q = [[sx,sy]];
     const cells = [];
     seen[sy][sx] = true;
@@ -626,30 +851,17 @@
       const [x,y] = q.pop();
       cells.push([x,y]);
 
-      const here = board[y][x];
       const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-
       for(const [dx,dy] of dirs){
         const nx=x+dx, ny=y+dy;
         if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
         if(seen[ny][nx]) continue;
-
-        const t = board[ny][nx];
-
-        if(ANIMALS.includes(here)){
-          if(t === animal || isWild(t)){
-            seen[ny][nx] = true;
-            q.push([nx,ny]);
-          }
-        } else if(isWild(here)){
-          if(t === animal || isWild(t)){
-            seen[ny][nx] = true;
-            q.push([nx,ny]);
-          }
+        if(board[ny][nx] === animal){
+          seen[ny][nx] = true;
+          q.push([nx,ny]);
         }
       }
     }
-
     return cells;
   }
 
@@ -662,6 +874,7 @@
           if(write !== y){
             board[write][x] = t;
             board[y][x] = TILE.EMPTY;
+            // NOTE: overlays stay where they are (background), not falling
           }
           write--;
         }
@@ -681,7 +894,7 @@
           seen[y][x] = true;
           continue;
         }
-        const cells = floodAnimalWithWild(x,y,t,seen);
+        const cells = floodSameAnimal(x,y,t,seen);
         if(!best || cells.length > best.count){
           best = { animal: t, count: cells.length };
         }
@@ -692,51 +905,34 @@
 
   // ======= LOCKING =======
   function lockPiece(){
-    // Wolves smash tiles directly below their footprint, then vanish
     if(current.kind === "WOLVES"){
-      for(let r=0;r<current.matrix.length;r++){
-        for(let c=0;c<current.matrix[r].length;c++){
-          if(!current.matrix[r][c]) continue;
-          const x = current.x + c;
-          const y = current.y + r;
-          const belowY = y + 1;
-          if(belowY >= 0 && belowY < ROWS && x>=0 && x<COLS){
-            if(board[belowY][x] !== TILE.EMPTY){
-              board[belowY][x] = TILE.EMPTY;
-            }
-          }
-        }
-      }
+      wolvesExplode(current);
       locks++;
       updateLevel();
       resolveBoard();
       spawnNext();
-      haptic(15);
+      draw();
       return;
     }
 
-    // Place tiles
+    // place tiles
     for(let r=0;r<current.matrix.length;r++){
       for(let c=0;c<current.matrix[r].length;c++){
         const v = current.matrix[r][c];
         if(!v) continue;
         const x = current.x + c;
         const y = current.y + r;
-        if(y < 0) { gameOverNow(); return; }
+        if(y < 0){ gameOverNow(); return; }
         board[y][x] = v;
       }
     }
 
-    // Black sheep converts on lock
+    // black sheep converts to touched animal on lock
     if(current.kind === "BLACKSHEEP"){
       const chosen = chooseConversionAnimalForBlackSheep(current);
-      for(let r=0;r<current.matrix.length;r++){
-        for(let c=0;c<current.matrix[r].length;c++){
-          if(!current.matrix[r][c]) continue;
-          const x = current.x + c;
-          const y = current.y + r;
-          board[y][x] = chosen;
-        }
+      const cells = footprintCells(current);
+      for(const [x,y] of cells){
+        board[y][x] = chosen;
       }
     }
 
@@ -744,7 +940,7 @@
     updateLevel();
     resolveBoard();
     spawnNext();
-    haptic(12);
+    haptic(10);
   }
 
   // ======= MOVEMENT =======
@@ -754,12 +950,11 @@
       current.x += dx;
       draw();
     } else {
-      // edge bump haptic
       haptic(6);
     }
   }
 
-  function softDropOnce(){
+  function dropOne(){
     if(paused) return;
     if(!collides(current, 0, 1)){
       current.y += 1;
@@ -770,20 +965,11 @@
     }
   }
 
-  function hardDrop(){
-    if(paused) return;
-    current.y = getGhostY(current);
-    lockPiece();
-    draw();
-  }
-
   function rotate(dirCW=true){
     if(paused) return;
     if(!current.rotates) return;
-
     const test = dirCW ? rotateCW(current.matrix) : rotateCCW(current.matrix);
     const kicks = [0, -1, 1, -2, 2];
-
     for(const k of kicks){
       if(!collides(current, k, 0, test)){
         current.matrix = test;
@@ -793,7 +979,6 @@
         return;
       }
     }
-    // rotate failed
     haptic(6);
   }
 
@@ -803,46 +988,39 @@
     return y;
   }
 
-  // ======= AUDIO =======
-  function ensureAudio(){
-    if(audioCtx) return;
-    try{
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }catch(e){
-      audioCtx = null;
+  // ======= PARTICLES =======
+  function spawnPopParticles(popped){
+    // popped: array of [x,y,tile] or [x,y,animal]
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const px = pad*dpr;
+    for(const item of popped){
+      const x=item[0], y=item[1];
+      const t=item[2] || TILE.SHEEP;
+      const cx = px + x*cell + cell/2;
+      const cy = px + y*cell + cell/2;
+      const n = 6 + Math.floor(Math.random()*5);
+      for(let i=0;i<n;i++){
+        particles.push({
+          x: cx,
+          y: cy,
+          vx: (Math.random()*2-1) * (0.9 + Math.random()*1.4),
+          vy: (Math.random()*2-1) * (0.9 + Math.random()*1.4) - 1.2,
+          life: 26 + Math.floor(Math.random()*14),
+          color: TILE_COLOR[t] || "#ddd"
+        });
+      }
     }
   }
 
-  function playHerdSound(animal, size){
-    if(!audioCtx) return;
-    const t0 = audioCtx.currentTime;
-    const dur = 0.12 + Math.min(0.12, size/180);
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    let type = "sine";
-    let f1 = 220, f2 = 120;
-
-    if(animal === TILE.PIG){ type="square"; f1=180; f2=90; }
-    if(animal === TILE.COW){ type="sawtooth"; f1=140; f2=70; }
-    if(animal === TILE.SHEEP){ type="triangle"; f1=380; f2=260; }
-    if(animal === TILE.GOAT){ type="triangle"; f1=320; f2=160; }
-    if(animal === TILE.CHICKEN){ type="square"; f1=560; f2=360; }
-
-    osc.type = type;
-    osc.frequency.setValueAtTime(f1, t0);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(40,f2), t0 + dur);
-
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + dur);
+  function stepParticles(){
+    if(particles.length === 0) return;
+    for(const p of particles){
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.10; // gravity
+      p.life -= 1;
+    }
+    particles = particles.filter(p => p.life > 0);
   }
 
   // ======= DRAWING =======
@@ -861,26 +1039,55 @@
 
   function draw(){
     ctx.clearRect(0,0,W,H);
-    roundRect(ctx, 0,0,W,H, 18, true, false);
+
+    // Dark frame
+    roundRectFill(0,0,W,H,18, "#050507");
 
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
     const px = pad*dpr;
 
-    // board
+    // subtle inner vignette
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+
+    // board cells background grid (very subtle)
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
-        drawCell(x,y, board[y][x], px, false);
+        const gx = px + x*cell;
+        const gy = px + y*cell;
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
+        ctx.globalAlpha = 1;
       }
     }
 
-    // ghost “shadow”
-    if(current && !paused){
-      const ghostY = getGhostY(current);
-      drawPieceShadow(current, 0, ghostY - current.y, px);
+    // overlays (egg/turd) drawn behind tiles
+    drawOverlay(px);
+
+    // placed tiles
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const t = board[y][x];
+        if(t !== TILE.EMPTY) drawTile(x,y,t,px,true);
+      }
     }
 
-    // current
-    if(current) drawPiece(current, 0, 0, px);
+    // ghost shadow: outline only
+    if(current && !paused){
+      const gy = getGhostY(current);
+      drawShadow(current, 0, gy - current.y, px);
+    }
+
+    // current piece
+    if(current) drawPiece(current,0,0,px);
+
+    // particles on top
+    stepParticles();
+    drawParticles();
 
     // banner
     if(banner.text){
@@ -889,7 +1096,7 @@
       if(age < banner.ttl){
         const a = Math.max(0, 1 - age / banner.ttl);
         ctx.save();
-        ctx.globalAlpha = 0.75 * a;
+        ctx.globalAlpha = 0.70 * a;
         ctx.fillStyle = "#000";
         ctx.fillRect(0,0,W, Math.floor(cell*1.2));
         ctx.globalAlpha = 1 * a;
@@ -907,7 +1114,7 @@
     // pause overlay
     if(paused && !gameOver){
       ctx.save();
-      ctx.globalAlpha = 0.6;
+      ctx.globalAlpha = 0.65;
       ctx.fillStyle = "#000";
       ctx.fillRect(0,0,W,H);
       ctx.globalAlpha = 1;
@@ -919,43 +1126,67 @@
     }
   }
 
-  function drawCell(x,y,tile, px, isPiece){
+  function drawOverlay(px){
+    // “in the mud” look: faint, slightly rotated; doesn’t block tiles
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const p = powerOverlay[y][x];
+        if(p === POWER.NONE) continue;
+
+        const gx = px + x*cell;
+        const gy = px + y*cell;
+
+        ctx.save();
+        ctx.translate(gx + cell/2, gy + cell/2);
+        ctx.rotate((x+y)%2 ? -0.12 : 0.10);
+        ctx.globalAlpha = 0.45;
+
+        ctx.font = `${Math.floor(cell*0.62)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        ctx.fillText(p === POWER.EGG ? "🥚" : "💩", 0, 1);
+
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawTile(x,y,t,px,withEmoji){
     const gx = px + x*cell;
     const gy = px + y*cell;
 
-    if(tile === TILE.EMPTY){
-      ctx.globalAlpha = 0.08;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
-      ctx.globalAlpha = 1;
-      return;
-    }
-
-    // main fill
-    ctx.fillStyle = TILE_COLOR[tile] || "#ddd";
+    // fill
     ctx.globalAlpha = 0.96;
-    roundRect(ctx, gx+1, gy+1, cell-2, cell-2, 10, true, false);
+    roundRectFill(gx+1, gy+1, cell-2, cell-2, 10, TILE_COLOR[t] || "#ddd");
     ctx.globalAlpha = 1;
 
-    // jazz: border + subtle highlight strip
+    // border
     ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.28;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = Math.max(1, Math.floor(cell*0.06));
-    roundRectStroke(ctx, gx+2, gy+2, cell-4, cell-4, 9);
+    roundRectStroke(gx+2, gy+2, cell-4, cell-4, 9);
     ctx.restore();
 
+    // highlight strip
     ctx.save();
-    ctx.globalAlpha = 0.18;
+    ctx.globalAlpha = 0.16;
     ctx.fillStyle = "#ffffff";
-    roundRect(ctx, gx+3, gy+3, cell-6, Math.floor((cell-6)*0.38), 8, true, false);
+    roundRectFill(gx+3, gy+3, cell-6, Math.floor((cell-6)*0.38), 8, "#ffffff");
     ctx.restore();
 
-    // emoji
-    ctx.font = `${Math.floor(cell*0.68)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(TILE_LABEL[tile] || "?", gx + cell/2, gy + cell/2 + 1);
+    if(withEmoji){
+      ctx.font = `${Math.floor(cell*0.68)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#000";
+      ctx.globalAlpha = 0.20;
+      ctx.fillText(TILE_LABEL[t] || "?", gx + cell/2 + 1, gy + cell/2 + 2);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
+      ctx.fillText(TILE_LABEL[t] || "?", gx + cell/2, gy + cell/2 + 1);
+    }
   }
 
   function drawPiece(piece, dx, dy, px){
@@ -967,16 +1198,15 @@
         const x = piece.x + c + dx;
         const y = piece.y + r + dy;
         if(y < 0) continue;
-        drawCell(x,y,v,px,true);
+        drawTile(x,y,v,px,true);
       }
     }
   }
 
-  function drawPieceShadow(piece, dx, dy, px){
-    // looks like a shadow: outline only, low alpha, no emoji
+  function drawShadow(piece, dx, dy, px){
+    // shadow as outline + faint black fill (no emoji)
     const m = piece.matrix;
     ctx.save();
-    ctx.globalAlpha = 0.25;
     for(let r=0;r<m.length;r++){
       for(let c=0;c<m[r].length;c++){
         const v = m[r][c];
@@ -988,21 +1218,31 @@
         const gx = px + x*cell;
         const gy = px + y*cell;
 
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = Math.max(1, Math.floor(cell*0.06));
-        roundRectStroke(ctx, gx+3, gy+3, cell-6, cell-6, 10);
-
-        // faint fill so it reads as “shadow”
         ctx.globalAlpha = 0.12;
-        ctx.fillStyle = "#000000";
-        roundRect(ctx, gx+3, gy+3, cell-6, cell-6, 10, true, false);
-        ctx.globalAlpha = 0.25;
+        roundRectFill(gx+3, gy+3, cell-6, cell-6, 10, "#000");
+        ctx.globalAlpha = 0.26;
+        ctx.strokeStyle = "rgba(255,255,255,0.65)";
+        ctx.lineWidth = Math.max(1, Math.floor(cell*0.055));
+        roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
       }
     }
     ctx.restore();
   }
 
-  function roundRect(ctx, x, y, w, h, r, fill, stroke){
+  function drawParticles(){
+    if(particles.length === 0) return;
+    ctx.save();
+    for(const p of particles){
+      ctx.globalAlpha = clamp(p.life/40, 0, 0.9);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(1.5, cell*0.08), 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function roundRectFill(x,y,w,h,r,color){
     const rr = Math.min(r, w/2, h/2);
     ctx.beginPath();
     ctx.moveTo(x+rr, y);
@@ -1011,14 +1251,10 @@
     ctx.arcTo(x, y+h, x, y, rr);
     ctx.arcTo(x, y, x+w, y, rr);
     ctx.closePath();
-    if(fill){
-      ctx.fillStyle = ctx.fillStyle || "#0d141e";
-      ctx.fill();
-    }
-    if(stroke) ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fill();
   }
-
-  function roundRectStroke(ctx, x, y, w, h, r){
+  function roundRectStroke(x,y,w,h,r){
     const rr = Math.min(r, w/2, h/2);
     ctx.beginPath();
     ctx.moveTo(x+rr, y);
@@ -1030,149 +1266,88 @@
     ctx.stroke();
   }
 
-  // ======= TOUCH GESTURES =======
-  let touchStart = null;
-  let holdMoveTimer = null;
-  let holdDropTimer = null;
-
-  function clearHoldMove(){
-    if(holdMoveTimer){ clearInterval(holdMoveTimer); holdMoveTimer = null; }
-  }
-  function clearHoldDrop(){
-    if(holdDropTimer){ clearInterval(holdDropTimer); holdDropTimer = null; }
-  }
-
-  function startHoldMove(dir){
-    clearHoldMove();
-    move(dir);
-    holdMoveTimer = setInterval(() => move(dir), HOLD_REPEAT_MS);
-  }
-
-  function startHoldDrop(){
-    clearHoldDrop();
-    softDropOnce();
-    holdDropTimer = setInterval(() => softDropOnce(), SOFT_DROP_REPEAT_MS);
-  }
+  // ======= INPUT: TOUCH (NO HOLD-TO-REPEAT; only movement while finger moves) =======
+  let touch = null;
 
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     ensureAudio();
     if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 
-    touchStart = {x: e.clientX, y: e.clientY, t: performance.now()};
+    touch = {
+      x0: e.clientX,
+      y0: e.clientY,
+      x: e.clientX,
+      y: e.clientY,
+      movedX: 0,
+      movedY: 0,
+      t0: performance.now(),
+      didRotate: false
+    };
   });
 
   canvas.addEventListener("pointermove", (e) => {
-    if(!IS_TOUCH || !touchStart) return;
+    if(!IS_TOUCH || !touch) return;
 
-    const dx = e.clientX - touchStart.x;
-    const dy = e.clientY - touchStart.y;
+    const nx = e.clientX;
+    const ny = e.clientY;
 
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
+    const dx = nx - touch.x;
+    const dy = ny - touch.y;
 
-    // horizontal hold move
-    if(absX > SWIPE_MIN && absX > absY){
-      startHoldMove(dx < 0 ? -1 : 1);
-      touchStart.x = e.clientX;
-      touchStart.y = e.clientY;
-      touchStart.t = performance.now();
-      return;
+    touch.x = nx;
+    touch.y = ny;
+
+    // accumulate for step-based movement
+    touch.movedX += dx;
+    touch.movedY += dy;
+
+    // horizontal stepping
+    while(touch.movedX <= -SWIPE_STEP_X){
+      move(-1);
+      touch.movedX += SWIPE_STEP_X;
+    }
+    while(touch.movedX >= SWIPE_STEP_X){
+      move(1);
+      touch.movedX -= SWIPE_STEP_X;
     }
 
-    // downward hold soft drop
-    if(absY > SWIPE_MIN && absY > absX && dy > 0){
-      startHoldDrop();
-      touchStart.x = e.clientX;
-      touchStart.y = e.clientY;
-      touchStart.t = performance.now();
-      return;
+    // downward stepping (soft drop)
+    while(touch.movedY >= SWIPE_STEP_Y){
+      dropOne();
+      touch.movedY -= SWIPE_STEP_Y;
+    }
+
+    // upward rotate: only once per gesture
+    const totalUp = touch.y0 - ny;
+    if(!touch.didRotate && totalUp >= SWIPE_UP_MIN){
+      const totalDx = nx - touch.x0;
+      // up-left => CCW, otherwise CW (including straight up)
+      rotate(totalDx < 0 ? false : true);
+      touch.didRotate = true;
+      // reset anchors so additional up motion doesn't keep firing
+      touch.x0 = nx;
+      touch.y0 = ny;
     }
   });
 
   canvas.addEventListener("pointerup", (e) => {
     e.preventDefault();
-    clearHoldMove();
-    clearHoldDrop();
-    if(!touchStart) return;
+    if(!touch) return;
 
-    const dx = e.clientX - touchStart.x;
-    const dy = e.clientY - touchStart.y;
-    const dt = performance.now() - touchStart.t;
-
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    // Tap = rotate clockwise (nice fallback)
-    if(absX < 10 && absY < 10 && dt < 260){
+    // Tap = rotate CW
+    const dt = performance.now() - touch.t0;
+    const dist = Math.hypot((e.clientX - touch.x0),(e.clientY - touch.y0));
+    if(dt < 220 && dist < 10){
       rotate(true);
-      touchStart = null;
-      return;
     }
 
-    // Swipe UP = rotate (dir by dx)
-    if(absY > absX && dy < -SWIPE_UP_MIN){
-      const cw = (dx >= 0); // up-left => CCW, up-right/straight => CW
-      rotate(cw);
-      touchStart = null;
-      return;
-    }
-
-    // Swipe DOWN (quick) = a few drops (not hard drop)
-    if(absY > absX && dy > SWIPE_MIN){
-      // one extra soft drop on release
-      softDropOnce();
-      touchStart = null;
-      return;
-    }
-
-    // single nudge
-    if(absX > absY && absX > SWIPE_MIN){
-      move(dx < 0 ? -1 : 1);
-    }
-
-    touchStart = null;
+    touch = null;
   });
+  canvas.addEventListener("pointercancel", () => { touch = null; });
 
-  canvas.addEventListener("pointercancel", () => {
-    clearHoldMove();
-    clearHoldDrop();
-    touchStart = null;
-  });
-
-  // ======= DESKTOP CONTROLS =======
-  function bindHold(btn, onTick, ms=60){
-    let timer = null;
-    const start = (e) => {
-      e.preventDefault();
-      onTick();
-      timer = setInterval(onTick, ms);
-    };
-    const stop = (e) => {
-      e.preventDefault();
-      if(timer){ clearInterval(timer); timer = null; }
-    };
-    btn.addEventListener("pointerdown", start);
-    btn.addEventListener("pointerup", stop);
-    btn.addEventListener("pointercancel", stop);
-    btn.addEventListener("pointerleave", stop);
-  }
-
+  // Desktop fallback (keys) + clicking gear still works
   if(!IS_TOUCH){
-    const leftBtn = document.getElementById("left");
-    const rightBtn = document.getElementById("right");
-    const dropLBtn = document.getElementById("dropL");
-    const dropRBtn = document.getElementById("dropR");
-    const rotLBtn = document.getElementById("rotL");
-    const rotRBtn = document.getElementById("rotR");
-
-    bindHold(leftBtn, () => move(-1), 70);
-    bindHold(rightBtn, () => move(1), 70);
-    bindHold(dropLBtn, () => softDropOnce(), 40);
-    bindHold(dropRBtn, () => softDropOnce(), 40);
-    rotLBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(false); });
-    rotRBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); rotate(true); });
-
     window.addEventListener("keydown", (e) => {
       const k = e.key.toLowerCase();
       if(k === "p"){ paused = !paused; draw(); return; }
@@ -1180,13 +1355,40 @@
 
       if(e.key === "ArrowLeft") move(-1);
       else if(e.key === "ArrowRight") move(1);
-      else if(e.key === "ArrowDown") softDropOnce();
-      else if(e.key === " "){ e.preventDefault(); hardDrop(); }
+      else if(e.key === "ArrowDown") dropOne();
       else if(k === "z") rotate(false);
       else if(k === "x" || e.key === "ArrowUp") rotate(true);
       else if(k === "r") restart();
     });
   }
+
+  // ======= SETTINGS UI =======
+  function openModal(){
+    modalBackdrop.style.display = "flex";
+  }
+  function closeModalFn(){
+    modalBackdrop.style.display = "none";
+  }
+  gear.addEventListener("pointerdown", (e) => { e.preventDefault(); openModal(); });
+  closeModal.addEventListener("pointerdown", (e) => { e.preventDefault(); closeModalFn(); });
+  modalBackdrop.addEventListener("pointerdown", (e) => {
+    // click outside modal
+    if(e.target === modalBackdrop) closeModalFn();
+  });
+
+  function setSound(on){
+    soundOn = on;
+    soundSwitch.classList.toggle("on", on);
+    soundSwitch.setAttribute("aria-checked", on ? "true" : "false");
+  }
+  soundSwitch.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    setSound(!soundOn);
+    // tiny confirmation click
+    ensureAudio();
+    if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    playTone({type:"sine", f1: soundOn ? 520 : 180, f2: soundOn ? 380 : 120, dur:0.06, gain:0.06});
+  });
 
   // ======= GAME LOOP =======
   function tick(){
@@ -1201,6 +1403,13 @@
     }
 
     fallTimer += 16;
+    ambienceTimer += 16;
+
+    if(ambienceTimer > 500){
+      ambienceTimer = 0;
+      playTick();
+    }
+
     if(fallTimer >= fallInterval){
       fallTimer = 0;
       if(!collides(current, 0, 1)){
@@ -1209,6 +1418,9 @@
         lockPiece();
       }
       draw();
+    } else {
+      // lightweight redraw for particles/banner
+      if(particles.length) draw();
     }
   }
 
@@ -1218,9 +1430,7 @@
     const ro = new ResizeObserver(() => resize());
     ro.observe(canvas);
 
-    // initial board has power tiles
-    sprinklePowerTiles();
-
+    sprinklePowerOverlay();
     next = newPiece();
     spawnNext();
     updateHUD();
