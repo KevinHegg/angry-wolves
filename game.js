@@ -1857,9 +1857,9 @@
     const compact = isCompactUI();
     pad = compact ? 8 : 14;
 
-    const mobileTapZoneHeight = compact && mobileTapZone ? Math.floor(88 * dpr) : 0;
-    const topReserve = compact ? Math.floor(62 * dpr) : 0;
-    const bottomReserve = compact ? Math.floor(20 * dpr) : 0;
+    const mobileTapZoneHeight = compact && mobileTapZone ? Math.floor(90 * dpr) : 0;
+    const topReserve = compact ? Math.floor(40 * dpr) : 0;
+    const bottomReserve = compact ? Math.floor(8 * dpr) : 0;
 
     const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
     const targetH = Math.max(280, Math.floor(rect.height * dpr) - mobileTapZoneHeight - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
