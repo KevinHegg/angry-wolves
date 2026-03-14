@@ -552,11 +552,11 @@
   }
   function groupSummary(animal, count){
     if(!animal || !count) return "-";
-    return `${GROUP_NAME[animal]} of ${count} block${count === 1 ? "" : "s"}`;
+    return `${count} ${animalWord(animal)} block${count === 1 ? "" : "s"}`;
   }
   function formatBestGroup(best){
-    if(!best) return "Largest group left: -";
-    return `Largest group left: ${groupSummary(best.animal, best.count)}`;
+    if(!best) return "Largest cluster left: -";
+    return `Largest cluster left: ${groupSummary(best.animal, best.count)}`;
   }
   function missionCurrentProgress(){
     if(!mission) return 0;
@@ -1526,6 +1526,11 @@
     }
   }
 
+  function settleBoardNow(){
+    applyGravity();
+    stabilizeBoardAfterGravity();
+  }
+
   function resolveBoard(){
     let cascadeDepth = 0;
     let totalGain = 0;
@@ -1576,8 +1581,7 @@
         haptic(12);
       }
 
-      applyGravity();
-      stabilizeBoardAfterGravity();
+      settleBoardNow();
     }
     updateHUD();
     return { groupsCleared, totalGain };
@@ -1619,6 +1623,7 @@
   function lockPiece(){
     if(current.kind === "WOLVES"){
       wolvesExplode(current);
+      settleBoardNow();
       registerLockCycle();
       const summary = resolveBoard();
       applyChainResult(summary);
@@ -1628,6 +1633,7 @@
 
     if(current.kind === "MISSION_BOMB"){
       missionBombBlast(current);
+      settleBoardNow();
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
@@ -1639,6 +1645,7 @@
 
     if(current.kind === "MISSION_REAPER"){
       missionReapLargestGroup();
+      settleBoardNow();
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
