@@ -190,6 +190,50 @@ html,body{
   overflow:hidden;
 }
 
+.stageMissionBar{
+  position:absolute;
+  top:8px;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(540px, calc(100% - 18px));
+  padding:8px 10px;
+  border-radius:14px;
+  background: rgba(8, 8, 14, 0.72);
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+  z-index:2;
+  pointer-events:none;
+  backdrop-filter: blur(10px);
+}
+
+.stageMissionMeta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+
+.stageMissionTitle{
+  font-size:12px;
+  font-weight:800;
+  color: var(--txt);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.stageMissionProgressText{
+  font-size:11px;
+  font-weight:700;
+  color: var(--accent);
+  white-space:nowrap;
+}
+
+.stageMissionMeter{
+  height:10px;
+}
+
 canvas{
   display:block;
   border-radius:14px;
@@ -350,6 +394,10 @@ canvas{
   #stage{
     min-height: clamp(460px, 68svh, 860px);
   }
+
+  .stageMissionBar{
+    width:min(560px, calc(100% - 26px));
+  }
 }
 
 @media (max-width: 760px){
@@ -423,6 +471,27 @@ canvas{
     min-height: clamp(680px, 79svh, 960px);
   }
 
+  .stageMissionBar{
+    top:4px;
+    width:calc(100% - 86px);
+    left:4px;
+    transform:none;
+    padding:7px 8px;
+    border-radius:12px;
+  }
+
+  .stageMissionMeta{
+    margin-bottom:5px;
+  }
+
+  .stageMissionTitle{
+    font-size:11px;
+  }
+
+  .stageMissionProgressText{
+    font-size:10px;
+  }
+
   #rightRail{
     order:2;
     display:block;
@@ -486,7 +555,7 @@ canvas{
 
   #nextCard{
     position:absolute;
-    top:-44px;
+    top:12px;
     right:6px;
     z-index:3;
     width:72px;
@@ -568,10 +637,14 @@ canvas{
   }
 
   #nextCard{
-    top:-40px;
+    top:10px;
     right:4px;
     width:66px;
     padding:6px 5px;
+  }
+
+  .stageMissionBar{
+    width:calc(100% - 78px);
   }
 
   #nextPreview{

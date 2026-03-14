@@ -58,7 +58,7 @@
     [TILE.COW]: "🐄",
     [TILE.PIG]: "🐖",
     [TILE.WOLF]: "🐺",
-    [TILE.BLACK_SHEEP]: "🐑‍⬛",
+    [TILE.BLACK_SHEEP]: "🐑",
     [TILE.BOMB]: "💣",
     [TILE.REAPER]: "✂️",
     [TILE.MORPH]: "❓",
@@ -97,6 +97,14 @@
     [TILE.CHICKEN]: "flock",
     [TILE.COW]: "herd",
     [TILE.PIG]: "sounder",
+  };
+
+  const ANIMAL_NAME = {
+    [TILE.SHEEP]: "sheep",
+    [TILE.GOAT]: "goats",
+    [TILE.CHICKEN]: "chickens",
+    [TILE.COW]: "cows",
+    [TILE.PIG]: "pigs",
   };
 
   // ===== Shapes =====
@@ -138,6 +146,9 @@
   const missionTitleEl = document.getElementById("missionTitle");
   const missionProgressEl = document.getElementById("missionProgress");
   const missionMeterFillEl = document.getElementById("missionMeterFill");
+  const stageMissionTitleEl = document.getElementById("stageMissionTitle");
+  const stageMissionProgressTextEl = document.getElementById("stageMissionProgressText");
+  const stageMissionMeterFillEl = document.getElementById("stageMissionMeterFill");
   const missionSpecialNameEl = document.getElementById("missionSpecialName");
   const missionSpecialInfoEl = document.getElementById("missionSpecialInfo");
   const missionSpecialPreviewEl = document.getElementById("missionSpecialPreview");
@@ -226,29 +237,29 @@
   const SPECIAL_RULES = {
     bomb: {
       title: "Barn Buster",
-      desc: "Drops a blast tetrad every 5 settles. It detonates nearby settled tiles.",
-      short: "Blast tetrad every 5 settles.",
+      desc: "On average, a bomb tetrad slips into Next every 5 settles. It detonates nearby settled tiles.",
+      short: "Bomb tetrad joins Next about every 5 settles.",
       every: 5,
       tile: TILE.BOMB
     },
     reaper: {
       title: "Cull Comb",
-      desc: "Drops a scissor tetrad every 5 settles. It deletes the biggest animal group on the board.",
-      short: "Scissor tetrad every 5 settles.",
+      desc: "On average, a scissor tetrad slips into Next every 5 settles. It deletes the biggest animal group on the board.",
+      short: "Scissor tetrad joins Next about every 5 settles.",
       every: 5,
       tile: TILE.REAPER
     },
     morph: {
       title: "Mystery Crate",
-      desc: "Drops a question-mark tetrad every 4 settles. It becomes whatever animal touches it first.",
-      short: "Question-mark tetrad every 4 settles.",
+      desc: "On average, a question-mark tetrad slips into Next every 4 settles. It becomes whatever animal touches it first.",
+      short: "Question-mark tetrad joins Next about every 4 settles.",
       every: 4,
       tile: TILE.MORPH
     },
     seeder: {
       title: "Nest Bomber",
-      desc: "Drops an egg tetrad every 5 settles. It seeds eggs and turds around its landing zone.",
-      short: "Egg tetrad every 5 settles.",
+      desc: "On average, a nest tetrad slips into Next every 5 settles. It seeds eggs and turds around its landing zone.",
+      short: "Nest tetrad joins Next about every 5 settles.",
       every: 5,
       tile: TILE.SEEDER
     }
@@ -530,9 +541,19 @@
   function fmtChain(v){ return `x${Math.max(0, v|0)}`; }
   function missionProgressText(value, target){ return `${Math.min(value, target)} / ${target}`; }
   function quipForAnimal(animal){ return randChoice(CLEAR_QUIPS[animal] || ["Barnyard bedlam."]); }
+  function specialJoinRateLabel(rule){
+    return rule ? `About every ${rule.every} settles` : "";
+  }
+  function animalWord(animal){
+    return ANIMAL_NAME[animal] || "animals";
+  }
+  function groupSummary(animal, count){
+    if(!animal || !count) return "-";
+    return `${GROUP_NAME[animal]} of ${count} block${count === 1 ? "" : "s"}`;
+  }
   function formatBestGroup(best){
-    if(!best) return "Largest live group: -";
-    return `Largest live ${GROUP_NAME[best.animal]}: ${best.count} blocks`;
+    if(!best) return "Largest group left: -";
+    return `Largest group left: ${groupSummary(best.animal, best.count)}`;
   }
   function missionCurrentProgress(){
     if(!mission) return 0;
@@ -555,6 +576,14 @@
       toastEl.classList.add("hidden");
       toastTimer = 0;
     }, ms);
+  }
+  function isMissionSpecialPiece(piece){
+    return !!piece && [
+      "MISSION_BOMB",
+      "MISSION_REAPER",
+      "MISSION_MORPH",
+      "MISSION_SEEDER",
+    ].includes(piece.kind);
   }
 
   function rotateCW(mat){
@@ -704,6 +733,29 @@
     return 3;
   }
 
+  function missionSpecialWarmth(){
+    return clamp(missionSpecialCharge, 0, 1);
+  }
+
+  function maybeQueueMissionSpecial(){
+    if(!mission || mission.done || mission.ready) return false;
+    const specialRule = missionSpecialRule();
+    if(!specialRule) return false;
+    if(isMissionSpecialPiece(next) || isMissionSpecialPiece(current)) return false;
+
+    const averageStep = 1 / specialRule.every;
+    const jitteredStep = averageStep * (0.65 + Math.random() * 0.7);
+    missionSpecialCharge = clamp(missionSpecialCharge + jitteredStep, 0, 1.5);
+
+    if(missionSpecialCharge < 1) return false;
+
+    next = createMissionSpecialPiece();
+    missionSpecialCharge = Math.max(0, missionSpecialCharge - 1);
+    banner.text = `${specialRule.title} slipped into Next.`;
+    banner.t = performance.now();
+    return true;
+  }
+
   function missionPressureMultiplier(){
     return (mission && mission.ready && !mission.done) ? 0.84 : 1;
   }
@@ -731,7 +783,7 @@
           }
         }
       } else if(!opts.skipMissionCharge){
-        missionSpecialCharge++;
+        maybeQueueMissionSpecial();
       }
     }
     syncPassiveMissionProgress();
@@ -744,21 +796,21 @@
 
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
-    if(mission.type === "animal") return `Clear ${mission.target} ${TILE_LABEL[mission.animal]} blocks`;
+    if(mission.type === "animal") return `Clear ${mission.target} ${animalWord(mission.animal)} blocks`;
     if(mission.type === "clears") return `Clear ${mission.target} big groups`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
-    if(mission.type === "wolf") return `${mission.target} wolf tantrum(s)`;
+    if(mission.type === "wolf") return `Trigger ${mission.target} wolf tantrum${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "score") return `Score ${mission.target} coins`;
     if(mission.type === "level") return `Reach level ${mission.target}`;
     if(mission.type === "big_group") return `Clear ${mission.target} jumbo groups`;
-    if(mission.type === "special_use") return `Use your mission special ${mission.target} time(s)`;
+    if(mission.type === "special_use") return `Use your mission special ${mission.target} time${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "locks") return `Survive ${mission.target} settles`;
     return mission.title;
   }
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Clear enough ${GROUP_NAME[mission.animal]} blocks ${TILE_LABEL[mission.animal]} to fill the goal. Then you can grab the reward coin or keep playing for a bigger payout while the barn speeds up.`;
+    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} blocks ${TILE_LABEL[mission.animal]} to hit the goal. Then you can grab the reward coin or keep playing for a bigger payout while the barn speeds up.`;
     if(mission.type === "clears") return "Clear enough herds to make the reward coin appear. Every extra settle after that sweetens the bonus and raises the risk.";
     if(mission.type === "combo") return "Your chain goes up whenever a settled piece clears one or more herds. A settle that clears nothing resets it.";
     if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the reward coin shows up.";
@@ -775,7 +827,7 @@
     if(missionBriefTitleEl) missionBriefTitleEl.textContent = mission?.title ?? "Mission Briefing";
     if(missionBriefBodyEl) missionBriefBodyEl.textContent = missionBriefCopy();
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
-    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Starts at +${mission?.bonus ?? 0}`;
+    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Base reward: +${mission?.bonus ?? 0} coins`;
     if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
     if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? specialRule.desc : "No special tetrad assigned.";
     renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
@@ -793,20 +845,34 @@
       missionTitleEl.textContent = "Warm up the barn";
       missionProgressEl.textContent = "Start dropping pieces";
       if(missionMeterFillEl) missionMeterFillEl.style.width = "0%";
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = "Mission warming up";
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = "Start dropping pieces";
+      if(stageMissionMeterFillEl) stageMissionMeterFillEl.style.width = "0%";
       missionSpecialNameEl.textContent = "Special tetrad: warming up";
       missionSpecialInfoEl.textContent = "Mission tricks will appear here.";
       renderPreview(missionSpecialPreviewEl, null);
       return;
     }
-    if(missionMeterFillEl) missionMeterFillEl.style.width = `${Math.round(missionProgressRatio() * 100)}%`;
+    const progressRatio = missionProgressRatio();
+    const progressWidth = `${Math.round(progressRatio * 100)}%`;
+    if(missionMeterFillEl) missionMeterFillEl.style.width = progressWidth;
+    if(stageMissionMeterFillEl) stageMissionMeterFillEl.style.width = progressWidth;
     const specialRule = missionSpecialRule();
+    const specialQueued = isMissionSpecialPiece(next);
+    const specialWarmth = Math.round(missionSpecialWarmth() * 100);
+    const objectiveLabel = missionObjectiveLabel();
+
     if(mission.done){
       missionTitleEl.textContent = `${mission.title} earned`;
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = `${mission.title} earned`;
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = `+${mission.cashBonus} coins earned`;
       missionSpecialNameEl.textContent = "Mission earned";
       missionSpecialInfoEl.textContent = `You earned +${mission.cashBonus} coins.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else if(mission.ready){
       missionTitleEl.textContent = `${mission.title} ready`;
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = `${mission.title} ready`;
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = `Goal met · coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
       missionSpecialNameEl.textContent = "Reward coin incoming";
       missionSpecialInfoEl.textContent = isCompactUI()
         ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
@@ -814,11 +880,15 @@
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
       missionTitleEl.textContent = mission.title;
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = `${mission.title} · ${objectiveLabel}`;
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = `${Math.round(progressRatio * 100)}% to goal`;
       missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
       missionSpecialInfoEl.textContent = specialRule
         ? isCompactUI()
-          ? `Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} settle${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
-          : `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} settle${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+          ? specialQueued
+            ? "Queued in Next now."
+            : `${specialJoinRateLabel(specialRule)} · warming up ${specialWarmth}%`
+          : `${specialRule.desc} ${specialQueued ? "It is queued in Next right now." : `Chance is warming up (${specialWarmth}%).`}`
         : "No special tetrad assigned.";
       renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
     }
@@ -827,8 +897,11 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Goal met. Keep clearing ${TILE_LABEL[mission.animal]} blocks for score while the coin charges.`
-          : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} blocks cleared`;
+          ? `Goal met. Keep clearing ${animalWord(mission.animal)} blocks for score while the coin charges.`
+          : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} blocks cleared`;
+      if(stageMissionProgressTextEl && !mission.done && !mission.ready){
+        stageMissionProgressTextEl.textContent = `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} blocks`;
+      }
       return;
     }
 
@@ -892,6 +965,9 @@
         : mission.ready
           ? `You survived the required settles. Anything after this is pure greed.`
           : `${missionProgressText(locks, mission.target)} settles survived`;
+      if(stageMissionProgressTextEl && !mission.done && !mission.ready){
+        stageMissionProgressTextEl.textContent = `${missionProgressText(locks, mission.target)} settles survived`;
+      }
       return;
     }
 
@@ -900,6 +976,9 @@
       : mission.ready
         ? `Clear goal done. The bonus grows until you grab the coin or wash out.`
         : `${missionProgressText(mission.progress, mission.target)} clears`;
+    if(stageMissionProgressTextEl && !mission.done && !mission.ready){
+      stageMissionProgressTextEl.textContent = `${missionProgressText(mission.progress, mission.target)} toward the goal`;
+    }
   }
 
   function completeMission(){
@@ -961,13 +1040,9 @@
   }
 
   function spawnNext(){
-    const specialRule = missionSpecialRule();
     if(mission && mission.ready && !mission.done && cashoutCharge >= missionCashoutEvery()){
       current = preparePiece(createCashoutPiece());
       cashoutCharge = 0;
-    } else if(mission && !mission.done && !mission.ready && specialRule && missionSpecialCharge >= specialRule.every){
-      current = preparePiece(createMissionSpecialPiece());
-      missionSpecialCharge = 0;
     } else {
       current = preparePiece(next ?? newPiece());
       next = newPiece();
@@ -1052,7 +1127,7 @@
     if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
-    if(finalBestEl) finalBestEl.textContent = best ? `${GROUP_NAME[best.animal]}, ${best.count} blocks ${TILE_LABEL[best.animal]}` : "-";
+    if(finalBestEl) finalBestEl.textContent = best ? `${groupSummary(best.animal, best.count)} ${TILE_LABEL[best.animal]}` : "-";
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
@@ -1755,7 +1830,6 @@
 
   function fitCanvasToViewport(){
     resize();
-    updateHUD();
   }
 
   function resize(){
@@ -2292,7 +2366,7 @@
 
     fitCanvasToViewport();
     const ro = new ResizeObserver(() => fitCanvasToViewport());
-    ro.observe(canvas);
+    ro.observe(stageEl);
 
     window.addEventListener("resize", fitCanvasToViewport, {passive:true});
     if(window.visualViewport){

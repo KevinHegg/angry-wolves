@@ -28,7 +28,7 @@
       <div class="right">
         <div class="score"><span id="score">0</span> 🪙</div>
         <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span> · Chain <span id="combo">x0</span></div>
-        <div class="best" id="best">Largest live group: —</div>
+        <div class="best" id="best">Largest group left: —</div>
       </div>
     </header>
 
@@ -60,6 +60,15 @@
       </aside>
 
       <main id="stage">
+        <div id="stageMissionBar" class="stageMissionBar" aria-hidden="true">
+          <div class="stageMissionMeta">
+            <span id="stageMissionTitle" class="stageMissionTitle">Mission warming up</span>
+            <span id="stageMissionProgressText" class="stageMissionProgressText">0 / 0</span>
+          </div>
+          <div class="missionMeter stageMissionMeter">
+            <span id="stageMissionMeterFill" class="missionMeterFill"></span>
+          </div>
+        </div>
         <canvas id="c"></canvas>
         <div id="toast" class="toast hidden"></div>
       </main>
@@ -76,7 +85,7 @@
         <div id="comboCard" class="planCard">
           <span class="planLabel">Best Chain</span>
           <span id="comboBest" class="planValue">x0</span>
-          <span class="planHint">Counts herds cleared before a settle whiffs</span>
+          <span class="planHint">Counts herd clears before a settle clears nothing</span>
         </div>
       </aside>
     </section>
@@ -130,7 +139,7 @@
           <span id="finalClears" class="statValue">0</span>
         </div>
         <div class="gameOverStat">
-          <span class="statLabel">Largest live group</span>
+          <span class="statLabel">Largest group left</span>
           <span id="finalBest" class="statValue">-</span>
         </div>
         <div class="gameOverStat">
@@ -190,7 +199,7 @@
         </div>
         <div class="gameOverStat">
           <span class="statLabel">Specials</span>
-          <span class="statValue">Mission pieces drop on schedule. Their symbol shows what each tile does.</span>
+          <span class="statValue">Mission pieces drift into Next over time. Their symbols show what each tile does.</span>
         </div>
       </div>
       <button id="closeHelp" class="closeBtn">Back To Barn</button>
