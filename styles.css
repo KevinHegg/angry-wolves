@@ -43,6 +43,9 @@ html,body{
   align-items:flex-end;
   gap:10px;
   padding: 10px 12px;
+  width:min(1120px, calc(100% - 24px));
+  margin:0 auto;
+  box-sizing:border-box;
   background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15));
 }
 
@@ -75,17 +78,18 @@ html,body{
 #gameShell{
   flex:1;
   min-height:0;
+  width:min(1120px, calc(100% - 24px));
+  margin:0 auto;
   display:grid;
-  grid-template-columns: minmax(150px, 190px) minmax(420px, 1fr) minmax(150px, 190px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: auto auto;
   gap:12px;
   padding: 0 12px 10px;
+  box-sizing:border-box;
 }
 
 .rail{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  min-height:0;
+  display:contents;
 }
 
 .planCard{
@@ -198,21 +202,27 @@ html,body{
 }
 
 #stage{
+  grid-column:1 / -1;
+  grid-row:1;
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:center;
   position: relative;
+  width:min(760px, 100%);
+  justify-self:center;
   min-width:0;
-  min-height: clamp(520px, 76svh, 980px);
+  min-height: clamp(620px, 78svh, 980px);
+  padding-top:56px;
   overflow:hidden;
 }
 
 .stageMissionBar{
   position:absolute;
-  top:8px;
-  left:50%;
-  transform:translateX(-50%);
-  width:min(540px, calc(100% - 18px));
+  top:10px;
+  left:12px;
+  right:116px;
+  width:auto;
+  transform:none;
   padding:8px 10px;
   border-radius:14px;
   background: rgba(8, 8, 14, 0.72);
@@ -272,6 +282,9 @@ canvas{
   justify-content:space-between;
   gap:10px;
   padding: 10px 12px 14px;
+  width:min(1120px, calc(100% - 24px));
+  margin:0 auto;
+  box-sizing:border-box;
   font-size:12px;
   color: var(--muted);
   background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.45));
@@ -507,21 +520,78 @@ canvas{
 
 @media (max-width: 1180px){
   #gameShell{
-    grid-template-columns: 1fr;
+    width:min(980px, calc(100% - 20px));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap:10px;
   }
 
-  .rail{
-    display:grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   #stage{
-    min-height: clamp(460px, 68svh, 860px);
+    width:min(700px, 100%);
+    min-height: clamp(560px, 76svh, 860px);
+    padding-top:52px;
   }
 
   .stageMissionBar{
-    width:min(560px, calc(100% - 26px));
+    right:104px;
+  }
+}
+
+@media (min-width: 761px){
+  #missionCard{
+    display:none;
+  }
+
+  #holdButton{
+    grid-column:1;
+    grid-row:2;
+    min-height:96px;
+  }
+
+  #keysCard{
+    grid-column:2;
+    grid-row:2;
+  }
+
+  #holdSlotCard{
+    grid-column:3;
+    grid-row:2;
+  }
+
+  #comboCard{
+    grid-column:4;
+    grid-row:2;
+  }
+
+  #nextCard{
+    grid-column:4;
+    grid-row:1;
+    align-self:start;
+    justify-self:end;
+    z-index:3;
+    width:100px;
+    min-height:100px;
+    padding:6px;
+    margin-top:8px;
+    margin-right:8px;
+    box-shadow: 0 10px 18px rgba(0,0,0,0.34);
+  }
+
+  #nextCard .planLabel{
+    display:none;
+  }
+
+  #nextPreview{
+    max-width:88px;
+    gap:3px;
+  }
+
+  #nextPreview .previewCell{
+    border-radius:5px;
+    font-size:11px;
+  }
+
+  #nextPreview .previewCell.filled{
+    font-size:16px;
   }
 }
 
