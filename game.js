@@ -101,7 +101,15 @@
   const bestEl   = document.getElementById("best");
 
   const gear = document.getElementById("gear");
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const closeModal = document.getElementById("closeModal");
   const soundToggle = document.getElementById("soundToggle");
+  const gameOverBackdrop = document.getElementById("gameOverBackdrop");
+  const restartButton = document.getElementById("restartButton");
+  const finalScoreEl = document.getElementById("finalScore");
+  const finalLevelEl = document.getElementById("finalLevel");
+  const finalClearsEl = document.getElementById("finalClears");
+  const finalBestEl = document.getElementById("finalBest");
 
   // ===== State =====
   let board = makeBoard();
@@ -119,6 +127,8 @@
   let fallInterval = BASE_FALL_MS;
   let paused = false;
   let gameOver = false;
+  let modalOpenCount = 0;
+  let lastFrameTime = 0;
 
   // render metrics
   let W=0, H=0, cell=0;
@@ -140,11 +150,17 @@
   let ambienceClock = 0;
 
   function loadSoundPref(){
-    const v = localStorage.getItem("aw_sound");
-    return v === null ? true : (v === "1");
+    try{
+      const v = localStorage.getItem("aw_sound");
+      return v === null ? true : (v === "1");
+    }catch{
+      return true;
+    }
   }
   function saveSoundPref(){
-    localStorage.setItem("aw_sound", soundOn ? "1" : "0");
+    try{
+      localStorage.setItem("aw_sound", soundOn ? "1" : "0");
+    }catch{}
   }
   function ensureAudio(){
     if(audioCtx) return;
@@ -316,14 +332,39 @@
     }
   }
 
+  function setOverlayOpen(el, open){
+    if(!el) return;
+    const wasOpen = !el.classList.contains("hidden");
+    if(open === wasOpen) return;
+    el.classList.toggle("hidden", !open);
+    modalOpenCount += open ? 1 : -1;
+    modalOpenCount = Math.max(0, modalOpenCount);
+    paused = gameOver || modalOpenCount > 0;
+  }
+
+  function openSettings(){
+    setOverlayOpen(modalBackdrop, true);
+    draw();
+  }
+
+  function closeSettings(){
+    setOverlayOpen(modalBackdrop, false);
+    draw();
+  }
+
+  function updateGameOverStats(){
+    const best = computeBestGroup();
+    if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
+    if(finalLevelEl) finalLevelEl.textContent = level;
+    if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
+    if(finalBestEl) finalBestEl.textContent = best ? `${best.count} ${TILE_LABEL[best.animal]}` : "-";
+  }
+
   function gameOverNow(){
     gameOver = true;
-    paused = true;
+    updateGameOverStats();
+    setOverlayOpen(gameOverBackdrop, true);
     draw();
-    setTimeout(() => {
-      alert("Game Over!\n\nTap OK to restart.");
-      restart();
-    }, 20);
   }
 
   // ===== Overlay: geometric lattice, sparse, more eggs than poop =====
@@ -623,21 +664,21 @@
 
   // ===== Movement =====
   function move(dx){
-    if(paused) return;
+    if(paused || !current) return;
     if(!collides(current, dx, 0)) current.x += dx;
     else haptic(6);
     draw();
   }
 
   function dropOne(){
-    if(paused) return;
+    if(paused || !current) return;
     if(!collides(current, 0, 1)) current.y += 1;
     else lockPiece();
     draw();
   }
 
   function rotate(dirCW=true){
-    if(paused) return;
+    if(paused || !current) return;
     if(!current.rotates) return;
     const test = dirCW ? rotateCW(current.matrix) : rotateCCW(current.matrix);
     for(const k of [0,-1,1,-2,2]){
@@ -1024,21 +1065,33 @@
     mo.observe(document.documentElement, {subtree:true, childList:true, characterData:true});
   }
 
-  // ===== Fix the on-page help line (since you aren’t editing index.html) =====
+  // ===== Fix the on-page help line without touching the rest of the app =====
   function patchHelpLine(){
-    const els = Array.from(document.querySelectorAll("body *"));
-    for(const el of els){
-      if(!el.textContent) continue;
-      if(el.textContent.includes("Tap = rotate")){
-        el.textContent = "Touch: swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap left/right halves = nudge.";
-        break;
-      }
-    }
+    const helpPrimary = document.querySelector("#help > div:first-child");
+    if(!helpPrimary) return;
+    helpPrimary.innerHTML = "<b>Touch:</b> swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap left/right halves = nudge.";
   }
 
   // ===== Settings toggle (simple) =====
   function syncSoundBtn(){
     if(soundToggle) soundToggle.textContent = soundOn ? "ON" : "OFF";
+  }
+  if(gear){
+    gear.addEventListener("click", openSettings);
+  }
+  if(closeModal){
+    closeModal.addEventListener("click", closeSettings);
+  }
+  if(modalBackdrop){
+    modalBackdrop.addEventListener("click", (e) => {
+      if(e.target === modalBackdrop) closeSettings();
+    });
+  }
+  if(restartButton){
+    restartButton.addEventListener("click", () => {
+      setOverlayOpen(gameOverBackdrop, false);
+      restart();
+    });
   }
   if(soundToggle){
     const onTap = (e) => {
@@ -1065,12 +1118,15 @@
   }
 
   // ===== Game loop =====
-  function tick(){
+  function tick(now){
     requestAnimationFrame(tick);
+    if(!lastFrameTime) lastFrameTime = now;
+    const dt = Math.min(50, now - lastFrameTime);
+    lastFrameTime = now;
     if(paused || gameOver) return;
 
-    fallTimer += 16;
-    ambienceClock += 16;
+    fallTimer += dt;
+    ambienceClock += dt;
 
     if(ambienceClock > 520){
       ambienceClock = 0;
@@ -1093,9 +1149,13 @@
     sprinkleOverlayGeometric();
     score=0; level=1; locks=0; herdsCleared=0;
     fallInterval = BASE_FALL_MS;
+    fallTimer = 0;
+    ambienceClock = 0;
     paused=false; gameOver=false;
     current=null; next=null;
     particles=[]; banner={text:"",t:0,ttl:900};
+    setOverlayOpen(modalBackdrop, false);
+    setOverlayOpen(gameOverBackdrop, false);
     next = newPiece();
     spawnNext();
     updateHUD();
@@ -1115,6 +1175,7 @@
 
     updateHUD();
     syncSoundBtn();
+    updateGameOverStats();
 
     fitCanvasToViewport();
     const ro = new ResizeObserver(() => fitCanvasToViewport());

@@ -3,11 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <title>Angry Wolves</title>
 
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -60,6 +62,31 @@
       <div class="note">
         Tip: for true fullscreen, tap Share → <b>Add to Home Screen</b>.
       </div>
+    </div>
+  </div>
+
+  <div id="gameOverBackdrop" class="modalBackdrop hidden">
+    <div class="modal gameOverModal">
+      <h2>Run Over</h2>
+      <div class="gameOverStats">
+        <div class="gameOverStat">
+          <span class="statLabel">Score</span>
+          <span id="finalScore" class="statValue">0</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Level</span>
+          <span id="finalLevel" class="statValue">1</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Herds</span>
+          <span id="finalClears" class="statValue">0</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Best group</span>
+          <span id="finalBest" class="statValue">-</span>
+        </div>
+      </div>
+      <button id="restartButton" class="closeBtn">Play Again</button>
     </div>
   </div>
 
