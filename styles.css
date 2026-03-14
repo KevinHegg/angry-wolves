@@ -418,8 +418,8 @@ canvas{
   #hud{
     align-items:flex-start;
     flex-wrap:nowrap;
-    gap:8px;
-    padding: 8px 84px 4px 8px;
+    gap:6px;
+    padding: 5px 72px 2px 6px;
     position:relative;
   }
 
@@ -431,7 +431,7 @@ canvas{
   #hud .left{
     flex:1 1 auto;
     align-items:flex-start;
-    gap:8px;
+    gap:6px;
   }
 
   #hud .right{
@@ -439,13 +439,14 @@ canvas{
     text-align:left;
     display:grid;
     grid-template-columns:auto 1fr;
-    gap:2px 10px;
+    gap:1px 8px;
     align-items:start;
-    padding-top:2px;
+    padding-top:1px;
   }
 
   .title .h1{
-    font-size:15px;
+    font-size:14px;
+    line-height:1.05;
   }
 
   .title .sub{
@@ -454,22 +455,25 @@ canvas{
 
   #gear,
   #helpButton{
-    width:34px;
-    height:34px;
-    border-radius:10px;
-    font-size:16px;
+    width:30px;
+    height:30px;
+    border-radius:9px;
+    font-size:14px;
   }
 
   .score{
-    font-size:16px;
-    grid-row:1 / span 2;
+    font-size:15px;
+    grid-row:1 / span 1;
   }
 
-  .meta,
-  .best{
-    font-size:11px;
+  .meta{
+    font-size:10px;
     line-height:1.15;
     margin-top:0;
+  }
+
+  .best{
+    display:none;
   }
 
   #gameShell{
@@ -481,32 +485,44 @@ canvas{
     width:100vw;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-    min-height: clamp(720px, 82svh, 980px);
+    min-height: clamp(744px, 84svh, 1000px);
     justify-content:flex-start;
     box-sizing:border-box;
-    padding-top:40px;
-    padding-bottom:4px;
+    padding-top:30px;
+    padding-bottom:2px;
   }
 
   .stageMissionBar{
-    top:4px;
-    width:calc(100% - 12px);
-    left:6px;
+    top:1px;
+    width:calc(100% - 64px);
+    left:4px;
     transform:none;
-    padding:6px 8px;
-    border-radius:12px;
+    padding:4px 7px;
+    border-radius:10px;
   }
 
   .stageMissionMeta{
-    margin-bottom:4px;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:4px 8px;
+    margin-bottom:3px;
   }
 
   .stageMissionTitle{
-    font-size:11px;
+    font-size:10px;
+    line-height:1.05;
   }
 
   .stageMissionProgressText{
-    font-size:10px;
+    font-size:9px;
+    line-height:1.05;
+    max-width:40vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .stageMissionMeter{
+    height:8px;
   }
 
   #rightRail{
@@ -587,11 +603,11 @@ canvas{
 
   #nextCard{
     position:absolute;
-    top:8px;
-    right:6px;
+    top:4px;
+    right:4px;
     z-index:3;
-    width:62px;
-    padding:5px;
+    width:52px;
+    padding:3px;
     min-height:auto;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
   }
@@ -601,18 +617,18 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 50px;
+    max-width: 42px;
     gap:2px;
     margin-top:0;
   }
 
   #nextPreview .previewCell{
-    border-radius:4px;
-    font-size:8px;
+    border-radius:3px;
+    font-size:7px;
   }
 
   #nextPreview .previewCell.filled{
-    font-size:11px;
+    font-size:9px;
   }
 
   .missionBriefModal{
@@ -635,7 +651,7 @@ canvas{
 
 @media (max-width: 480px){
   #hud{
-    padding: 6px 76px 2px 8px;
+    padding: 4px 64px 1px 5px;
   }
 
   #gameShell{
@@ -644,21 +660,20 @@ canvas{
   }
 
   #stage{
-    min-height: clamp(760px, 85svh, 1060px);
-    padding-top:36px;
+    min-height: clamp(780px, 87svh, 1080px);
+    padding-top:27px;
   }
 
   .title .h1{
-    font-size:14px;
+    font-size:13px;
   }
 
   .score{
-    font-size:15px;
+    font-size:14px;
   }
 
-  .meta,
-  .best{
-    font-size:10px;
+  .meta{
+    font-size:9px;
   }
 
   #missionCard{
@@ -666,19 +681,19 @@ canvas{
   }
 
   #nextCard{
-    top:6px;
+    top:2px;
     right:4px;
-    width:58px;
-    padding:4px;
+    width:48px;
+    padding:3px;
   }
 
   .stageMissionBar{
-    width:calc(100% - 10px);
-    left:5px;
+    width:calc(100% - 58px);
+    left:4px;
   }
 
   #nextPreview{
-    max-width: 46px;
+    max-width: 38px;
   }
 
   .missionPreview{

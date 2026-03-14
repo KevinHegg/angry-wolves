@@ -552,6 +552,21 @@
     if(!animal || !count) return "-";
     return `${count} ${animalWord(animal)} block${count === 1 ? "" : "s"}`;
   }
+  function compactMissionProgress(){
+    if(!mission) return "Start dropping";
+    if(mission.done) return `+${mission.cashBonus} earned`;
+    if(mission.ready) return `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
+    if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
+    if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} clears`;
+    if(mission.type === "combo") return `${fmtChain(bestCombo)} best`;
+    if(mission.type === "wolf") return `${missionProgressText(mission.progress, mission.target)} wolves`;
+    if(mission.type === "score") return `${missionProgressText(score, mission.target)} coins`;
+    if(mission.type === "level") return `Lv ${level}/${mission.target}`;
+    if(mission.type === "big_group") return `${missionProgressText(mission.progress, mission.target)} jumbo`;
+    if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials`;
+    if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
+    return `${missionProgressText(mission.progress, mission.target)}`;
+  }
   function formatBestGroup(best){
     if(!best) return "Largest cluster left: -";
     return `Largest cluster left: ${groupSummary(best.animal, best.count)}`;
@@ -845,7 +860,7 @@
       missionProgressEl.textContent = "Start dropping pieces";
       if(missionMeterFillEl) missionMeterFillEl.style.width = "0%";
       if(stageMissionTitleEl) stageMissionTitleEl.textContent = "Mission warming up";
-      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = "Start dropping pieces";
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = "Start dropping";
       if(stageMissionMeterFillEl) stageMissionMeterFillEl.style.width = "0%";
       missionSpecialNameEl.textContent = "Special tetrad: warming up";
       missionSpecialInfoEl.textContent = "Mission tricks will appear here.";
@@ -863,15 +878,15 @@
 
     if(mission.done){
       missionTitleEl.textContent = `${mission.title} earned`;
-      if(stageMissionTitleEl) stageMissionTitleEl.textContent = `${mission.title} earned`;
-      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = `+${mission.cashBonus} coins earned`;
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = mission.title;
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = compactMissionProgress();
       missionSpecialNameEl.textContent = "Mission earned";
       missionSpecialInfoEl.textContent = `You earned +${mission.cashBonus} coins.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else if(mission.ready){
       missionTitleEl.textContent = `${mission.title} ready`;
-      if(stageMissionTitleEl) stageMissionTitleEl.textContent = `${mission.title} ready`;
-      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = `Goal met · coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = mission.title;
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = compactMissionProgress();
       missionSpecialNameEl.textContent = "Reward coin incoming";
       missionSpecialInfoEl.textContent = isCompactUI()
         ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
@@ -879,8 +894,8 @@
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
       missionTitleEl.textContent = mission.title;
-      if(stageMissionTitleEl) stageMissionTitleEl.textContent = `${mission.title} · ${objectiveLabel}`;
-      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = `${Math.round(progressRatio * 100)}% to goal`;
+      if(stageMissionTitleEl) stageMissionTitleEl.textContent = mission.title;
+      if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = compactMissionProgress();
       missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
       missionSpecialInfoEl.textContent = specialRule
         ? isCompactUI()
@@ -898,9 +913,6 @@
         : mission.ready
           ? `Goal met. Keep clearing ${animalWord(mission.animal)} blocks for score while the coin charges.`
           : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} blocks cleared`;
-      if(stageMissionProgressTextEl && !mission.done && !mission.ready){
-        stageMissionProgressTextEl.textContent = `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} blocks`;
-      }
       return;
     }
 
@@ -964,9 +976,6 @@
         : mission.ready
           ? `You survived the required settles. Anything after this is pure greed.`
           : `${missionProgressText(locks, mission.target)} settles survived`;
-      if(stageMissionProgressTextEl && !mission.done && !mission.ready){
-        stageMissionProgressTextEl.textContent = `${missionProgressText(locks, mission.target)} settles survived`;
-      }
       return;
     }
 
@@ -975,9 +984,6 @@
       : mission.ready
         ? `Clear goal done. The bonus grows until you grab the coin or wash out.`
         : `${missionProgressText(mission.progress, mission.target)} clears`;
-    if(stageMissionProgressTextEl && !mission.done && !mission.ready){
-      stageMissionProgressTextEl.textContent = `${missionProgressText(mission.progress, mission.target)} toward the goal`;
-    }
   }
 
   function completeMission(){
