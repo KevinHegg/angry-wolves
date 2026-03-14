@@ -29,37 +29,54 @@
       </div>
     </header>
 
-    <section id="planner">
-      <button id="holdButton" class="planCard actionCard">
-        <span class="planLabel">Hold</span>
-        <span class="planValue">Swap current piece</span>
-        <span class="planHint">Tap or press C</span>
-      </button>
-      <div class="planCard">
-        <span class="planLabel">Next</span>
-        <div id="nextPreview" class="previewGrid"></div>
-      </div>
-      <div class="planCard">
-        <span class="planLabel">Hold Slot</span>
-        <div id="holdPreview" class="previewGrid"></div>
-      </div>
-      <div class="planCard">
-        <span class="planLabel">Best Chain</span>
-        <span id="comboBest" class="planValue">x1</span>
-        <span class="planHint">Back-to-back clears juice the score</span>
-      </div>
-    </section>
+    <section id="gameShell">
+      <aside id="leftRail" class="rail">
+        <button id="holdButton" class="planCard actionCard">
+          <span class="planLabel">Hold</span>
+          <span class="planValue">Swap current piece</span>
+          <span class="planHint">Tap or press C</span>
+        </button>
+        <div id="missionCard" class="planCard">
+          <span class="planLabel">Barn Mission</span>
+          <span id="missionTitle" class="planValue">Warm up the barn</span>
+          <span id="missionProgress" class="planHint">Start dropping pieces</span>
+        </div>
+        <div id="keysCard" class="planCard">
+          <span class="planLabel">Laptop Controls</span>
+          <span class="planHint">Move: A / D or arrows</span>
+          <span class="planHint">Rotate: W, X, Up, E, Q or Z</span>
+          <span class="planHint">Drop: S or Down, hard drop: Space</span>
+          <span class="planHint">Hold: C, Pause: P, Restart: R</span>
+        </div>
+      </aside>
 
-    <main id="stage">
-      <canvas id="c"></canvas>
-      <div id="toast" class="toast hidden"></div>
-    </main>
+      <main id="stage">
+        <canvas id="c"></canvas>
+        <div id="toast" class="toast hidden"></div>
+      </main>
+
+      <aside id="rightRail" class="rail">
+        <div id="nextCard" class="planCard">
+          <span class="planLabel">Next</span>
+          <div id="nextPreview" class="previewGrid"></div>
+        </div>
+        <div id="holdSlotCard" class="planCard">
+          <span class="planLabel">Hold Slot</span>
+          <div id="holdPreview" class="previewGrid"></div>
+        </div>
+        <div id="comboCard" class="planCard">
+          <span class="planLabel">Best Chain</span>
+          <span id="comboBest" class="planValue">x1</span>
+          <span class="planHint">Back-to-back clears juice the score</span>
+        </div>
+      </aside>
+    </section>
 
     <footer id="help">
       <div>
-        <b>Touch:</b> swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap = rotate CW.
+        <b>Touch:</b> swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap left/right halves = nudge.
       </div>
-      <div class="legend">🥚 doubles · <span class="danger">💩 halves</span></div>
+      <div class="legend">🥚 doubles · <span class="danger">💩 halves</span> · press Space to yeet a piece</div>
     </footer>
   </div>
 

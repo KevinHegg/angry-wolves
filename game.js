@@ -104,6 +104,8 @@
   const nextPreviewEl = document.getElementById("nextPreview");
   const holdPreviewEl = document.getElementById("holdPreview");
   const holdButton = document.getElementById("holdButton");
+  const missionTitleEl = document.getElementById("missionTitle");
+  const missionProgressEl = document.getElementById("missionProgress");
 
   const gear = document.getElementById("gear");
   const modalBackdrop = document.getElementById("modalBackdrop");
@@ -132,6 +134,7 @@
   let currentCombo = 1;
   let bestCombo = 1;
   let holdUsed = false;
+  let mission = null;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -151,6 +154,14 @@
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
   let gesture = null;
+
+  const CLEAR_QUIPS = {
+    [TILE.SHEEP]: ["Wool done.", "That flock got absolutely sheepish.", "The meadow trembles."],
+    [TILE.GOAT]: ["Goat chaos unlocked.", "That herd just ate the leaderboard.", "Pure cliff-certified nonsense."],
+    [TILE.CHICKEN]: ["Hen-demonium.", "Certified coop catastrophe.", "Somebody alert the rooster union."],
+    [TILE.COW]: ["Udderly excessive.", "The dairy lobby is furious.", "That was a premium moo-ve."],
+    [TILE.PIG]: ["Hog wild.", "That sty just went full goblin mode.", "Oink if you love combos."]
+  };
 
   // ===== Audio (silent unlock, no popups) =====
   let audioCtx = null;
@@ -226,6 +237,35 @@
     osc.stop(t0 + dur);
   }
 
+  function playJingle(notes, opts={}){
+    if(!soundOn || !audioUnlocked || !audioCtx || !masterGain) return;
+    const {
+      step = 0.08,
+      type = "square",
+      gain = 0.08
+    } = opts;
+    const start = audioCtx.currentTime;
+
+    notes.forEach((note, idx) => {
+      const freq = typeof note === "number" ? note : note.f;
+      const dur = typeof note === "number" ? step : (note.d ?? step);
+      const noteGain = typeof note === "number" ? gain : (note.g ?? gain);
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      const t0 = start + idx * step;
+
+      osc.type = typeof note === "number" ? type : (note.type ?? type);
+      osc.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(noteGain, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(t0);
+      osc.stop(t0 + dur);
+    });
+  }
+
   function playBarnyard(animal, size){
     const big = Math.min(0.22, 0.10 + size/170);
     if(animal === TILE.COW){
@@ -247,6 +287,33 @@
     }
   }
 
+  function playLevelUpJingle(){
+    playJingle([392, 494, 587, 784], { step:0.075, type:"square", gain:0.07 });
+  }
+
+  function playMissionJingle(){
+    playJingle([523, 659, 784, 988], { step:0.07, type:"triangle", gain:0.08 });
+  }
+
+  function playHoldJingle(){
+    playJingle([
+      { f: 440, d: 0.06, g: 0.05, type: "triangle" },
+      { f: 554, d: 0.06, g: 0.05, type: "triangle" }
+    ], { step:0.05 });
+  }
+
+  function playGameOverJingle(){
+    playJingle([
+      { f: 392, d: 0.12, g: 0.07, type: "sawtooth" },
+      { f: 330, d: 0.14, g: 0.065, type: "sawtooth" },
+      { f: 262, d: 0.18, g: 0.06, type: "sawtooth" }
+    ], { step:0.11 });
+  }
+
+  function playDropThump(){
+    playTone({type:"square", f1:100, f2:65, dur:0.06, gain:0.08});
+  }
+
   function playAmbienceTick(){
     if(!soundOn || !audioUnlocked) return;
     if(Math.random() < 0.03){
@@ -266,6 +333,8 @@
   function clone2(m){ return m.map(r => r.slice()); }
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function fmtChain(v){ return `x${Math.max(1, v|0)}`; }
+  function missionProgressText(value, target){ return `${Math.min(value, target)} / ${target}`; }
+  function quipForAnimal(animal){ return randChoice(CLEAR_QUIPS[animal] || ["Barnyard bedlam."]); }
 
   function rotateCW(mat){
     const n = mat.length, m = mat[0].length;
@@ -366,6 +435,110 @@
     }).join("");
   }
 
+  function randomMission(){
+    const animal = randChoice(ANIMALS);
+    const animalTarget = 14 + Math.floor(Math.random() * 5);
+    const clearTarget = 3 + Math.floor(Math.random() * 2);
+    const comboTarget = 2 + Math.floor(Math.random() * 2);
+    const missions = [
+      {
+        type: "animal",
+        title: `Wrangle ${TILE_LABEL[animal]} trouble`,
+        progress: 0,
+        target: animalTarget,
+        bonus: 80 + animalTarget * 4,
+        done: false,
+        animal
+      },
+      {
+        type: "clears",
+        title: `Clear ${clearTarget} proper herds`,
+        progress: 0,
+        target: clearTarget,
+        bonus: 95 + clearTarget * 20,
+        done: false
+      },
+      {
+        type: "combo",
+        title: `Trigger a ${fmtChain(comboTarget)} combo`,
+        progress: 0,
+        target: comboTarget,
+        bonus: 140 + comboTarget * 35,
+        done: false
+      },
+      {
+        type: "wolf",
+        title: "Detonate one premium wolf tantrum",
+        progress: 0,
+        target: 1,
+        bonus: 180,
+        done: false
+      }
+    ];
+    return randChoice(missions);
+  }
+
+  function updateMissionUI(){
+    if(!missionTitleEl || !missionProgressEl) return;
+    if(!mission){
+      missionTitleEl.textContent = "Warm up the barn";
+      missionProgressEl.textContent = "Start dropping pieces";
+      return;
+    }
+    missionTitleEl.textContent = mission.done ? `${mission.title} complete` : mission.title;
+
+    if(mission.type === "animal"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus banked: +${mission.bonus} coins`
+        : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} cleared`;
+      return;
+    }
+
+    if(mission.type === "combo"){
+      missionProgressEl.textContent = mission.done
+        ? `Crowd goes feral: +${mission.bonus}`
+        : `Current best this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
+      return;
+    }
+
+    if(mission.type === "wolf"){
+      missionProgressEl.textContent = mission.done
+        ? `The barn insurance rates exploded. +${mission.bonus}`
+        : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
+      return;
+    }
+
+    missionProgressEl.textContent = mission.done
+      ? `Bonus banked: +${mission.bonus} coins`
+      : `${missionProgressText(mission.progress, mission.target)} clears`;
+  }
+
+  function completeMission(){
+    if(!mission || mission.done) return;
+    mission.done = true;
+    score += mission.bonus;
+    banner.text = `Mission complete! ${mission.title}. Farmer impressed. +${mission.bonus}`;
+    banner.t = performance.now();
+    playMissionJingle();
+    updateMissionUI();
+    updateHUD();
+  }
+
+  function bumpMission(event, value){
+    if(!mission || mission.done) return;
+    if(event === "animal" && mission.type === "animal" && mission.animal === value.animal){
+      mission.progress += value.amount;
+    } else if(event === "clears" && mission.type === "clears"){
+      mission.progress += value;
+    } else if(event === "combo" && mission.type === "combo"){
+      mission.progress = Math.max(mission.progress, value);
+    } else if(event === "wolf" && mission.type === "wolf"){
+      mission.progress += value;
+    }
+    if(mission.progress >= mission.target) completeMission();
+    else updateMissionUI();
+  }
+
   function collides(piece, dx=0, dy=0, testMatrix=null){
     const m = testMatrix ?? piece.matrix;
     for(let r=0;r<m.length;r++){
@@ -391,8 +564,14 @@
   }
 
   function updateLevel(){
+    const prevLevel = level;
     level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
     fallInterval = Math.max(MIN_FALL_MS, Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1)));
+    if(level > prevLevel){
+      banner.text = `Level ${level}! The barn got meaner.`;
+      banner.t = performance.now();
+      playLevelUpJingle();
+    }
     updateHUD();
   }
 
@@ -410,6 +589,7 @@
     renderPreview(nextPreviewEl, next);
     renderPreview(holdPreviewEl, held);
     if(holdButton) holdButton.disabled = paused || gameOver || !current || holdUsed;
+    updateMissionUI();
   }
 
   function setOverlayOpen(el, open){
@@ -444,6 +624,7 @@
 
   function gameOverNow(){
     gameOver = true;
+    playGameOverJingle();
     updateGameOverStats();
     setOverlayOpen(gameOverBackdrop, true);
     draw();
@@ -557,11 +738,12 @@
 
     if(popped.length){
       spawnPopParticles(popped);
-      banner.text = `🐺 BOOM (${popped.length} tiles)`;
+      banner.text = `🐺 BOOM (${popped.length} tiles). The coop lawyers have concerns.`;
       banner.t = performance.now();
       playTone({type:"sawtooth", f1:120, f2:45, dur:0.20, gain:0.20});
       playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.16});
       haptic(18);
+      bumpMission("wolf", 1);
     }
   }
 
@@ -656,6 +838,7 @@
       if(clears.length === 0) break;
       chainDepth++;
       bestCombo = Math.max(bestCombo, chainDepth);
+      bumpMission("combo", chainDepth);
 
       for(const group of clears){
         const { animal, cells } = group;
@@ -683,7 +866,9 @@
 
         herdsCleared++;
         currentCombo = chainDepth;
-        banner.text = `${chainDepth > 1 ? `${fmtChain(chainDepth)} chain! ` : ""}Cleared ${cells.length} ${TILE_LABEL[animal]} (${GROUP_NAME[animal]}) +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
+        bumpMission("animal", { animal, amount: cells.length });
+        bumpMission("clears", 1);
+        banner.text = `${chainDepth > 1 ? `${fmtChain(chainDepth)} chain! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${TILE_LABEL[animal]} (${GROUP_NAME[animal]}) +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -761,8 +946,9 @@
       spawnNext();
     }
     holdUsed = true;
-    banner.text = held ? "Held for later" : "Hold slot ready";
+    banner.text = held ? "Pocketed that chaos for later." : "Hold slot ready. Strategy hat on.";
     banner.t = performance.now();
+    playHoldJingle();
     updateHUD();
     draw();
   }
@@ -779,6 +965,21 @@
     if(paused || !current) return;
     if(!collides(current, 0, 1)) current.y += 1;
     else lockPiece();
+    draw();
+  }
+
+  function hardDrop(){
+    if(paused || !current) return;
+    let moved = 0;
+    while(!collides(current, 0, 1)){
+      current.y += 1;
+      moved++;
+    }
+    if(moved){
+      score += moved;
+      playDropThump();
+    }
+    lockPiece();
     draw();
   }
 
@@ -1136,6 +1337,7 @@
   // ===== Keyboard (non-touch) =====
   if(!IS_TOUCH){
     window.addEventListener("keydown", (e) => {
+      unlockAudioSilently();
       if(gameOver) return;
       const k = e.key;
       const lk = k.toLowerCase();
@@ -1149,8 +1351,9 @@
       if(k === "ArrowLeft" || lk === "a") move(-1);
       else if(k === "ArrowRight" || lk === "d") move(1);
       else if(k === "ArrowDown" || lk === "s") dropOne();
-      else if(k === "ArrowUp" || lk === "x") rotate(true);
-      else if(lk === "z") rotate(false);
+      else if(k === " " || lk === "f") hardDrop();
+      else if(k === "ArrowUp" || lk === "x" || lk === "w" || lk === "e") rotate(true);
+      else if(lk === "z" || lk === "q") rotate(false);
     }, { passive:false });
   }
 
@@ -1214,18 +1417,6 @@
     soundToggle.addEventListener("touchend", onTap, {passive:false});
   }
 
-  // ===== Spawn / Level =====
-  function spawnNext(){
-    current = next ?? newPiece();
-    next = newPiece();
-    if(collides(current,0,0)) gameOverNow();
-  }
-  function updateLevel(){
-    level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
-    fallInterval = Math.max(MIN_FALL_MS, Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1)));
-    updateHUD();
-  }
-
   // ===== Game loop =====
   function tick(now){
     requestAnimationFrame(tick);
@@ -1256,6 +1447,7 @@
   function restart(){
     board = makeBoard();
     sprinkleOverlayGeometric();
+    mission = randomMission();
     score=0; level=1; locks=0; herdsCleared=0;
     held=null; currentCombo=1; bestCombo=1; holdUsed=false;
     fallInterval = BASE_FALL_MS;
@@ -1279,6 +1471,7 @@
     installToastObserver();
 
     sprinkleOverlayGeometric();
+    mission = randomMission();
 
     next = newPiece();
     spawnNext();
