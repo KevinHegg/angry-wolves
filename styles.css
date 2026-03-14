@@ -18,6 +18,8 @@ html,body{
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   overscroll-behavior:none;
   touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
 }
 
 #app{
@@ -121,6 +123,25 @@ html,body{
   font-size:11px;
   color: var(--muted);
   line-height:1.25;
+}
+
+.missionMeter{
+  position:relative;
+  height:8px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.08);
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,0.06);
+}
+
+.missionMeterFill{
+  display:block;
+  height:100%;
+  width:0%;
+  border-radius:999px;
+  background: linear-gradient(90deg, #ffd166, #7dd3fc);
+  box-shadow: 0 0 18px rgba(125, 211, 252, 0.35);
+  transition: width 160ms ease-out;
 }
 
 .previewGrid{
@@ -377,13 +398,16 @@ canvas{
   #gameShell{
     grid-template-columns: 1fr;
     gap:8px;
-    padding: 0 8px 8px;
+    padding: 0 0 8px;
     position:relative;
   }
 
   #stage{
     order:1;
-    min-height: clamp(620px, 74svh, 860px);
+    width:100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    min-height: clamp(680px, 79svh, 960px);
   }
 
   #rightRail{
@@ -397,6 +421,7 @@ canvas{
     display:grid;
     grid-template-columns: 1fr;
     gap:6px;
+    padding: 0 8px;
   }
 
   #keysCard{
@@ -448,8 +473,8 @@ canvas{
 
   #nextCard{
     position:absolute;
-    top:-46px;
-    right:8px;
+    top:-44px;
+    right:6px;
     z-index:3;
     width:72px;
     padding:7px 6px;
@@ -500,12 +525,12 @@ canvas{
   }
 
   #gameShell{
-    padding: 0 4px 6px;
+    padding: 0 0 6px;
     gap:6px;
   }
 
   #stage{
-    min-height: clamp(670px, 78svh, 920px);
+    min-height: clamp(740px, 83svh, 1040px);
   }
 
   .title .h1{
@@ -530,7 +555,7 @@ canvas{
   }
 
   #nextCard{
-    top:-42px;
+    top:-40px;
     right:4px;
     width:66px;
     padding:6px 5px;

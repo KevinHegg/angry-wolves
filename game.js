@@ -59,11 +59,11 @@
     [TILE.PIG]: "🐖",
     [TILE.WOLF]: "🐺",
     [TILE.BLACK_SHEEP]: "🐑‍⬛",
-    [TILE.BOMB]: "💥",
+    [TILE.BOMB]: "💣",
     [TILE.REAPER]: "✂️",
-    [TILE.MORPH]: "?",
+    [TILE.MORPH]: "❓",
     [TILE.SEEDER]: "🥚",
-    [TILE.CASHOUT]: "🔔",
+    [TILE.CASHOUT]: "🪙",
   };
 
   const TILE_COLOR = {
@@ -72,23 +72,23 @@
     [TILE.CHICKEN]: "#ffe889",
     [TILE.COW]: "#b9c6ff",
     [TILE.PIG]: "#ffb6c9",
-    [TILE.WOLF]: "#93a1b5",
+    [TILE.WOLF]: "#6f7c91",
     [TILE.BLACK_SHEEP]: "#1b1b24",
     [TILE.BOMB]: "#ff875d",
     [TILE.REAPER]: "#7ef0d1",
     [TILE.MORPH]: "#5e8dff",
     [TILE.SEEDER]: "#f6d54a",
-    [TILE.CASHOUT]: "#ffd166",
+    [TILE.CASHOUT]: "#c89a2f",
   };
 
   const SPECIAL_TILE_META = {
-    [TILE.WOLF]: { accent: "#d7dfef", badge: "!" },
+    [TILE.WOLF]: { accent: "#d7dfef", badge: "🐺" },
     [TILE.BLACK_SHEEP]: { accent: "#8ee6ff", badge: "↺" },
-    [TILE.BOMB]: { accent: "#ffc29d", badge: "!" },
+    [TILE.BOMB]: { accent: "#ffc29d", badge: "💣" },
     [TILE.REAPER]: { accent: "#9cf5df", badge: "✂" },
     [TILE.MORPH]: { accent: "#b8c9ff", badge: "?" },
     [TILE.SEEDER]: { accent: "#fff0a6", badge: "+" },
-    [TILE.CASHOUT]: { accent: "#ffe29a", badge: "$" }
+    [TILE.CASHOUT]: { accent: "#f6dc88", badge: "¤" }
   };
 
   const GROUP_NAME = {
@@ -137,6 +137,7 @@
   const holdButton = document.getElementById("holdButton");
   const missionTitleEl = document.getElementById("missionTitle");
   const missionProgressEl = document.getElementById("missionProgress");
+  const missionMeterFillEl = document.getElementById("missionMeterFill");
   const missionSpecialNameEl = document.getElementById("missionSpecialName");
   const missionSpecialInfoEl = document.getElementById("missionSpecialInfo");
   const missionSpecialPreviewEl = document.getElementById("missionSpecialPreview");
@@ -187,10 +188,15 @@
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
+  let rotateSlowUntil = 0;
+  let rotateSlowUses = 4;
   let paused = false;
   let gameOver = false;
   let modalOpenCount = 0;
   let lastFrameTime = 0;
+  let lastTapTime = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
 
   // render metrics
   let W=0, H=0, cell=0;
@@ -244,26 +250,26 @@
   };
 
   const MISSION_DEFS = [
-    { id:"sheep_roundup", type:"animal", animal:TILE.SHEEP, target:17, bonus:150, special:"bomb", title:"Wrangle sheep trouble" },
-    { id:"goat_roundup", type:"animal", animal:TILE.GOAT, target:17, bonus:150, special:"morph", title:"Goat evacuation order" },
-    { id:"chicken_roundup", type:"animal", animal:TILE.CHICKEN, target:18, bonus:155, special:"seeder", title:"Henhouse cleanup shift" },
-    { id:"cow_roundup", type:"animal", animal:TILE.COW, target:16, bonus:160, special:"reaper", title:"Moo relocation program" },
-    { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:155, special:"bomb", title:"Hog panic response" },
-    { id:"clear_three", type:"clears", target:3, bonus:155, special:"reaper", title:"Clear 3 proper herds" },
-    { id:"clear_four", type:"clears", target:4, bonus:190, special:"bomb", title:"Clear 4 proper herds" },
-    { id:"combo_two", type:"combo", target:2, bonus:185, special:"morph", title:"Trigger a x2 combo" },
-    { id:"combo_three", type:"combo", target:3, bonus:240, special:"morph", title:"Trigger a x3 combo" },
-    { id:"wolf_once", type:"wolf", target:1, bonus:220, special:"bomb", title:"Detonate one premium wolf tantrum" },
-    { id:"wolf_twice", type:"wolf", target:2, bonus:300, special:"bomb", title:"Detonate two premium wolf tantrums" },
-    { id:"score_220", type:"score", target:220, bonus:160, special:"seeder", title:"Bank 220 coins before the barn riots" },
-    { id:"score_320", type:"score", target:320, bonus:220, special:"reaper", title:"Bank 320 coins before sunrise" },
-    { id:"level_three", type:"level", target:3, bonus:200, special:"morph", title:"Reach level 3 without a meltdown" },
-    { id:"level_four", type:"level", target:4, bonus:260, special:"bomb", title:"Reach level 4 and keep your boots" },
-    { id:"big_group_two", type:"big_group", target:2, bonus:210, special:"reaper", title:"Clear 2 jumbo herds" },
-    { id:"special_once", type:"special_use", target:1, bonus:150, special:"seeder", title:"Use your mission special once" },
-    { id:"special_twice", type:"special_use", target:2, bonus:240, special:"seeder", title:"Use your mission special twice" },
-    { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Survive 8 tidy settles" },
-    { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Survive 12 muddy settles" }
+    { id:"sheep_roundup", type:"animal", animal:TILE.SHEEP, target:17, bonus:150, special:"bomb", title:"Sheep Sweep" },
+    { id:"goat_roundup", type:"animal", animal:TILE.GOAT, target:17, bonus:150, special:"morph", title:"Goat Evac" },
+    { id:"chicken_roundup", type:"animal", animal:TILE.CHICKEN, target:18, bonus:155, special:"seeder", title:"Coop Cleanup" },
+    { id:"cow_roundup", type:"animal", animal:TILE.COW, target:16, bonus:160, special:"reaper", title:"Moo Move" },
+    { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:155, special:"bomb", title:"Hog Panic" },
+    { id:"clear_three", type:"clears", target:3, bonus:155, special:"reaper", title:"Triple Clear" },
+    { id:"clear_four", type:"clears", target:4, bonus:190, special:"bomb", title:"Quad Clear" },
+    { id:"combo_two", type:"combo", target:2, bonus:185, special:"morph", title:"Chain Starter" },
+    { id:"combo_three", type:"combo", target:3, bonus:240, special:"morph", title:"Chain Fever" },
+    { id:"wolf_once", type:"wolf", target:1, bonus:220, special:"bomb", title:"Wolf Pop" },
+    { id:"wolf_twice", type:"wolf", target:2, bonus:300, special:"bomb", title:"Wolf Rampage" },
+    { id:"score_220", type:"score", target:220, bonus:160, special:"seeder", title:"Coin Sprint" },
+    { id:"score_320", type:"score", target:320, bonus:220, special:"reaper", title:"Sunrise Scramble" },
+    { id:"level_three", type:"level", target:3, bonus:200, special:"morph", title:"Level Rush" },
+    { id:"level_four", type:"level", target:4, bonus:260, special:"bomb", title:"Boot Test" },
+    { id:"big_group_two", type:"big_group", target:2, bonus:210, special:"reaper", title:"Jumbo Duo" },
+    { id:"special_once", type:"special_use", target:1, bonus:150, special:"seeder", title:"Special Trial" },
+    { id:"special_twice", type:"special_use", target:2, bonus:240, special:"seeder", title:"Special Encore" },
+    { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Steady Hands" },
+    { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Mud Marathon" }
   ];
 
   // ===== Audio (silent unlock, no popups) =====
@@ -291,23 +297,50 @@
     try{
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 1.0;
+      masterGain.gain.value = soundOn ? 1.0 : 0.0;
       masterGain.connect(audioCtx.destination);
     }catch{
       audioCtx = null; masterGain = null;
     }
   }
+  function syncMasterGain(){
+    if(masterGain && audioCtx){
+      masterGain.gain.setValueAtTime(soundOn ? 1.0 : 0.0, audioCtx.currentTime);
+    }
+  }
+  function primeAudioContext(){
+    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    osc.frequency.setValueAtTime(440, t0);
+    osc.connect(g);
+    g.connect(masterGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.01);
+  }
   function unlockAudioSilently(){
     if(!soundOn) return;
     ensureAudio();
     if(!audioCtx) return;
-    if(audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-    audioUnlocked = true;
+    syncMasterGain();
+    const markUnlocked = () => {
+      audioUnlocked = true;
+      primeAudioContext();
+    };
+    if(audioCtx.state === "suspended"){
+      audioCtx.resume().then(markUnlocked).catch(() => {});
+      return;
+    }
+    markUnlocked();
   }
 
   function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.16, noise=false}){
-    if(!soundOn || !audioUnlocked || !audioCtx || !masterGain) return;
-    if(audioCtx.state === "suspended") audioCtx.resume();
+    if(!soundOn) return;
+    ensureAudio();
+    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
+    syncMasterGain();
 
     const t0 = audioCtx.currentTime;
     const g = audioCtx.createGain();
@@ -341,7 +374,10 @@
   }
 
   function playJingle(notes, opts={}){
-    if(!soundOn || !audioUnlocked || !audioCtx || !masterGain) return;
+    if(!soundOn) return;
+    ensureAudio();
+    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
+    syncMasterGain();
     const {
       step = 0.08,
       type = "square",
@@ -489,6 +525,22 @@
   function fmtChain(v){ return `x${Math.max(1, v|0)}`; }
   function missionProgressText(value, target){ return `${Math.min(value, target)} / ${target}`; }
   function quipForAnimal(animal){ return randChoice(CLEAR_QUIPS[animal] || ["Barnyard bedlam."]); }
+  function formatBestGroup(best){
+    if(!best) return "Best: -";
+    return `Best: ${best.count}-block ${GROUP_NAME[best.animal]} ${TILE_LABEL[best.animal]}`;
+  }
+  function missionCurrentProgress(){
+    if(!mission) return 0;
+    if(mission.type === "score") return score;
+    if(mission.type === "level") return level;
+    if(mission.type === "locks") return locks;
+    return mission.progress ?? 0;
+  }
+  function missionProgressRatio(){
+    if(!mission) return 0;
+    if(mission.done || mission.ready) return 1;
+    return clamp(missionCurrentProgress() / Math.max(1, mission.target), 0, 1);
+  }
 
   function rotateCW(mat){
     const n = mat.length, m = mat[0].length;
@@ -655,7 +707,7 @@
           cashoutCharge++;
           const locksLeft = Math.max(0, missionCashoutEvery() - cashoutCharge);
           if(locksLeft > 0){
-            banner.text = `Cash-out bell in ${locksLeft} more settle${locksLeft === 1 ? "" : "s"}. Bonus at risk: +${mission.cashBonus}.`;
+            banner.text = `Earn coin in ${locksLeft} more settle${locksLeft === 1 ? "" : "s"}. Bonus at risk: +${mission.cashBonus}.`;
             banner.t = performance.now();
           }
         }
@@ -673,14 +725,14 @@
 
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
-    if(mission.type === "animal") return `${mission.target} ${TILE_LABEL[mission.animal]} cleared`;
-    if(mission.type === "clears") return `${mission.target} clear(s)`;
+    if(mission.type === "animal") return `Clear ${mission.target} ${GROUP_NAME[mission.animal]} blocks ${TILE_LABEL[mission.animal]}`;
+    if(mission.type === "clears") return `Clear ${mission.target} big groups`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `${mission.target} wolf tantrum(s)`;
-    if(mission.type === "score") return `${mission.target} coins`;
+    if(mission.type === "score") return `Score ${mission.target} coins`;
     if(mission.type === "level") return `Reach level ${mission.target}`;
-    if(mission.type === "big_group") return `${mission.target} jumbo herd(s)`;
-    if(mission.type === "special_use") return `${mission.target} mission special use(s)`;
+    if(mission.type === "big_group") return `Clear ${mission.target} jumbo groups`;
+    if(mission.type === "special_use") return `Use your mission special ${mission.target} time(s)`;
     if(mission.type === "locks") return `Survive ${mission.target} settles`;
     return mission.title;
   }
@@ -688,23 +740,23 @@
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
     if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Hit the target, then decide whether to end the run and earn the bonus now or greed out a bigger payout while the barn speeds up.`;
-    if(mission.type === "clears") return "Clear enough herds to arm the cash-out bell. After that, every extra settle sweetens the bonus and makes survival sketchier.";
+    if(mission.type === "clears") return "Clear enough herds to arm the reward coin. After that, every extra settle sweetens the bonus and makes survival sketchier.";
     if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain. Once you land it, the greed phase begins.";
-    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the cash-out bell shows up.";
+    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the reward coin shows up.";
     if(mission.type === "score") return "Rack up coins fast. After you hit the target, you can stall for an even fatter mission payout if your nerves hold.";
-    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you cash out.";
+    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you collect the coin.";
     if(mission.type === "big_group") return "Build oversized clusters and clear them. Then choose between a tidy win and a greedier, shakier finish.";
-    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms a bell, and every extra settle fattens the bonus.";
-    if(mission.type === "locks") return "Survive the required settles, then decide how much longer you want to tempt the barn gods before ringing out.";
-    return "The barn demands something weird from you today. Finish the objective, then choose whether to cash out or get greedy.";
+    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms the reward coin, and every extra settle fattens the bonus.";
+    if(mission.type === "locks") return "Survive the required settles, then decide how much longer you want to tempt the barn gods before collecting the coin.";
+    return "The barn demands something weird from you today. Finish the objective, then choose whether to collect the coin or get greedy.";
   }
 
   function openMissionBriefing(){
     const specialRule = missionSpecialRule();
-    if(missionBriefTitleEl) missionBriefTitleEl.textContent = "Mission Briefing";
+    if(missionBriefTitleEl) missionBriefTitleEl.textContent = mission?.title ?? "Mission Briefing";
     if(missionBriefBodyEl) missionBriefBodyEl.textContent = missionBriefCopy();
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
-    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Base +${mission?.bonus ?? 0} before greed`;
+    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Starts at +${mission?.bonus ?? 0}`;
     if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
     if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? specialRule.desc : "No special tetrad assigned.";
     renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
@@ -721,11 +773,13 @@
     if(!mission){
       missionTitleEl.textContent = "Warm up the barn";
       missionProgressEl.textContent = "Start dropping pieces";
+      if(missionMeterFillEl) missionMeterFillEl.style.width = "0%";
       missionSpecialNameEl.textContent = "Special tetrad: warming up";
       missionSpecialInfoEl.textContent = "Mission tricks will appear here.";
       renderPreview(missionSpecialPreviewEl, null);
       return;
     }
+    if(missionMeterFillEl) missionMeterFillEl.style.width = `${Math.round(missionProgressRatio() * 100)}%`;
     const specialRule = missionSpecialRule();
     if(mission.done){
       missionTitleEl.textContent = `${mission.title} earned`;
@@ -734,10 +788,10 @@
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else if(mission.ready){
       missionTitleEl.textContent = `${mission.title} ready`;
-      missionSpecialNameEl.textContent = "Cash-out bell armed";
+      missionSpecialNameEl.textContent = "Reward coin ready";
       missionSpecialInfoEl.textContent = isCompactUI()
-        ? `Bell in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
-        : `Objective met. Stall for score if you dare: the barn speeds up, your bonus grows every settle, and a bell tetrad appears every ${missionCashoutEvery()} settles so you can cash out before the barn buries you.`;
+        ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
+        : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a cash-out coin appears every ${missionCashoutEvery()} settles so you can end the run and earn it.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
       missionTitleEl.textContent = mission.title;
@@ -754,8 +808,8 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Objective met. Keep clearing ${TILE_LABEL[mission.animal]} for score while the bell charges.`
-          : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} cleared`;
+          ? `Goal met. Keep clearing ${GROUP_NAME[mission.animal]} blocks for score while the coin charges.`
+          : `${missionProgressText(mission.progress, mission.target)} ${GROUP_NAME[mission.animal]} blocks cleared`;
       return;
     }
 
@@ -772,7 +826,7 @@
       missionProgressEl.textContent = mission.done
         ? `The barn insurance rates exploded. +${mission.cashBonus}`
         : mission.ready
-          ? `Wolf mission complete. Survive the greed window and ring the bell.`
+          ? `Wolf mission complete. Survive the greed window and grab the coin.`
           : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
       return;
     }
@@ -808,7 +862,7 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Special requirement met. A bell will let you earn the mission soon.`
+          ? `Special requirement met. The coin will let you earn the mission soon.`
           : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
       return;
     }
@@ -825,7 +879,7 @@
     missionProgressEl.textContent = mission.done
       ? `Bonus earned: +${mission.cashBonus} coins`
       : mission.ready
-        ? `Clear goal done. The bonus grows until you ring the bell or wash out.`
+        ? `Clear goal done. The bonus grows until you grab the coin or wash out.`
         : `${missionProgressText(mission.progress, mission.target)} clears`;
   }
 
@@ -834,7 +888,7 @@
     mission.ready = true;
     mission.cashBonus = mission.bonus;
     cashoutCharge = 0;
-    banner.text = `Objective met! Push your luck or grab the bell. Bonus at risk: +${mission.cashBonus}`;
+    banner.text = `Objective met! Push your luck or grab the coin. Bonus at risk: +${mission.cashBonus}`;
     banner.t = performance.now();
     playMissionJingle();
     updateMissionUI();
@@ -902,6 +956,8 @@
     if(!next) next = newPiece();
     holdUsed = false;
     currentCombo = 1;
+    rotateSlowUses = 4;
+    rotateSlowUntil = 0;
     playSpawnCue(current);
     updateHUD();
     if(collides(current,0,0)) gameOverNow();
@@ -932,7 +988,7 @@
 
     const best = computeBestGroup();
     if(bestEl){
-      bestEl.textContent = !best ? "Best: —" : `Best: ${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal]})`;
+      bestEl.textContent = formatBestGroup(best);
     }
     renderPreview(nextPreviewEl, next);
     renderPreview(holdPreviewEl, held);
@@ -968,7 +1024,7 @@
     if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
-    if(finalBestEl) finalBestEl.textContent = best ? `${best.count} ${TILE_LABEL[best.animal]}` : "-";
+    if(finalBestEl) finalBestEl.textContent = best ? `${best.count}-block ${GROUP_NAME[best.animal]} ${TILE_LABEL[best.animal]}` : "-";
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
@@ -976,7 +1032,7 @@
     runEndTitle = opts.title ?? "Run Over";
     runEndNote = opts.note ?? (
       mission && mission.ready && !mission.done
-        ? `You had +${mission.cashBonus} coins on the line, but the barn buried the bell before you could earn them.`
+        ? `You had +${mission.cashBonus} coins on the line, but the barn buried the coin before you could earn them.`
         : "The barn got crowded."
     );
     gameOver = true;
@@ -1476,6 +1532,8 @@
       spawnNext();
     }
     holdUsed = true;
+    rotateSlowUses = 4;
+    rotateSlowUntil = 0;
     banner.text = held ? "Pocketed that chaos for later." : "Hold slot ready. Strategy hat on.";
     banner.t = performance.now();
     playHoldJingle();
@@ -1520,9 +1578,15 @@
     draw();
   }
 
+  function triggerTouchRotateSlowdown(){
+    if(!IS_TOUCH || rotateSlowUses <= 0) return;
+    rotateSlowUses--;
+    rotateSlowUntil = performance.now() + 1400;
+  }
+
   function rotate(dirCW=true){
-    if(paused || !current) return;
-    if(!current.rotates) return;
+    if(paused || !current) return false;
+    if(!current.rotates) return false;
     const test = dirCW ? rotateCW(current.matrix) : rotateCCW(current.matrix);
     for(const k of [0,-1,1,-2,2]){
       if(!collides(current, k, 0, test)){
@@ -1530,10 +1594,12 @@
         current.x += k;
         haptic(6);
         playRotateTick();
-        break;
+        draw();
+        return true;
       }
     }
     draw();
+    return false;
   }
 
   function getGhostY(piece){
@@ -1893,7 +1959,8 @@
 
     // Rotate ONLY on a clear upward swipe (dominantly vertical), once per gesture
     if(!gesture.rotated && upDist >= SWIPE_UP_MIN && upDist >= Math.abs(totalDx) * UP_DOMINANCE){
-      rotate(totalDx < 0 ? false : true); // up-left CCW, up-right/straight CW
+      const rotated = rotate(totalDx < 0 ? false : true); // up-left CCW, up-right/straight CW
+      if(rotated) triggerTouchRotateSlowdown();
       gesture.rotated = true;
     }
   }
@@ -1908,6 +1975,16 @@
     // TAP: move one tile based on which half of screen was tapped
     // (Never rotate on tap)
     if(dt < 260 && dist < 10){
+      const now = performance.now();
+      const doubleTap = (now - lastTapTime) < 280 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 26;
+      lastTapTime = now;
+      lastTapX = e.clientX;
+      lastTapY = e.clientY;
+      if(doubleTap){
+        holdCurrent();
+        gesture = null;
+        return;
+      }
       const rect = canvas.getBoundingClientRect();
       const mid = rect.left + rect.width/2;
       move(e.clientX < mid ? -1 : 1);
@@ -1921,6 +1998,8 @@
   canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
   canvas.addEventListener("pointercancel", () => { gesture = null; });
   window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
+  window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
+  window.addEventListener("click", unlockAudioSilently, {passive:true});
   document.addEventListener("visibilitychange", () => {
     if(document.visibilityState === "visible") unlockAudioSilently();
   });
@@ -1969,7 +2048,7 @@
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
     if(!helpPrimary) return;
-    helpPrimary.innerHTML = "<b>Touch:</b> swipe ←/→ move · ↓ drop · ↑ rotate · tap a side to nudge";
+    helpPrimary.innerHTML = "<b>Touch:</b> swipe ←/→ move · ↓ drop · ↑ rotate/slows briefly · double-tap hold";
   }
 
   // ===== Settings toggle (simple) =====
@@ -2004,6 +2083,8 @@
       e.preventDefault();
       soundOn = !soundOn;
       saveSoundPref();
+      syncMasterGain();
+      if(soundOn) unlockAudioSilently();
       syncSoundBtn();
       // if user turns it ON, it will unlock on the next touch
     };
@@ -2027,7 +2108,8 @@
       playAmbienceTick();
     }
 
-    if(fallTimer >= fallInterval){
+    const activeFallInterval = now < rotateSlowUntil ? Math.floor(fallInterval * 1.8) : fallInterval;
+    if(fallTimer >= activeFallInterval){
       fallTimer = 0;
       if(!collides(current,0,1)) current.y += 1;
       else lockPiece();
@@ -2050,6 +2132,9 @@
     held=null; currentCombo=1; bestCombo=1; holdUsed=false;
     fallInterval = BASE_FALL_MS;
     fallTimer = 0;
+    rotateSlowUntil = 0;
+    rotateSlowUses = 4;
+    lastTapTime = 0;
     ambienceClock = 0;
     paused=false; gameOver=false;
     current=null; next=null;
@@ -2069,6 +2154,8 @@
     injectViewportCSS();
     patchHelpLine();
     installToastObserver();
+    ensureAudio();
+    syncMasterGain();
 
     sprinkleOverlayGeometric();
     mission = newMission();
