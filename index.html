@@ -24,10 +24,31 @@
       </div>
       <div class="right">
         <div class="score"><span id="score">0</span> 🪙</div>
-        <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span></div>
+        <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span> · Chain <span id="combo">x1</span></div>
         <div class="best" id="best">Best: —</div>
       </div>
     </header>
+
+    <section id="planner">
+      <button id="holdButton" class="planCard actionCard">
+        <span class="planLabel">Hold</span>
+        <span class="planValue">Swap current piece</span>
+        <span class="planHint">Tap or press C</span>
+      </button>
+      <div class="planCard">
+        <span class="planLabel">Next</span>
+        <div id="nextPreview" class="previewGrid"></div>
+      </div>
+      <div class="planCard">
+        <span class="planLabel">Hold Slot</span>
+        <div id="holdPreview" class="previewGrid"></div>
+      </div>
+      <div class="planCard">
+        <span class="planLabel">Best Chain</span>
+        <span id="comboBest" class="planValue">x1</span>
+        <span class="planHint">Back-to-back clears juice the score</span>
+      </div>
+    </section>
 
     <main id="stage">
       <canvas id="c"></canvas>
@@ -84,6 +105,10 @@
         <div class="gameOverStat">
           <span class="statLabel">Best group</span>
           <span id="finalBest" class="statValue">-</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Best chain</span>
+          <span id="finalCombo" class="statValue">x1</span>
         </div>
       </div>
       <button id="restartButton" class="closeBtn">Play Again</button>

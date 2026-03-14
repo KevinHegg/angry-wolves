@@ -98,7 +98,12 @@
   const scoreEl  = document.getElementById("score");
   const levelEl  = document.getElementById("level");
   const clearsEl = document.getElementById("clears");
+  const comboEl = document.getElementById("combo");
+  const comboBestEl = document.getElementById("comboBest");
   const bestEl   = document.getElementById("best");
+  const nextPreviewEl = document.getElementById("nextPreview");
+  const holdPreviewEl = document.getElementById("holdPreview");
+  const holdButton = document.getElementById("holdButton");
 
   const gear = document.getElementById("gear");
   const modalBackdrop = document.getElementById("modalBackdrop");
@@ -110,6 +115,7 @@
   const finalLevelEl = document.getElementById("finalLevel");
   const finalClearsEl = document.getElementById("finalClears");
   const finalBestEl = document.getElementById("finalBest");
+  const finalComboEl = document.getElementById("finalCombo");
 
   // ===== State =====
   let board = makeBoard();
@@ -117,11 +123,15 @@
 
   let current = null;
   let next = null;
+  let held = null;
 
   let score = 0;
   let level = 1;
   let locks = 0;
   let herdsCleared = 0;
+  let currentCombo = 1;
+  let bestCombo = 1;
+  let holdUsed = false;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -255,6 +265,7 @@
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
   function clone2(m){ return m.map(r => r.slice()); }
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function fmtChain(v){ return `x${Math.max(1, v|0)}`; }
 
   function rotateCW(mat){
     const n = mat.length, m = mat[0].length;
@@ -294,6 +305,67 @@
     return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates:true };
   }
 
+  function clonePiece(piece){
+    if(!piece) return null;
+    return {
+      kind: piece.kind,
+      shapeKey: piece.shapeKey,
+      x: piece.x,
+      y: piece.y,
+      matrix: clone2(piece.matrix),
+      rotates: piece.rotates
+    };
+  }
+
+  function preparePiece(piece){
+    const fresh = clonePiece(piece);
+    if(!fresh) return null;
+    fresh.y = 0;
+    fresh.x = Math.floor((COLS - fresh.matrix[0].length) / 2);
+    return fresh;
+  }
+
+  function trimmedMatrix(piece){
+    if(!piece) return Array.from({length:4}, () => Array(4).fill(0));
+    const rows = piece.matrix.map(row => row.slice());
+    const activeRows = rows.filter(row => row.some(Boolean));
+    if(!activeRows.length) return Array.from({length:4}, () => Array(4).fill(0));
+
+    let minCol = 99;
+    let maxCol = -1;
+    for(const row of activeRows){
+      row.forEach((v, idx) => {
+        if(v){
+          minCol = Math.min(minCol, idx);
+          maxCol = Math.max(maxCol, idx);
+        }
+      });
+    }
+
+    return activeRows.map(row => row.slice(minCol, maxCol + 1));
+  }
+
+  function renderPreview(el, piece){
+    if(!el) return;
+    const grid = Array.from({length:4}, () => Array(4).fill(0));
+    const m = trimmedMatrix(piece);
+    const offsetY = Math.floor((4 - m.length) / 2);
+    const offsetX = Math.floor((4 - (m[0]?.length || 0)) / 2);
+
+    for(let y=0;y<m.length;y++){
+      for(let x=0;x<m[y].length;x++){
+        if(m[y][x]) grid[offsetY + y][offsetX + x] = m[y][x];
+      }
+    }
+
+    el.innerHTML = grid.flat().map((tile) => {
+      if(!tile) return '<span class="previewCell"></span>';
+      const bg = TILE_COLOR[tile] || "#666";
+      const label = TILE_LABEL[tile] || "?";
+      return `<span class="previewCell filled" style="background:${bg}">${label}</span>`;
+    }).join("");
+  }
+
   function collides(piece, dx=0, dy=0, testMatrix=null){
     const m = testMatrix ?? piece.matrix;
     for(let r=0;r<m.length;r++){
@@ -310,8 +382,11 @@
   }
 
   function spawnNext(){
-    current = next ?? newPiece();
+    current = preparePiece(next ?? newPiece());
     next = newPiece();
+    holdUsed = false;
+    currentCombo = 1;
+    updateHUD();
     if(collides(current,0,0)) gameOverNow();
   }
 
@@ -325,11 +400,16 @@
     if(scoreEl) scoreEl.textContent = Math.max(0, score|0);
     if(levelEl) levelEl.textContent = level;
     if(clearsEl) clearsEl.textContent = herdsCleared;
+    if(comboEl) comboEl.textContent = fmtChain(currentCombo);
+    if(comboBestEl) comboBestEl.textContent = fmtChain(bestCombo);
 
     const best = computeBestGroup();
     if(bestEl){
       bestEl.textContent = !best ? "Best: —" : `Best: ${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal]})`;
     }
+    renderPreview(nextPreviewEl, next);
+    renderPreview(holdPreviewEl, held);
+    if(holdButton) holdButton.disabled = paused || gameOver || !current || holdUsed;
   }
 
   function setOverlayOpen(el, open){
@@ -340,6 +420,7 @@
     modalOpenCount += open ? 1 : -1;
     modalOpenCount = Math.max(0, modalOpenCount);
     paused = gameOver || modalOpenCount > 0;
+    updateHUD();
   }
 
   function openSettings(){
@@ -358,6 +439,7 @@
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.textContent = best ? `${best.count} ${TILE_LABEL[best.animal]}` : "-";
+    if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
   function gameOverNow(){
@@ -568,18 +650,20 @@
   }
 
   function resolveBoard(){
+    let chainDepth = 0;
     while(true){
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
+      chainDepth++;
+      bestCombo = Math.max(bestCombo, chainDepth);
 
       for(const group of clears){
         const { animal, cells } = group;
-
-        score += cells.length;
+        let gain = cells.length;
 
         if(cells.length >= 11){
           const bonusIndex = cells.length - 8; // 11->3 => fib(3)=2
-          score += fib(bonusIndex);
+          gain += fib(bonusIndex);
         }
 
         let eggs=0, turds=0;
@@ -587,8 +671,10 @@
           if(overlay[y][x] === POWER.EGG) eggs++;
           if(overlay[y][x] === POWER.TURD) turds++;
         }
-        if(eggs)  score = Math.floor(score * Math.pow(2, eggs));
-        if(turds) score = Math.floor(score / Math.pow(2, turds));
+        if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
+        if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
+        if(chainDepth > 1) gain += Math.floor(gain * 0.35 * (chainDepth - 1));
+        score += gain;
 
         for(const [x,y] of cells){
           board[y][x] = TILE.EMPTY;
@@ -596,7 +682,8 @@
         }
 
         herdsCleared++;
-        banner.text = `Cleared ${cells.length} ${TILE_LABEL[animal]} (${GROUP_NAME[animal]})${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
+        currentCombo = chainDepth;
+        banner.text = `${chainDepth > 1 ? `${fmtChain(chainDepth)} chain! ` : ""}Cleared ${cells.length} ${TILE_LABEL[animal]} (${GROUP_NAME[animal]}) +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -660,6 +747,24 @@
     resolveBoard();
     spawnNext();
     haptic(10);
+  }
+
+  function holdCurrent(){
+    if(paused || gameOver || !current || holdUsed) return;
+    const outgoing = preparePiece(current);
+    if(held){
+      current = preparePiece(held);
+      held = outgoing;
+      if(collides(current,0,0)) return gameOverNow();
+    } else {
+      held = outgoing;
+      spawnNext();
+    }
+    holdUsed = true;
+    banner.text = held ? "Held for later" : "Hold slot ready";
+    banner.t = performance.now();
+    updateHUD();
+    draw();
   }
 
   // ===== Movement =====
@@ -1036,8 +1141,9 @@
       const lk = k.toLowerCase();
       if(["ArrowLeft","ArrowRight","ArrowDown","ArrowUp"," "].includes(k)) e.preventDefault();
 
-      if(lk === "p"){ paused = !paused; draw(); return; }
+      if(lk === "p"){ paused = !paused; updateHUD(); draw(); return; }
       if(lk === "r"){ restart(); return; }
+      if(lk === "c"){ holdCurrent(); return; }
       if(paused) return;
 
       if(k === "ArrowLeft" || lk === "a") move(-1);
@@ -1092,6 +1198,9 @@
       setOverlayOpen(gameOverBackdrop, false);
       restart();
     });
+  }
+  if(holdButton){
+    holdButton.addEventListener("click", holdCurrent);
   }
   if(soundToggle){
     const onTap = (e) => {
@@ -1148,6 +1257,7 @@
     board = makeBoard();
     sprinkleOverlayGeometric();
     score=0; level=1; locks=0; herdsCleared=0;
+    held=null; currentCombo=1; bestCombo=1; holdUsed=false;
     fallInterval = BASE_FALL_MS;
     fallTimer = 0;
     ambienceClock = 0;
