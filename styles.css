@@ -320,9 +320,10 @@ canvas{
 
 @media (max-width: 760px){
   #hud{
-    align-items:flex-start;
+    align-items:center;
     flex-wrap:wrap;
-    gap:8px;
+    gap:6px;
+    padding: 8px 10px 6px;
   }
 
   #hud .left,
@@ -332,53 +333,87 @@ canvas{
 
   #hud .left{
     flex:1 1 100%;
-    align-items:flex-start;
+    align-items:center;
+    gap:8px;
   }
 
   #hud .right{
     width:100%;
     text-align:left;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:2px 10px;
+    align-items:end;
   }
 
   .title .h1{
-    font-size:16px;
+    font-size:15px;
   }
 
   .title .sub{
     display:none;
   }
 
+  #gear{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    font-size:16px;
+  }
+
+  .score{
+    font-size:16px;
+    grid-row:1 / span 2;
+  }
+
+  .meta,
+  .best{
+    font-size:11px;
+    line-height:1.15;
+    margin-top:0;
+  }
+
   #gameShell{
     grid-template-columns: 1fr;
-    gap:10px;
+    gap:8px;
+    padding: 0 8px 8px;
   }
 
   #stage{
     order:1;
-    min-height: clamp(360px, 50svh, 620px);
+    min-height: clamp(540px, 64svh, 760px);
   }
 
   #rightRail{
     order:2;
     display:grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap:8px;
+    grid-template-columns: minmax(0, 74px) minmax(0, 1fr);
+    gap:6px;
   }
 
   #leftRail{
     order:3;
     display:grid;
     grid-template-columns: 1fr;
-    gap:8px;
+    gap:6px;
   }
 
   #keysCard{
     display:none;
   }
 
+  #holdButton,
+  #holdSlotCard,
+  #comboCard,
+  #help{
+    display:none;
+  }
+
   .planCard{
     min-height:auto;
-    padding:9px;
+    padding:8px;
+    border-radius:12px;
+    gap:6px;
   }
 
   .planLabel{
@@ -386,7 +421,7 @@ canvas{
   }
 
   .planValue{
-    font-size:13px;
+    font-size:12px;
   }
 
   .planHint{
@@ -394,27 +429,44 @@ canvas{
     line-height:1.2;
   }
 
+  #missionCard{
+    padding:9px;
+  }
+
   #missionSpecialInfo{
     display:none;
   }
 
   #missionSpecialPreview{
-    max-width: 112px;
+    max-width: 76px;
   }
 
   .actionCard{
     min-height: 72px;
   }
 
-  #help{
-    flex-direction:column;
-    gap:4px;
-    font-size:11px;
+  #nextCard{
+    padding:7px 6px;
+    min-height:auto;
   }
 
-  .legend{
-    text-align:left;
-    white-space:normal;
+  #nextCard .planLabel{
+    font-size:9px;
+  }
+
+  #nextPreview{
+    max-width: 56px;
+    gap:2px;
+    margin-top:2px;
+  }
+
+  #nextPreview .previewCell{
+    border-radius:4px;
+    font-size:8px;
+  }
+
+  #nextPreview .previewCell.filled{
+    font-size:11px;
   }
 
   .missionBriefModal{
@@ -432,5 +484,45 @@ canvas{
   .missionPreview{
     width:100%;
     max-width:160px;
+  }
+}
+
+@media (max-width: 480px){
+  #hud{
+    padding: 6px 8px 4px;
+  }
+
+  #gameShell{
+    padding: 0 4px 6px;
+    gap:6px;
+  }
+
+  #stage{
+    min-height: clamp(590px, 70svh, 820px);
+  }
+
+  .title .h1{
+    font-size:14px;
+  }
+
+  .score{
+    font-size:15px;
+  }
+
+  .meta,
+  .best{
+    font-size:10px;
+  }
+
+  #missionCard{
+    padding:8px;
+  }
+
+  #missionSpecialPreview{
+    max-width: 68px;
+  }
+
+  .missionPreview{
+    max-width:140px;
   }
 }
