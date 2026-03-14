@@ -81,6 +81,16 @@
     [TILE.CASHOUT]: "#ffd166",
   };
 
+  const SPECIAL_TILE_META = {
+    [TILE.WOLF]: { accent: "#d7dfef", badge: "!" },
+    [TILE.BLACK_SHEEP]: { accent: "#8ee6ff", badge: "↺" },
+    [TILE.BOMB]: { accent: "#ffc29d", badge: "!" },
+    [TILE.REAPER]: { accent: "#9cf5df", badge: "✂" },
+    [TILE.MORPH]: { accent: "#b8c9ff", badge: "?" },
+    [TILE.SEEDER]: { accent: "#fff0a6", badge: "+" },
+    [TILE.CASHOUT]: { accent: "#ffe29a", badge: "$" }
+  };
+
   const GROUP_NAME = {
     [TILE.SHEEP]: "flock",
     [TILE.GOAT]: "herd",
@@ -596,7 +606,11 @@
       if(!tile) return '<span class="previewCell"></span>';
       const bg = TILE_COLOR[tile] || "#666";
       const label = TILE_LABEL[tile] || "?";
-      return `<span class="previewCell filled" style="background:${bg}">${label}</span>`;
+      const special = SPECIAL_TILE_META[tile];
+      const style = special
+        ? `background:linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02) 42%), ${bg}; border-color:${special.accent}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 1px ${special.accent}, 0 0 14px rgba(0,0,0,0.18);`
+        : `background:${bg}`;
+      return `<span class="previewCell filled" style="${style}">${label}</span>`;
     }).join("");
   }
 
@@ -673,7 +687,7 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Hit the target, then decide whether to bank the run or greed out a bigger payout while the barn speeds up.`;
+    if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Hit the target, then decide whether to end the run and earn the bonus now or greed out a bigger payout while the barn speeds up.`;
     if(mission.type === "clears") return "Clear enough herds to arm the cash-out bell. After that, every extra settle sweetens the bonus and makes survival sketchier.";
     if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain. Once you land it, the greed phase begins.";
     if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the cash-out bell shows up.";
@@ -714,9 +728,9 @@
     }
     const specialRule = missionSpecialRule();
     if(mission.done){
-      missionTitleEl.textContent = `${mission.title} banked`;
-      missionSpecialNameEl.textContent = "Mission cashed out";
-      missionSpecialInfoEl.textContent = `You banked +${mission.cashBonus} coins.`;
+      missionTitleEl.textContent = `${mission.title} earned`;
+      missionSpecialNameEl.textContent = "Mission earned";
+      missionSpecialInfoEl.textContent = `You earned +${mission.cashBonus} coins.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else if(mission.ready){
       missionTitleEl.textContent = `${mission.title} ready`;
@@ -738,7 +752,7 @@
 
     if(mission.type === "animal"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.cashBonus} coins`
+        ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? `Objective met. Keep clearing ${TILE_LABEL[mission.animal]} for score while the bell charges.`
           : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} cleared`;
@@ -765,16 +779,16 @@
 
     if(mission.type === "score"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.cashBonus} coins`
+        ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? `Target score hit. Now decide how greedy you feel.`
-          : `${missionProgressText(score, mission.target)} coins banked`;
+          : `${missionProgressText(score, mission.target)} coins scored`;
       return;
     }
 
     if(mission.type === "level"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.cashBonus} coins`
+        ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? `You reached the target level. Ring out now or ride the speed-up.`
           : `Current level ${level} (${missionProgressText(level, mission.target)})`;
@@ -783,7 +797,7 @@
 
     if(mission.type === "big_group"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.cashBonus} coins`
+        ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? `Jumbo herd goal complete. Extra settles now mean extra danger and extra bonus.`
           : `${missionProgressText(mission.progress, mission.target)} jumbo herds cleared`;
@@ -792,16 +806,16 @@
 
     if(mission.type === "special_use"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.cashBonus} coins`
+        ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Special requirement met. A bell will let you bank the mission soon.`
+          ? `Special requirement met. A bell will let you earn the mission soon.`
           : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
       return;
     }
 
     if(mission.type === "locks"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.cashBonus} coins`
+        ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? `You survived the required settles. Anything after this is pure greed.`
           : `${missionProgressText(locks, mission.target)} settles survived`;
@@ -809,7 +823,7 @@
     }
 
     missionProgressEl.textContent = mission.done
-      ? `Bonus banked: +${mission.cashBonus} coins`
+      ? `Bonus earned: +${mission.cashBonus} coins`
       : mission.ready
         ? `Clear goal done. The bonus grows until you ring the bell or wash out.`
         : `${missionProgressText(mission.progress, mission.target)} clears`;
@@ -962,7 +976,7 @@
     runEndTitle = opts.title ?? "Run Over";
     runEndNote = opts.note ?? (
       mission && mission.ready && !mission.done
-        ? `You had +${mission.cashBonus} coins on the line, but the barn buried the bell before you could bank it.`
+        ? `You had +${mission.cashBonus} coins on the line, but the barn buried the bell before you could earn them.`
         : "The barn got crowded."
     );
     gameOver = true;
@@ -1409,13 +1423,13 @@
       registerLockCycle({ skipCashout: true, skipMissionCharge: true });
       mission.done = true;
       score += mission.cashBonus;
-      banner.text = `Mission banked! +${mission.cashBonus} coins hauled out of the barn.`;
+      banner.text = `Mission earned! +${mission.cashBonus} coins hauled out of the barn.`;
       banner.t = performance.now();
       playMissionJingle();
       updateHUD();
       gameOverNow({
-        title: "Mission Banked",
-        note: `${mission.title} paid out +${mission.cashBonus} coins after a very greedy run.`,
+        title: "Mission Earned",
+        note: `${mission.title} earned +${mission.cashBonus} coins after a very greedy run.`,
         playSound: false
       });
       return;
@@ -1675,15 +1689,46 @@
   function drawTile(x,y,t,px,withEmoji){
     const gx = px + x*cell;
     const gy = px + y*cell;
+    const specialMeta = SPECIAL_TILE_META[t];
 
     ctx.globalAlpha = 0.96;
     roundRectFill(gx+1, gy+1, cell-2, cell-2, 10, TILE_COLOR[t] || "#ddd");
     ctx.globalAlpha = 1;
 
+    if(specialMeta){
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      roundRectFill(gx+3, gy+3, cell-6, cell-6, 10, specialMeta.accent);
+      ctx.globalAlpha = 0.92;
+      ctx.strokeStyle = specialMeta.accent;
+      ctx.lineWidth = Math.max(2, Math.floor(cell*0.08));
+      roundRectStroke(gx+2, gy+2, cell-4, cell-4, 9);
+      ctx.globalAlpha = 0.2;
+      ctx.lineWidth = Math.max(1, Math.floor(cell*0.05));
+      ctx.beginPath();
+      ctx.moveTo(gx + cell*0.18, gy + cell*0.76);
+      ctx.lineTo(gx + cell*0.76, gy + cell*0.18);
+      ctx.moveTo(gx + cell*0.24, gy + cell*0.9);
+      ctx.lineTo(gx + cell*0.9, gy + cell*0.24);
+      ctx.stroke();
+      const badgeR = Math.max(7, cell*0.14);
+      ctx.globalAlpha = 0.98;
+      ctx.fillStyle = specialMeta.accent;
+      ctx.beginPath();
+      ctx.arc(gx + cell - badgeR - 4, gy + badgeR + 4, badgeR, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = "#101014";
+      ctx.font = `900 ${Math.floor(cell*0.22)}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(specialMeta.badge, gx + cell - badgeR - 4, gy + badgeR + 5);
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.globalAlpha = 0.24;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = Math.max(1, Math.floor(cell*0.06));
+    ctx.strokeStyle = specialMeta ? specialMeta.accent : "#ffffff";
+    ctx.lineWidth = Math.max(1, Math.floor(cell*(specialMeta ? 0.07 : 0.06)));
     roundRectStroke(gx+2, gy+2, cell-4, cell-4, 9);
     ctx.restore();
 
