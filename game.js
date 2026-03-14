@@ -41,6 +41,10 @@
     PIG: 5,
     WOLF: 6,
     BLACK_SHEEP: 7,
+    BOMB: 8,
+    REAPER: 9,
+    MORPH: 10,
+    SEEDER: 11,
   };
 
   const POWER = { NONE:0, EGG:1, TURD:2 };
@@ -54,6 +58,10 @@
     [TILE.PIG]: "🐖",
     [TILE.WOLF]: "🐺",
     [TILE.BLACK_SHEEP]: "🐑‍⬛",
+    [TILE.BOMB]: "💥",
+    [TILE.REAPER]: "✂️",
+    [TILE.MORPH]: "🌀",
+    [TILE.SEEDER]: "🥚",
   };
 
   const TILE_COLOR = {
@@ -64,6 +72,10 @@
     [TILE.PIG]: "#ffb6c9",
     [TILE.WOLF]: "#93a1b5",
     [TILE.BLACK_SHEEP]: "#1b1b24",
+    [TILE.BOMB]: "#ff875d",
+    [TILE.REAPER]: "#7ef0d1",
+    [TILE.MORPH]: "#72a8ff",
+    [TILE.SEEDER]: "#f6d54a",
   };
 
   const GROUP_NAME = {
@@ -88,7 +100,11 @@
 
   const SPECIAL = {
     WOLVES_2:     { matrix:[[1,1],[1,1]], tile:TILE.WOLF,       rotates:false },
-    BLACKSHEEP_2: { matrix:[[1,1],[1,1]], tile:TILE.BLACK_SHEEP, rotates:false }
+    BLACKSHEEP_2: { matrix:[[1,1],[1,1]], tile:TILE.BLACK_SHEEP, rotates:false },
+    BOMB_T:       { matrix:[[1,1,1],[0,1,0],[0,0,0]], tile:TILE.BOMB, rotates:true },
+    REAPER_I:     { matrix:[[1,1,1,1]], tile:TILE.REAPER, rotates:true },
+    MORPH_L:      { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.MORPH, rotates:true },
+    SEEDER_S:     { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.SEEDER, rotates:true }
   };
 
   // ===== DOM =====
@@ -107,6 +123,8 @@
   const holdButton = document.getElementById("holdButton");
   const missionTitleEl = document.getElementById("missionTitle");
   const missionProgressEl = document.getElementById("missionProgress");
+  const missionSpecialNameEl = document.getElementById("missionSpecialName");
+  const missionSpecialInfoEl = document.getElementById("missionSpecialInfo");
 
   const gear = document.getElementById("gear");
   const modalBackdrop = document.getElementById("modalBackdrop");
@@ -140,6 +158,7 @@
   let mission = null;
   let runEndTitle = "Run Over";
   let runEndNote = "The barn got crowded.";
+  let missionSpecialCharge = 0;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -167,6 +186,56 @@
     [TILE.COW]: ["Udderly excessive.", "The dairy lobby is furious.", "That was a premium moo-ve."],
     [TILE.PIG]: ["Hog wild.", "That sty just went full goblin mode.", "Oink if you love combos."]
   };
+
+  const SPECIAL_RULES = {
+    bomb: {
+      title: "Barn Buster",
+      desc: "Drops a blast tetrad every 5 locks. It detonates nearby settled tiles.",
+      every: 5,
+      tile: TILE.BOMB
+    },
+    reaper: {
+      title: "Cull Comb",
+      desc: "Drops a scissor tetrad every 5 locks. It deletes the biggest animal group on the board.",
+      every: 5,
+      tile: TILE.REAPER
+    },
+    morph: {
+      title: "Copycat Crate",
+      desc: "Drops a swirl tetrad every 4 locks. It becomes whatever animal it lands on.",
+      every: 4,
+      tile: TILE.MORPH
+    },
+    seeder: {
+      title: "Nest Bomber",
+      desc: "Drops an egg tetrad every 5 locks. It seeds eggs and turds around its landing zone.",
+      every: 5,
+      tile: TILE.SEEDER
+    }
+  };
+
+  const MISSION_DEFS = [
+    { id:"sheep_roundup", type:"animal", animal:TILE.SHEEP, target:17, bonus:150, special:"bomb", title:"Wrangle sheep trouble" },
+    { id:"goat_roundup", type:"animal", animal:TILE.GOAT, target:17, bonus:150, special:"morph", title:"Goat evacuation order" },
+    { id:"chicken_roundup", type:"animal", animal:TILE.CHICKEN, target:18, bonus:155, special:"seeder", title:"Henhouse cleanup shift" },
+    { id:"cow_roundup", type:"animal", animal:TILE.COW, target:16, bonus:160, special:"reaper", title:"Moo relocation program" },
+    { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:155, special:"bomb", title:"Hog panic response" },
+    { id:"clear_three", type:"clears", target:3, bonus:155, special:"reaper", title:"Clear 3 proper herds" },
+    { id:"clear_four", type:"clears", target:4, bonus:190, special:"bomb", title:"Clear 4 proper herds" },
+    { id:"combo_two", type:"combo", target:2, bonus:185, special:"morph", title:"Trigger a x2 combo" },
+    { id:"combo_three", type:"combo", target:3, bonus:240, special:"morph", title:"Trigger a x3 combo" },
+    { id:"wolf_once", type:"wolf", target:1, bonus:220, special:"bomb", title:"Detonate one premium wolf tantrum" },
+    { id:"wolf_twice", type:"wolf", target:2, bonus:300, special:"bomb", title:"Detonate two premium wolf tantrums" },
+    { id:"score_220", type:"score", target:220, bonus:160, special:"seeder", title:"Bank 220 coins before the barn riots" },
+    { id:"score_320", type:"score", target:320, bonus:220, special:"reaper", title:"Bank 320 coins before sunrise" },
+    { id:"level_three", type:"level", target:3, bonus:200, special:"morph", title:"Reach level 3 without a meltdown" },
+    { id:"level_four", type:"level", target:4, bonus:260, special:"bomb", title:"Reach level 4 and keep your boots" },
+    { id:"big_group_two", type:"big_group", target:2, bonus:210, special:"reaper", title:"Clear 2 jumbo herds" },
+    { id:"special_once", type:"special_use", target:1, bonus:150, special:"seeder", title:"Use your mission special once" },
+    { id:"special_twice", type:"special_use", target:2, bonus:240, special:"seeder", title:"Use your mission special twice" },
+    { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Survive 8 tidy lock-ins" },
+    { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Survive 12 muddy lock-ins" }
+  ];
 
   // ===== Audio (silent unlock, no popups) =====
   let audioCtx = null;
@@ -344,7 +413,15 @@
 
   function playSpawnCue(piece){
     const animal = pieceLeadAnimal(piece);
-    if(animal === TILE.WOLF){
+    if(piece?.kind === "MISSION_BOMB"){
+      playJingle([330, 247], { step:0.08, type:"sawtooth", gain:0.05 });
+    } else if(piece?.kind === "MISSION_REAPER"){
+      playJingle([659, 523], { step:0.06, type:"triangle", gain:0.045 });
+    } else if(piece?.kind === "MISSION_MORPH"){
+      playJingle([392, 523, 659], { step:0.05, type:"triangle", gain:0.04 });
+    } else if(piece?.kind === "MISSION_SEEDER"){
+      playJingle([523, 440], { step:0.07, type:"square", gain:0.04 });
+    } else if(animal === TILE.WOLF){
       playJingle([220, 196], { step:0.08, type:"sawtooth", gain:0.045 });
     } else if(animal === TILE.BLACK_SHEEP){
       playJingle([311, 277], { step:0.07, type:"triangle", gain:0.04 });
@@ -416,6 +493,23 @@
     return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates:true };
   }
 
+  function createMissionSpecialPiece(){
+    if(!mission) return null;
+    if(mission.special === "bomb"){
+      return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: clone2(SPECIAL.BOMB_T.matrix), rotates:true };
+    }
+    if(mission.special === "reaper"){
+      return { kind:"MISSION_REAPER", x: Math.floor(COLS/2)-2, y:0, matrix: clone2(SPECIAL.REAPER_I.matrix), rotates:true };
+    }
+    if(mission.special === "morph"){
+      return { kind:"MISSION_MORPH", x: Math.floor(COLS/2)-1, y:0, matrix: clone2(SPECIAL.MORPH_L.matrix), rotates:true };
+    }
+    if(mission.special === "seeder"){
+      return { kind:"MISSION_SEEDER", x: Math.floor(COLS/2)-1, y:0, matrix: clone2(SPECIAL.SEEDER_S.matrix), rotates:true };
+    }
+    return null;
+  }
+
   function clonePiece(piece){
     if(!piece) return null;
     return {
@@ -477,57 +571,34 @@
     }).join("");
   }
 
-  function randomMission(){
-    const animal = randChoice(ANIMALS);
-    const animalTarget = 14 + Math.floor(Math.random() * 5);
-    const clearTarget = 3 + Math.floor(Math.random() * 2);
-    const comboTarget = 2 + Math.floor(Math.random() * 2);
-    const missions = [
-      {
-        type: "animal",
-        title: `Wrangle ${TILE_LABEL[animal]} trouble`,
-        progress: 0,
-        target: animalTarget,
-        bonus: 80 + animalTarget * 4,
-        done: false,
-        animal
-      },
-      {
-        type: "clears",
-        title: `Clear ${clearTarget} proper herds`,
-        progress: 0,
-        target: clearTarget,
-        bonus: 95 + clearTarget * 20,
-        done: false
-      },
-      {
-        type: "combo",
-        title: `Trigger a ${fmtChain(comboTarget)} combo`,
-        progress: 0,
-        target: comboTarget,
-        bonus: 140 + comboTarget * 35,
-        done: false
-      },
-      {
-        type: "wolf",
-        title: "Detonate one premium wolf tantrum",
-        progress: 0,
-        target: 1,
-        bonus: 180,
-        done: false
-      }
-    ];
-    return randChoice(missions);
+  function newMission(){
+    const def = randChoice(MISSION_DEFS);
+    return {
+      ...def,
+      progress: 0,
+      done: false,
+    };
+  }
+
+  function missionSpecialRule(){
+    return mission ? SPECIAL_RULES[mission.special] : null;
   }
 
   function updateMissionUI(){
-    if(!missionTitleEl || !missionProgressEl) return;
+    if(!missionTitleEl || !missionProgressEl || !missionSpecialNameEl || !missionSpecialInfoEl) return;
     if(!mission){
       missionTitleEl.textContent = "Warm up the barn";
       missionProgressEl.textContent = "Start dropping pieces";
+      missionSpecialNameEl.textContent = "Special tetrad: warming up";
+      missionSpecialInfoEl.textContent = "Mission tricks will appear here.";
       return;
     }
+    const specialRule = missionSpecialRule();
     missionTitleEl.textContent = mission.done ? `${mission.title} complete` : mission.title;
+    missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
+    missionSpecialInfoEl.textContent = specialRule
+      ? `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+      : "No special tetrad assigned.";
 
     if(mission.type === "animal"){
       missionProgressEl.textContent = mission.done
@@ -547,6 +618,41 @@
       missionProgressEl.textContent = mission.done
         ? `The barn insurance rates exploded. +${mission.bonus}`
         : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
+      return;
+    }
+
+    if(mission.type === "score"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus banked: +${mission.bonus} coins`
+        : `${missionProgressText(score, mission.target)} coins banked`;
+      return;
+    }
+
+    if(mission.type === "level"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus banked: +${mission.bonus} coins`
+        : `Current level ${level} (${missionProgressText(level, mission.target)})`;
+      return;
+    }
+
+    if(mission.type === "big_group"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus banked: +${mission.bonus} coins`
+        : `${missionProgressText(mission.progress, mission.target)} jumbo herds cleared`;
+      return;
+    }
+
+    if(mission.type === "special_use"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus banked: +${mission.bonus} coins`
+        : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
+      return;
+    }
+
+    if(mission.type === "locks"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus banked: +${mission.bonus} coins`
+        : `${missionProgressText(locks, mission.target)} lock-ins survived`;
       return;
     }
 
@@ -581,7 +687,23 @@
       mission.progress = Math.max(mission.progress, value);
     } else if(event === "wolf" && mission.type === "wolf"){
       mission.progress += value;
+    } else if(event === "big_group" && mission.type === "big_group"){
+      mission.progress += value;
+    } else if(event === "special_use" && mission.type === "special_use"){
+      mission.progress += value;
     }
+    if(["score","level","locks"].includes(mission.type)){
+      mission.progress = mission.type === "score" ? score : mission.type === "level" ? level : locks;
+    }
+    if(mission.progress >= mission.target) completeMission();
+    else updateMissionUI();
+  }
+
+  function syncPassiveMissionProgress(){
+    if(!mission || mission.done) return;
+    if(mission.type === "score") mission.progress = score;
+    else if(mission.type === "level") mission.progress = level;
+    else if(mission.type === "locks") mission.progress = locks;
     if(mission.progress >= mission.target) completeMission();
     else updateMissionUI();
   }
@@ -602,8 +724,15 @@
   }
 
   function spawnNext(){
-    current = preparePiece(next ?? newPiece());
-    next = newPiece();
+    const specialRule = missionSpecialRule();
+    if(mission && !mission.done && specialRule && missionSpecialCharge >= specialRule.every){
+      current = preparePiece(createMissionSpecialPiece());
+      missionSpecialCharge = 0;
+    } else {
+      current = preparePiece(next ?? newPiece());
+      next = newPiece();
+    }
+    if(!next) next = newPiece();
     holdUsed = false;
     currentCombo = 1;
     playSpawnCue(current);
@@ -620,6 +749,7 @@
       banner.t = performance.now();
       playLevelUpJingle();
     }
+    syncPassiveMissionProgress();
     updateHUD();
   }
 
@@ -817,6 +947,115 @@
     return (bestCount <= 0) ? randChoice(ANIMALS) : randChoice(tied);
   }
 
+  function findLargestAnimalGroup(){
+    const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
+    let best = null;
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(seen[y][x]) continue;
+        const t = board[y][x];
+        if(!ANIMALS.includes(t)){
+          seen[y][x] = true;
+          continue;
+        }
+        const cells = floodSameAnimal(x,y,t,seen);
+        if(!best || cells.length > best.cells.length) best = { animal: t, cells };
+      }
+    }
+    return best;
+  }
+
+  function chooseLandingAnimal(piece){
+    const counts = new Map(ANIMALS.map(a => [a, 0]));
+    for(const [x,y] of footprintCells(piece)){
+      for(const [dx,dy] of [[0,1],[1,0],[-1,0],[0,-1]]){
+        const nx = x + dx, ny = y + dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        const t = board[ny][nx];
+        if(ANIMALS.includes(t)) counts.set(t, counts.get(t)+1);
+      }
+    }
+    let bestCount = 0;
+    for(const a of ANIMALS) bestCount = Math.max(bestCount, counts.get(a));
+    const tied = ANIMALS.filter(a => counts.get(a) === bestCount);
+    return bestCount > 0 ? randChoice(tied) : randChoice(ANIMALS);
+  }
+
+  function missionBombBlast(piece){
+    const hit = new Set();
+    for(const [x,y] of footprintCells(piece)){
+      for(let dy=-1; dy<=1; dy++){
+        for(let dx=-1; dx<=1; dx++){
+          const nx = x + dx, ny = y + dy;
+          if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+          hit.add(ny*COLS + nx);
+        }
+      }
+    }
+
+    const popped = [];
+    for(const key of hit){
+      const x = key % COLS;
+      const y = Math.floor(key / COLS);
+      if(board[y][x] !== TILE.EMPTY){
+        popped.push([x,y,board[y][x]]);
+        board[y][x] = TILE.EMPTY;
+      }
+      overlay[y][x] = POWER.NONE;
+    }
+    if(popped.length){
+      spawnPopParticles(popped);
+      banner.text = `Barn Buster popped ${popped.length} tiles.`;
+      banner.t = performance.now();
+      playTone({type:"sawtooth", f1:180, f2:50, dur:0.16, gain:0.18});
+    }
+  }
+
+  function missionReapLargestGroup(){
+    const best = findLargestAnimalGroup();
+    if(!best) return;
+    for(const [x,y] of best.cells){
+      board[y][x] = TILE.EMPTY;
+      overlay[y][x] = POWER.NONE;
+    }
+    spawnPopParticles(best.cells.map(([x,y]) => [x,y,best.animal]));
+    banner.text = `Cull Comb clipped ${best.cells.length} ${TILE_LABEL[best.animal]}.`;
+    banner.t = performance.now();
+    playTone({type:"triangle", f1:620, f2:260, dur:0.14, gain:0.10});
+  }
+
+  function missionMorphPiece(piece){
+    const animal = chooseLandingAnimal(piece);
+    for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
+    banner.text = `Copycat Crate became ${TILE_LABEL[animal]}.`;
+    banner.t = performance.now();
+    playBarnyard(animal, 6);
+  }
+
+  function missionSeedOverlay(piece){
+    const landAnimal = chooseLandingAnimal(piece);
+    for(const [x,y] of footprintCells(piece)) board[y][x] = landAnimal;
+    const candidates = [];
+    for(const [x,y] of footprintCells(piece)){
+      for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1]]){
+        const nx = x + dx, ny = y + dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        candidates.push([nx,ny]);
+      }
+    }
+    shuffleInPlace(candidates);
+    let eggs = 0, turds = 0;
+    for(const [x,y] of candidates){
+      if(overlay[y][x] !== POWER.NONE) continue;
+      overlay[y][x] = eggs < 3 ? POWER.EGG : POWER.TURD;
+      if(eggs < 3) eggs++;
+      else if(++turds >= 2) break;
+    }
+    banner.text = `Nest Bomber left gifts. Some are rude.`;
+    banner.t = performance.now();
+    playTone({type:"square", f1:500, f2:200, dur:0.10, gain:0.07});
+  }
+
   // ===== Scoring =====
   function fib(n){
     if(n <= 0) return 0;
@@ -900,6 +1139,7 @@
         if(cells.length >= 11){
           const bonusIndex = cells.length - 8; // 11->3 => fib(3)=2
           gain += fib(bonusIndex);
+          bumpMission("big_group", 1);
         }
 
         let eggs=0, turds=0;
@@ -911,6 +1151,7 @@
         if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
         if(chainDepth > 1) gain += Math.floor(gain * 0.35 * (chainDepth - 1));
         score += gain;
+        syncPassiveMissionProgress();
 
         for(const [x,y] of cells){
           board[y][x] = TILE.EMPTY;
@@ -959,9 +1200,59 @@
     if(current.kind === "WOLVES"){
       wolvesExplode(current);
       locks++;
+      missionSpecialCharge++;
+      syncPassiveMissionProgress();
       updateLevel();
       resolveBoard();
       if(!gameOver) spawnNext();
+      return;
+    }
+
+    if(current.kind === "MISSION_BOMB"){
+      missionBombBlast(current);
+      locks++;
+      bumpMission("special_use", 1);
+      syncPassiveMissionProgress();
+      updateLevel();
+      resolveBoard();
+      if(!gameOver) spawnNext();
+      playLockTick();
+      return;
+    }
+
+    if(current.kind === "MISSION_REAPER"){
+      missionReapLargestGroup();
+      locks++;
+      bumpMission("special_use", 1);
+      syncPassiveMissionProgress();
+      updateLevel();
+      resolveBoard();
+      if(!gameOver) spawnNext();
+      playLockTick();
+      return;
+    }
+
+    if(current.kind === "MISSION_MORPH"){
+      missionMorphPiece(current);
+      locks++;
+      bumpMission("special_use", 1);
+      syncPassiveMissionProgress();
+      updateLevel();
+      resolveBoard();
+      if(!gameOver) spawnNext();
+      playLockTick();
+      return;
+    }
+
+    if(current.kind === "MISSION_SEEDER"){
+      missionSeedOverlay(current);
+      locks++;
+      bumpMission("special_use", 1);
+      syncPassiveMissionProgress();
+      updateLevel();
+      resolveBoard();
+      if(!gameOver) spawnNext();
+      playLockTick();
       return;
     }
 
@@ -982,6 +1273,8 @@
     }
 
     locks++;
+    missionSpecialCharge++;
+    syncPassiveMissionProgress();
     updateLevel();
     resolveBoard();
     if(!gameOver) spawnNext();
@@ -1039,6 +1332,7 @@
     if(moved){
       score += moved;
       playDropThump();
+      syncPassiveMissionProgress();
     }
     lockPiece();
     draw();
@@ -1530,7 +1824,8 @@
   function restart(){
     board = makeBoard();
     sprinkleOverlayGeometric();
-    mission = randomMission();
+    mission = newMission();
+    missionSpecialCharge = 0;
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
@@ -1556,7 +1851,8 @@
     installToastObserver();
 
     sprinkleOverlayGeometric();
-    mission = randomMission();
+    mission = newMission();
+    missionSpecialCharge = 0;
 
     next = newPiece();
     spawnNext();
