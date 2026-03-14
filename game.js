@@ -125,6 +125,7 @@
   const missionProgressEl = document.getElementById("missionProgress");
   const missionSpecialNameEl = document.getElementById("missionSpecialName");
   const missionSpecialInfoEl = document.getElementById("missionSpecialInfo");
+  const missionSpecialPreviewEl = document.getElementById("missionSpecialPreview");
 
   const gear = document.getElementById("gear");
   const modalBackdrop = document.getElementById("modalBackdrop");
@@ -134,6 +135,15 @@
   const restartButton = document.getElementById("restartButton");
   const gameOverTitleEl = document.getElementById("gameOverTitle");
   const gameOverNoteEl = document.getElementById("gameOverNote");
+  const missionBriefBackdrop = document.getElementById("missionBriefBackdrop");
+  const missionBriefTitleEl = document.getElementById("missionBriefTitle");
+  const missionBriefBodyEl = document.getElementById("missionBriefBody");
+  const missionBriefObjectiveEl = document.getElementById("missionBriefObjective");
+  const missionBriefBonusEl = document.getElementById("missionBriefBonus");
+  const missionBriefSpecialNameEl = document.getElementById("missionBriefSpecialName");
+  const missionBriefSpecialInfoEl = document.getElementById("missionBriefSpecialInfo");
+  const missionBriefPreviewEl = document.getElementById("missionBriefPreview");
+  const missionStartButton = document.getElementById("missionStartButton");
   const finalScoreEl = document.getElementById("finalScore");
   const finalLevelEl = document.getElementById("finalLevel");
   const finalClearsEl = document.getElementById("finalClears");
@@ -159,6 +169,7 @@
   let runEndTitle = "Run Over";
   let runEndNote = "The barn got crowded.";
   let missionSpecialCharge = 0;
+  let pendingMissionWin = null;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -584,6 +595,58 @@
     return mission ? SPECIAL_RULES[mission.special] : null;
   }
 
+  function missionObjectiveLabel(){
+    if(!mission) return "Warm up the barn";
+    if(mission.type === "animal") return `${mission.target} ${TILE_LABEL[mission.animal]} cleared`;
+    if(mission.type === "clears") return `${mission.target} clear(s)`;
+    if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
+    if(mission.type === "wolf") return `${mission.target} wolf tantrum(s)`;
+    if(mission.type === "score") return `${mission.target} coins`;
+    if(mission.type === "level") return `Reach level ${mission.target}`;
+    if(mission.type === "big_group") return `${mission.target} jumbo herd(s)`;
+    if(mission.type === "special_use") return `${mission.target} mission special use(s)`;
+    if(mission.type === "locks") return `Survive ${mission.target} locks`;
+    return mission.title;
+  }
+
+  function missionBriefCopy(){
+    if(!mission) return "The barn is quiet. It will not stay that way.";
+    if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Clean up enough of them and call it a win.`;
+    if(mission.type === "clears") return "No fancy math today. Just clear enough herds before the field gets clogged.";
+    if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain.";
+    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Try not to make eye contact.";
+    if(mission.type === "score") return "Rack up coins fast. Efficiency beats elegance in this barn.";
+    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Then stay alive a bit longer.";
+    if(mission.type === "big_group") return "Build oversized clusters and cash them out before they become a liability.";
+    if(mission.type === "special_use") return "Lean on the mission special. This run is about using the gimmick on purpose.";
+    if(mission.type === "locks") return "Just survive. Neat, tidy, controlled survival.";
+    return "The barn demands something weird from you today.";
+  }
+
+  function openMissionBriefing(){
+    const specialRule = missionSpecialRule();
+    if(missionBriefTitleEl) missionBriefTitleEl.textContent = "Mission Briefing";
+    if(missionBriefBodyEl) missionBriefBodyEl.textContent = missionBriefCopy();
+    if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
+    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `+${mission?.bonus ?? 0}`;
+    if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
+    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? specialRule.desc : "No special tetrad assigned.";
+    renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
+    setOverlayOpen(missionBriefBackdrop, true);
+  }
+
+  function closeMissionBriefing(){
+    setOverlayOpen(missionBriefBackdrop, false);
+    draw();
+  }
+
+  function finishPendingMissionWin(){
+    if(!pendingMissionWin || gameOver) return;
+    const win = pendingMissionWin;
+    pendingMissionWin = null;
+    gameOverNow(win);
+  }
+
   function updateMissionUI(){
     if(!missionTitleEl || !missionProgressEl || !missionSpecialNameEl || !missionSpecialInfoEl) return;
     if(!mission){
@@ -591,6 +654,7 @@
       missionProgressEl.textContent = "Start dropping pieces";
       missionSpecialNameEl.textContent = "Special tetrad: warming up";
       missionSpecialInfoEl.textContent = "Mission tricks will appear here.";
+      renderPreview(missionSpecialPreviewEl, null);
       return;
     }
     const specialRule = missionSpecialRule();
@@ -599,6 +663,7 @@
     missionSpecialInfoEl.textContent = specialRule
       ? `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
       : "No special tetrad assigned.";
+    renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
 
     if(mission.type === "animal"){
       missionProgressEl.textContent = mission.done
@@ -670,11 +735,11 @@
     playMissionJingle();
     updateMissionUI();
     updateHUD();
-    gameOverNow({
+    pendingMissionWin = {
       title: "Mission Complete",
       note: `${mission.title} complete. Bonus secured: +${mission.bonus} coins.`,
       playSound: false
-    });
+    };
   }
 
   function bumpMission(event, value){
@@ -1173,6 +1238,7 @@
 
       applyGravity();
     }
+    finishPendingMissionWin();
     updateHUD();
   }
 
@@ -1779,6 +1845,9 @@
       restart();
     });
   }
+  if(missionStartButton){
+    missionStartButton.addEventListener("click", closeMissionBriefing);
+  }
   if(holdButton){
     holdButton.addEventListener("click", holdCurrent);
   }
@@ -1826,6 +1895,7 @@
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
+    pendingMissionWin = null;
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
@@ -1838,9 +1908,11 @@
     particles=[]; banner={text:"",t:0,ttl:900};
     setOverlayOpen(modalBackdrop, false);
     setOverlayOpen(gameOverBackdrop, false);
+    setOverlayOpen(missionBriefBackdrop, false);
     next = newPiece();
     spawnNext();
     updateHUD();
+    openMissionBriefing();
     draw();
   }
 
@@ -1853,6 +1925,7 @@
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
+    pendingMissionWin = null;
 
     next = newPiece();
     spawnNext();
@@ -1860,6 +1933,7 @@
     updateHUD();
     syncSoundBtn();
     updateGameOverStats();
+    openMissionBriefing();
 
     fitCanvasToViewport();
     const ro = new ResizeObserver(() => fitCanvasToViewport());

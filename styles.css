@@ -128,6 +128,11 @@ html,body{
   gap:4px;
 }
 
+.missionPreview{
+  min-width: 112px;
+  max-width: 128px;
+}
+
 .previewCell{
   aspect-ratio:1;
   display:flex;
@@ -222,6 +227,16 @@ canvas{
 .gameOverNote{
   margin: -2px 0 12px;
   color: var(--muted);
+}
+.missionBriefModal{
+  width: min(560px, 100%);
+}
+.missionSpecialRow{
+  margin-top: 12px;
+  align-items:flex-start;
+}
+.missionSpecialCopy{
+  flex:1;
 }
 .gameOverStats{
   display:grid;

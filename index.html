@@ -42,6 +42,7 @@
           <span id="missionProgress" class="planHint">Start dropping pieces</span>
           <span id="missionSpecialName" class="planHint">Special tetrad: warming up</span>
           <span id="missionSpecialInfo" class="planHint">Mission tricks will appear here.</span>
+          <div id="missionSpecialPreview" class="previewGrid"></div>
         </div>
         <div id="keysCard" class="planCard">
           <span class="planLabel">Laptop Controls</span>
@@ -132,6 +133,33 @@
         </div>
       </div>
       <button id="restartButton" class="closeBtn">Play Again</button>
+    </div>
+  </div>
+
+  <div id="missionBriefBackdrop" class="modalBackdrop hidden">
+    <div class="modal missionBriefModal">
+      <h2 id="missionBriefTitle">Mission Briefing</h2>
+      <div id="missionBriefBody" class="note gameOverNote">Here is the problem in the barn today.</div>
+      <div class="gameOverStats">
+        <div class="gameOverStat">
+          <span class="statLabel">Objective</span>
+          <span id="missionBriefObjective" class="statValue">Warm up the barn</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Mission bonus</span>
+          <span id="missionBriefBonus" class="statValue">0</span>
+        </div>
+      </div>
+      <div class="row missionSpecialRow">
+        <div class="rowLeft missionSpecialCopy">
+          <div>
+            <div id="missionBriefSpecialName" class="rowTitle">Special tetrad</div>
+            <div id="missionBriefSpecialInfo" class="rowSub">Mission trick explainer</div>
+          </div>
+        </div>
+        <div id="missionBriefPreview" class="previewGrid missionPreview"></div>
+      </div>
+      <button id="missionStartButton" class="closeBtn">Start Mission</button>
     </div>
   </div>
 
