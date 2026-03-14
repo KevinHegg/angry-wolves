@@ -205,29 +205,29 @@
   const SPECIAL_RULES = {
     bomb: {
       title: "Barn Buster",
-      desc: "Drops a blast tetrad every 5 locks. It detonates nearby settled tiles.",
-      short: "Blast tetrad every 5 locks.",
+      desc: "Drops a blast tetrad every 5 settles. It detonates nearby settled tiles.",
+      short: "Blast tetrad every 5 settles.",
       every: 5,
       tile: TILE.BOMB
     },
     reaper: {
       title: "Cull Comb",
-      desc: "Drops a scissor tetrad every 5 locks. It deletes the biggest animal group on the board.",
-      short: "Scissor tetrad every 5 locks.",
+      desc: "Drops a scissor tetrad every 5 settles. It deletes the biggest animal group on the board.",
+      short: "Scissor tetrad every 5 settles.",
       every: 5,
       tile: TILE.REAPER
     },
     morph: {
       title: "Mystery Crate",
-      desc: "Drops a question-mark tetrad every 4 locks. It becomes whatever animal touches it first.",
-      short: "Question-mark tetrad every 4 locks.",
+      desc: "Drops a question-mark tetrad every 4 settles. It becomes whatever animal touches it first.",
+      short: "Question-mark tetrad every 4 settles.",
       every: 4,
       tile: TILE.MORPH
     },
     seeder: {
       title: "Nest Bomber",
-      desc: "Drops an egg tetrad every 5 locks. It seeds eggs and turds around its landing zone.",
-      short: "Egg tetrad every 5 locks.",
+      desc: "Drops an egg tetrad every 5 settles. It seeds eggs and turds around its landing zone.",
+      short: "Egg tetrad every 5 settles.",
       every: 5,
       tile: TILE.SEEDER
     }
@@ -252,8 +252,8 @@
     { id:"big_group_two", type:"big_group", target:2, bonus:210, special:"reaper", title:"Clear 2 jumbo herds" },
     { id:"special_once", type:"special_use", target:1, bonus:150, special:"seeder", title:"Use your mission special once" },
     { id:"special_twice", type:"special_use", target:2, bonus:240, special:"seeder", title:"Use your mission special twice" },
-    { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Survive 8 tidy lock-ins" },
-    { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Survive 12 muddy lock-ins" }
+    { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Survive 8 tidy settles" },
+    { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Survive 12 muddy settles" }
   ];
 
   // ===== Audio (silent unlock, no popups) =====
@@ -641,7 +641,7 @@
           cashoutCharge++;
           const locksLeft = Math.max(0, missionCashoutEvery() - cashoutCharge);
           if(locksLeft > 0){
-            banner.text = `Cash-out bell in ${locksLeft} more lock${locksLeft === 1 ? "" : "s"}. Bonus at risk: +${mission.cashBonus}.`;
+            banner.text = `Cash-out bell in ${locksLeft} more settle${locksLeft === 1 ? "" : "s"}. Bonus at risk: +${mission.cashBonus}.`;
             banner.t = performance.now();
           }
         }
@@ -667,21 +667,21 @@
     if(mission.type === "level") return `Reach level ${mission.target}`;
     if(mission.type === "big_group") return `${mission.target} jumbo herd(s)`;
     if(mission.type === "special_use") return `${mission.target} mission special use(s)`;
-    if(mission.type === "locks") return `Survive ${mission.target} locks`;
+    if(mission.type === "locks") return `Survive ${mission.target} settles`;
     return mission.title;
   }
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
     if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Hit the target, then decide whether to bank the run or greed out a bigger payout while the barn speeds up.`;
-    if(mission.type === "clears") return "Clear enough herds to arm the cash-out bell. After that, every extra lock sweetens the mission bonus and makes survival sketchier.";
+    if(mission.type === "clears") return "Clear enough herds to arm the cash-out bell. After that, every extra settle sweetens the bonus and makes survival sketchier.";
     if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain. Once you land it, the greed phase begins.";
     if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the cash-out bell shows up.";
     if(mission.type === "score") return "Rack up coins fast. After you hit the target, you can stall for an even fatter mission payout if your nerves hold.";
     if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you cash out.";
     if(mission.type === "big_group") return "Build oversized clusters and clear them. Then choose between a tidy win and a greedier, shakier finish.";
-    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms a bell, and every extra lock fattens the bonus.";
-    if(mission.type === "locks") return "Survive the required locks, then decide how much longer you want to tempt the barn gods before ringing out.";
+    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms a bell, and every extra settle fattens the bonus.";
+    if(mission.type === "locks") return "Survive the required settles, then decide how much longer you want to tempt the barn gods before ringing out.";
     return "The barn demands something weird from you today. Finish the objective, then choose whether to cash out or get greedy.";
   }
 
@@ -722,16 +722,16 @@
       missionTitleEl.textContent = `${mission.title} ready`;
       missionSpecialNameEl.textContent = "Cash-out bell armed";
       missionSpecialInfoEl.textContent = isCompactUI()
-        ? `Bell in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} locks. Bonus +${mission.cashBonus} at risk.`
-        : `Objective met. Stall for score if you dare: the barn speeds up, your bonus grows every lock, and a bell tetrad appears every ${missionCashoutEvery()} locks so you can cash out before the barn buries you.`;
+        ? `Bell in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
+        : `Objective met. Stall for score if you dare: the barn speeds up, your bonus grows every settle, and a bell tetrad appears every ${missionCashoutEvery()} settles so you can cash out before the barn buries you.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
       missionTitleEl.textContent = mission.title;
       missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
       missionSpecialInfoEl.textContent = specialRule
         ? isCompactUI()
-          ? `Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
-          : `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+          ? `Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} settle${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+          : `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} settle${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
         : "No special tetrad assigned.";
       renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
     }
@@ -785,7 +785,7 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus banked: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Jumbo herd goal complete. Extra locks now mean extra danger and extra bonus.`
+          ? `Jumbo herd goal complete. Extra settles now mean extra danger and extra bonus.`
           : `${missionProgressText(mission.progress, mission.target)} jumbo herds cleared`;
       return;
     }
@@ -803,8 +803,8 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus banked: +${mission.cashBonus} coins`
         : mission.ready
-          ? `You survived the required locks. Anything after this is pure greed.`
-          : `${missionProgressText(locks, mission.target)} lock-ins survived`;
+          ? `You survived the required settles. Anything after this is pure greed.`
+          : `${missionProgressText(locks, mission.target)} settles survived`;
       return;
     }
 
@@ -1920,11 +1920,11 @@
     mo.observe(document.documentElement, {subtree:true, childList:true, characterData:true});
   }
 
-  // ===== Fix the on-page help line without touching the rest of the app =====
+  // ===== Tighten the on-page help line without touching the rest of the app =====
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
     if(!helpPrimary) return;
-    helpPrimary.innerHTML = "<b>Touch:</b> swipe ←/→ move · swipe ↓ drop · swipe ↑ rotate (up-left CCW / up-right CW). Tap left/right halves = nudge.";
+    helpPrimary.innerHTML = "<b>Touch:</b> swipe ←/→ move · ↓ drop · ↑ rotate · tap a side to nudge";
   }
 
   // ===== Settings toggle (simple) =====
