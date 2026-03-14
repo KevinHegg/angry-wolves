@@ -114,6 +114,8 @@
   const soundToggle = document.getElementById("soundToggle");
   const gameOverBackdrop = document.getElementById("gameOverBackdrop");
   const restartButton = document.getElementById("restartButton");
+  const gameOverTitleEl = document.getElementById("gameOverTitle");
+  const gameOverNoteEl = document.getElementById("gameOverNote");
   const finalScoreEl = document.getElementById("finalScore");
   const finalLevelEl = document.getElementById("finalLevel");
   const finalClearsEl = document.getElementById("finalClears");
@@ -136,6 +138,8 @@
   let bestCombo = 1;
   let holdUsed = false;
   let mission = null;
+  let runEndTitle = "Run Over";
+  let runEndNote = "The barn got crowded.";
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -324,7 +328,8 @@
   }
 
   function playLockTick(){
-    playTone({type:"square", f1:170, f2:120, dur:0.05, gain:0.045});
+    playTone({type:"square", f1:170, f2:120, dur:0.05, gain:0.05});
+    playTone({noise:true, dur:0.025, gain:0.018});
   }
 
   function pieceLeadAnimal(piece){
@@ -559,6 +564,11 @@
     playMissionJingle();
     updateMissionUI();
     updateHUD();
+    gameOverNow({
+      title: "Mission Complete",
+      note: `${mission.title} complete. Bonus secured: +${mission.bonus} coins.`,
+      playSound: false
+    });
   }
 
   function bumpMission(event, value){
@@ -653,6 +663,8 @@
 
   function updateGameOverStats(){
     const best = computeBestGroup();
+    if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
+    if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
     if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
@@ -660,9 +672,11 @@
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
-  function gameOverNow(){
+  function gameOverNow(opts={}){
+    runEndTitle = opts.title ?? "Run Over";
+    runEndNote = opts.note ?? "The barn got crowded.";
     gameOver = true;
-    playGameOverJingle();
+    if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
     setOverlayOpen(gameOverBackdrop, true);
     draw();
@@ -872,6 +886,7 @@
   function resolveBoard(){
     let chainDepth = 0;
     while(true){
+      if(gameOver) break;
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
       chainDepth++;
@@ -906,6 +921,7 @@
         currentCombo = chainDepth;
         bumpMission("animal", { animal, amount: cells.length });
         bumpMission("clears", 1);
+        if(gameOver) break;
         banner.text = `${chainDepth > 1 ? `${fmtChain(chainDepth)} chain! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${TILE_LABEL[animal]} (${GROUP_NAME[animal]}) +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
         banner.t = performance.now();
 
@@ -945,7 +961,7 @@
       locks++;
       updateLevel();
       resolveBoard();
-      spawnNext();
+      if(!gameOver) spawnNext();
       return;
     }
 
@@ -968,7 +984,7 @@
     locks++;
     updateLevel();
     resolveBoard();
-    spawnNext();
+    if(!gameOver) spawnNext();
     playLockTick();
     haptic(10);
   }
@@ -1157,7 +1173,6 @@
         const gx = px + x*cell;
         const gy = px + y*cell;
         const accent = p === POWER.EGG ? "#ffd84d" : "#ff6a5b";
-        const label = p === POWER.EGG ? "x2" : "/2";
         const icon = p === POWER.EGG ? "🥚" : "💩";
 
         if(!aboveTiles){
@@ -1173,24 +1188,21 @@
           ctx.arc(gx + cell/2, gy + cell/2, Math.max(6, cell*0.22), 0, Math.PI*2);
           ctx.fill();
           ctx.globalAlpha = 1;
-          ctx.fillStyle = "#20160a";
-          ctx.font = `900 ${Math.floor(cell*0.20)}px system-ui`;
+          ctx.font = `${Math.floor(cell*0.42)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(label, gx + cell/2, gy + cell/2 + 1);
-          ctx.font = `${Math.floor(cell*0.42)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
           ctx.fillStyle = "#fff";
-          ctx.fillText(icon, gx + cell/2, gy + cell*0.22);
+          ctx.fillText(icon, gx + cell/2, gy + cell/2 + 1);
         } else {
           const badgeW = Math.max(18, cell*0.32);
           const badgeH = Math.max(14, cell*0.22);
           ctx.globalAlpha = 0.95;
           roundRectFill(gx + cell - badgeW - 4, gy + 4, badgeW, badgeH, 7, accent);
-          ctx.fillStyle = "#24150a";
-          ctx.font = `900 ${Math.floor(cell*0.16)}px system-ui`;
+          ctx.fillStyle = "#1d120a";
+          ctx.font = `${Math.floor(cell*0.18)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(label, gx + cell - badgeW/2 - 4, gy + 4 + badgeH/2 + 1);
+          ctx.fillText(icon, gx + cell - badgeW/2 - 4, gy + 4 + badgeH/2 + 1);
         }
       }
     }
@@ -1519,6 +1531,8 @@
     board = makeBoard();
     sprinkleOverlayGeometric();
     mission = randomMission();
+    runEndTitle = "Run Over";
+    runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
     held=null; currentCombo=1; bestCombo=1; holdUsed=false;
     fallInterval = BASE_FALL_MS;
