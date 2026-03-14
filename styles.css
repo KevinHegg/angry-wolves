@@ -52,7 +52,7 @@ html,body{
 #gear:active{ transform: translateY(1px); }
 
 .title .h1{ font-weight:900; letter-spacing:0.3px; font-size:18px; }
-.title .sub{ margin-top:3px; font-size:12px; color: var(--muted); }
+.title .sub{ margin-top:3px; font-size:12px; color: var(--muted); max-width: 30ch; }
 
 #hud .right{ text-align:right; min-width: 160px; font-variant-numeric: tabular-nums; }
 .score{ font-weight:900; color: var(--accent); font-size:18px; }
@@ -321,6 +321,8 @@ canvas{
 @media (max-width: 760px){
   #hud{
     align-items:flex-start;
+    flex-wrap:wrap;
+    gap:8px;
   }
 
   #hud .left,
@@ -328,26 +330,107 @@ canvas{
     min-width: 0;
   }
 
+  #hud .left{
+    flex:1 1 100%;
+    align-items:flex-start;
+  }
+
+  #hud .right{
+    width:100%;
+    text-align:left;
+  }
+
+  .title .h1{
+    font-size:16px;
+  }
+
+  .title .sub{
+    display:none;
+  }
+
   #gameShell{
     grid-template-columns: 1fr;
     gap:10px;
   }
 
-  .rail{
-    display:grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #stage{
+    order:1;
+    min-height: clamp(360px, 50svh, 620px);
   }
 
-  #stage{
-    min-height: clamp(360px, 58svh, 720px);
+  #rightRail{
+    order:2;
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap:8px;
+  }
+
+  #leftRail{
+    order:3;
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:8px;
+  }
+
+  #keysCard{
+    display:none;
+  }
+
+  .planCard{
+    min-height:auto;
+    padding:9px;
+  }
+
+  .planLabel{
+    font-size:10px;
+  }
+
+  .planValue{
+    font-size:13px;
+  }
+
+  .planHint{
+    font-size:10px;
+    line-height:1.2;
+  }
+
+  #missionSpecialInfo{
+    display:none;
+  }
+
+  #missionSpecialPreview{
+    max-width: 112px;
+  }
+
+  .actionCard{
+    min-height: 72px;
   }
 
   #help{
     flex-direction:column;
+    gap:4px;
+    font-size:11px;
   }
 
   .legend{
     text-align:left;
     white-space:normal;
+  }
+
+  .missionBriefModal{
+    width:min(92vw, 420px);
+  }
+
+  .missionBriefModal .gameOverStats{
+    grid-template-columns: 1fr;
+  }
+
+  .missionSpecialRow{
+    flex-direction:column;
+  }
+
+  .missionPreview{
+    width:100%;
+    max-width:160px;
   }
 }

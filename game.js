@@ -202,24 +202,28 @@
     bomb: {
       title: "Barn Buster",
       desc: "Drops a blast tetrad every 5 locks. It detonates nearby settled tiles.",
+      short: "Blast tetrad every 5 locks.",
       every: 5,
       tile: TILE.BOMB
     },
     reaper: {
       title: "Cull Comb",
       desc: "Drops a scissor tetrad every 5 locks. It deletes the biggest animal group on the board.",
+      short: "Scissor tetrad every 5 locks.",
       every: 5,
       tile: TILE.REAPER
     },
     morph: {
       title: "Copycat Crate",
       desc: "Drops a swirl tetrad every 4 locks. It becomes whatever animal it lands on.",
+      short: "Swirl tetrad every 4 locks.",
       every: 4,
       tile: TILE.MORPH
     },
     seeder: {
       title: "Nest Bomber",
       desc: "Drops an egg tetrad every 5 locks. It seeds eggs and turds around its landing zone.",
+      short: "Egg tetrad every 5 locks.",
       every: 5,
       tile: TILE.SEEDER
     }
@@ -601,6 +605,10 @@
     return mission ? SPECIAL_RULES[mission.special] : null;
   }
 
+  function isCompactUI(){
+    return window.innerWidth <= 760;
+  }
+
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
     if(mission.type === "animal") return `${mission.target} ${TILE_LABEL[mission.animal]} cleared`;
@@ -667,7 +675,9 @@
     missionTitleEl.textContent = mission.done ? `${mission.title} complete` : mission.title;
     missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
     missionSpecialInfoEl.textContent = specialRule
-      ? `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+      ? isCompactUI()
+        ? `Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+        : `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
       : "No special tetrad assigned.";
     renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
 
@@ -1483,6 +1493,7 @@
 
   function fitCanvasToViewport(){
     resize();
+    updateHUD();
   }
 
   function resize(){
