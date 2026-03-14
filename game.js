@@ -1008,7 +1008,7 @@
 
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
-    if(mission.type === "animal") return `Clear ${mission.target} ${animalWord(mission.animal)} blocks`;
+    if(mission.type === "animal") return `Clear ${mission.target} ${animalWord(mission.animal)}`;
     if(mission.type === "clears") return `Clear ${mission.target} big groups`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `Trigger ${mission.target} wolf tantrum${mission.target === 1 ? "" : "s"}`;
@@ -1022,7 +1022,7 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} blocks ${TILE_LABEL[mission.animal]} to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.`;
+    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.`;
     if(mission.type === "clears") return "Clear enough herds to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "combo") return "Build your chain by clearing herds on consecutive settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "wolf") return "Trigger enough wolf blasts to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
@@ -1116,8 +1116,8 @@
         : mission.ready
           ? hasRewardCoinOnBoard()
             ? `Goal met. Clear the pulsing reward herd to earn +${mission.cashBonus}.`
-            : `Goal met. Keep clearing ${animalWord(mission.animal)} blocks while the reward coin charges.`
-          : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} blocks cleared`;
+            : `Goal met. Keep clearing ${animalWord(mission.animal)} while the reward coin charges.`
+          : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} cleared`;
       return;
     }
 
@@ -1888,7 +1888,7 @@
         bumpMission("animal", { animal, amount: cells.length });
         bumpMission("clears", 1);
         if(gameOver) break;
-        banner.text = `${cascadeDepth > 1 ? `Cascade ${cascadeDepth}! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${GROUP_NAME[animal]} blocks ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
+        banner.text = `${cascadeDepth > 1 ? `Cascade ${cascadeDepth}! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));

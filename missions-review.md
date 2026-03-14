@@ -17,11 +17,11 @@ The live mission logic still lives in [`game.js`](/Users/kevinhegg/Documents/ang
 
 | Title | Goal | Special |
 | --- | --- | --- |
-| `Sheep Sweep` | Clear `17` sheep blocks | `Barn Buster` |
-| `Goat Evac` | Clear `17` goat blocks | `Mystery Crate` |
-| `Coop Cleanup` | Clear `18` chicken blocks | `Nest Bomber` |
-| `Moo Move` | Clear `16` cow blocks | `Cull Comb` |
-| `Hog Panic` | Clear `18` pig blocks | `Barn Buster` |
+| `Sheep Sweep` | Clear `17` sheep | `Barn Buster` |
+| `Goat Evac` | Clear `17` goats | `Mystery Crate` |
+| `Coop Cleanup` | Clear `18` chickens | `Nest Bomber` |
+| `Moo Move` | Clear `16` cows | `Cull Comb` |
+| `Hog Panic` | Clear `18` pigs | `Barn Buster` |
 | `Triple Clear` | Clear `3` big herds | `Cull Comb` |
 | `Quad Clear` | Clear `4` big herds | `Barn Buster` |
 | `Chain Starter` | Reach `x2` combo | `Mystery Crate` |
@@ -38,7 +38,7 @@ The live mission logic still lives in [`game.js`](/Users/kevinhegg/Documents/ang
 | `Special Trial` | Use a mission special `1` time | `Nest Bomber` |
 | `Special Encore` | Use a mission special `2` times | `Nest Bomber` |
 | `Feed Rush` | Clear `3` big herds | `Feed Wagon` |
-| `Sounder Supper` | Clear `18` pig blocks | `Feed Wagon` |
+| `Sounder Supper` | Clear `18` pigs | `Feed Wagon` |
 | `Steady Hands` | Survive `8` settles | `Mystery Crate` |
 | `Mud Marathon` | Survive `12` settles | `Cull Comb` |
 
