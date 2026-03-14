@@ -143,6 +143,7 @@
   const missionSpecialPreviewEl = document.getElementById("missionSpecialPreview");
 
   const gear = document.getElementById("gear");
+  const helpButton = document.getElementById("helpButton");
   const modalBackdrop = document.getElementById("modalBackdrop");
   const closeModal = document.getElementById("closeModal");
   const soundToggle = document.getElementById("soundToggle");
@@ -159,6 +160,9 @@
   const missionBriefSpecialInfoEl = document.getElementById("missionBriefSpecialInfo");
   const missionBriefPreviewEl = document.getElementById("missionBriefPreview");
   const missionStartButton = document.getElementById("missionStartButton");
+  const helpBackdrop = document.getElementById("helpBackdrop");
+  const closeHelpButton = document.getElementById("closeHelp");
+  const toastEl = document.getElementById("toast");
   const finalScoreEl = document.getElementById("finalScore");
   const finalLevelEl = document.getElementById("finalLevel");
   const finalClearsEl = document.getElementById("finalClears");
@@ -177,8 +181,8 @@
   let level = 1;
   let locks = 0;
   let herdsCleared = 0;
-  let currentCombo = 1;
-  let bestCombo = 1;
+  let currentCombo = 0;
+  let bestCombo = 0;
   let holdUsed = false;
   let mission = null;
   let runEndTitle = "Run Over";
@@ -205,6 +209,7 @@
   // particles
   let particles = [];
   let banner = { text:"", t:0, ttl: 900 };
+  let toastTimer = 0;
 
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
@@ -522,12 +527,12 @@
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
   function clone2(m){ return m.map(r => r.slice()); }
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-  function fmtChain(v){ return `x${Math.max(1, v|0)}`; }
+  function fmtChain(v){ return `x${Math.max(0, v|0)}`; }
   function missionProgressText(value, target){ return `${Math.min(value, target)} / ${target}`; }
   function quipForAnimal(animal){ return randChoice(CLEAR_QUIPS[animal] || ["Barnyard bedlam."]); }
   function formatBestGroup(best){
-    if(!best) return "Best: -";
-    return `Best: ${best.count}-block ${GROUP_NAME[best.animal]} ${TILE_LABEL[best.animal]}`;
+    if(!best) return "Largest live group: -";
+    return `Largest live ${GROUP_NAME[best.animal]}: ${best.count} blocks`;
   }
   function missionCurrentProgress(){
     if(!mission) return 0;
@@ -540,6 +545,16 @@
     if(!mission) return 0;
     if(mission.done || mission.ready) return 1;
     return clamp(missionCurrentProgress() / Math.max(1, mission.target), 0, 1);
+  }
+  function showToast(text, ms=1050){
+    if(!toastEl) return;
+    if(toastTimer) clearTimeout(toastTimer);
+    toastEl.textContent = text;
+    toastEl.classList.remove("hidden");
+    toastTimer = window.setTimeout(() => {
+      toastEl.classList.add("hidden");
+      toastTimer = 0;
+    }, ms);
   }
 
   function rotateCW(mat){
@@ -729,7 +744,7 @@
 
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
-    if(mission.type === "animal") return `Clear ${mission.target} ${GROUP_NAME[mission.animal]} blocks ${TILE_LABEL[mission.animal]}`;
+    if(mission.type === "animal") return `Clear ${mission.target} ${TILE_LABEL[mission.animal]} blocks`;
     if(mission.type === "clears") return `Clear ${mission.target} big groups`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `${mission.target} wolf tantrum(s)`;
@@ -743,9 +758,9 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Hit the target, then decide whether to end the run and earn the bonus now or greed out a bigger payout while the barn speeds up.`;
-    if(mission.type === "clears") return "Clear enough herds to arm the reward coin. After that, every extra settle sweetens the bonus and makes survival sketchier.";
-    if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain. Once you land it, the greed phase begins.";
+    if(mission.type === "animal") return `Clear enough ${GROUP_NAME[mission.animal]} blocks ${TILE_LABEL[mission.animal]} to fill the goal. Then you can grab the reward coin or keep playing for a bigger payout while the barn speeds up.`;
+    if(mission.type === "clears") return "Clear enough herds to make the reward coin appear. Every extra settle after that sweetens the bonus and raises the risk.";
+    if(mission.type === "combo") return "Your chain goes up whenever a settled piece clears one or more herds. A settle that clears nothing resets it.";
     if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the reward coin shows up.";
     if(mission.type === "score") return "Rack up coins fast. After you hit the target, you can stall for an even fatter mission payout if your nerves hold.";
     if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you collect the coin.";
@@ -792,7 +807,7 @@
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else if(mission.ready){
       missionTitleEl.textContent = `${mission.title} ready`;
-      missionSpecialNameEl.textContent = "Reward coin ready";
+      missionSpecialNameEl.textContent = "Reward coin incoming";
       missionSpecialInfoEl.textContent = isCompactUI()
         ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
         : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a cash-out coin appears every ${missionCashoutEvery()} settles so you can end the run and earn it.`;
@@ -812,8 +827,8 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Goal met. Keep clearing ${GROUP_NAME[mission.animal]} blocks for score while the coin charges.`
-          : `${missionProgressText(mission.progress, mission.target)} ${GROUP_NAME[mission.animal]} blocks cleared`;
+          ? `Goal met. Keep clearing ${TILE_LABEL[mission.animal]} blocks for score while the coin charges.`
+          : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} blocks cleared`;
       return;
     }
 
@@ -822,7 +837,7 @@
         ? `Crowd goes feral: +${mission.cashBonus}`
         : mission.ready
           ? `Combo landed. The bonus keeps fattening while the barn gets nastier.`
-          : `Current best this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
+          : `Best chain this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
       return;
     }
 
@@ -848,7 +863,7 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `You reached the target level. Ring out now or ride the speed-up.`
+          ? `You reached the target level. Grab the coin now or keep riding the speed-up.`
           : `Current level ${level} (${missionProgressText(level, mission.target)})`;
       return;
     }
@@ -959,7 +974,6 @@
     }
     if(!next) next = newPiece();
     holdUsed = false;
-    currentCombo = 1;
     rotateSlowUses = 4;
     rotateSlowUntil = 0;
     playSpawnCue(current);
@@ -1021,6 +1035,16 @@
     draw();
   }
 
+  function openHelp(){
+    setOverlayOpen(helpBackdrop, true);
+    draw();
+  }
+
+  function closeHelp(){
+    setOverlayOpen(helpBackdrop, false);
+    draw();
+  }
+
   function updateGameOverStats(){
     const best = computeBestGroup();
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
@@ -1028,7 +1052,7 @@
     if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
-    if(finalBestEl) finalBestEl.textContent = best ? `${best.count}-block ${GROUP_NAME[best.animal]} ${TILE_LABEL[best.animal]}` : "-";
+    if(finalBestEl) finalBestEl.textContent = best ? `${GROUP_NAME[best.animal]}, ${best.count} blocks ${TILE_LABEL[best.animal]}` : "-";
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
@@ -1407,14 +1431,14 @@
   }
 
   function resolveBoard(){
-    let chainDepth = 0;
+    let cascadeDepth = 0;
+    let totalGain = 0;
+    let groupsCleared = 0;
     while(true){
       if(gameOver) break;
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
-      chainDepth++;
-      bestCombo = Math.max(bestCombo, chainDepth);
-      bumpMission("combo", chainDepth);
+      cascadeDepth++;
 
       for(const group of clears){
         const { animal, cells } = group;
@@ -1433,8 +1457,10 @@
         }
         if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
         if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
-        if(chainDepth > 1) gain += Math.floor(gain * 0.35 * (chainDepth - 1));
+        if(cascadeDepth > 1) gain += Math.floor(gain * 0.2 * (cascadeDepth - 1));
         score += gain;
+        totalGain += gain;
+        groupsCleared++;
         syncPassiveMissionProgress();
 
         for(const [x,y] of cells){
@@ -1443,11 +1469,10 @@
         }
 
         herdsCleared++;
-        currentCombo = chainDepth;
         bumpMission("animal", { animal, amount: cells.length });
         bumpMission("clears", 1);
         if(gameOver) break;
-        banner.text = `${chainDepth > 1 ? `${fmtChain(chainDepth)} chain! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${TILE_LABEL[animal]} (${GROUP_NAME[animal]}) +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
+        banner.text = `${cascadeDepth > 1 ? `Cascade ${cascadeDepth}! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${GROUP_NAME[animal]} blocks ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -1461,6 +1486,7 @@
       }
     }
     updateHUD();
+    return { groupsCleared, totalGain };
   }
 
   function computeBestGroup(){
@@ -1482,12 +1508,26 @@
     return best;
   }
 
+  function applyChainResult(summary){
+    if(!summary || summary.groupsCleared <= 0){
+      currentCombo = 0;
+      updateHUD();
+      return;
+    }
+    currentCombo += summary.groupsCleared;
+    bestCombo = Math.max(bestCombo, currentCombo);
+    bumpMission("combo", currentCombo);
+    showToast(`+${summary.totalGain} coins${currentCombo > 1 ? ` · ${fmtChain(currentCombo)} chain` : ""}`);
+    updateHUD();
+  }
+
   // ===== Locking =====
   function lockPiece(){
     if(current.kind === "WOLVES"){
       wolvesExplode(current);
       registerLockCycle();
-      resolveBoard();
+      const summary = resolveBoard();
+      applyChainResult(summary);
       if(!gameOver) spawnNext();
       return;
     }
@@ -1496,7 +1536,8 @@
       missionBombBlast(current);
       bumpMission("special_use", 1);
       registerLockCycle();
-      resolveBoard();
+      const summary = resolveBoard();
+      applyChainResult(summary);
       if(!gameOver) spawnNext();
       playLockTick();
       return;
@@ -1506,7 +1547,8 @@
       missionReapLargestGroup();
       bumpMission("special_use", 1);
       registerLockCycle();
-      resolveBoard();
+      const summary = resolveBoard();
+      applyChainResult(summary);
       if(!gameOver) spawnNext();
       playLockTick();
       return;
@@ -1516,7 +1558,8 @@
       missionMorphPiece(current);
       bumpMission("special_use", 1);
       registerLockCycle();
-      resolveBoard();
+      const summary = resolveBoard();
+      applyChainResult(summary);
       if(!gameOver) spawnNext();
       playLockTick();
       return;
@@ -1526,7 +1569,8 @@
       missionSeedOverlay(current);
       bumpMission("special_use", 1);
       registerLockCycle();
-      resolveBoard();
+      const summary = resolveBoard();
+      applyChainResult(summary);
       if(!gameOver) spawnNext();
       playLockTick();
       return;
@@ -1570,7 +1614,8 @@
       : pieceLeadAnimal(current);
 
     registerLockCycle();
-    resolveBoard();
+    const summary = resolveBoard();
+    applyChainResult(summary);
     if(!gameOver) spawnNext();
     if(settleAnimal && ANIMALS.includes(settleAnimal)) playBarnyard(settleAnimal, 4, "settle");
     playLockTick();
@@ -2116,12 +2161,23 @@
   if(gear){
     gear.addEventListener("click", openSettings);
   }
+  if(helpButton){
+    helpButton.addEventListener("click", openHelp);
+  }
   if(closeModal){
     closeModal.addEventListener("click", closeSettings);
+  }
+  if(closeHelpButton){
+    closeHelpButton.addEventListener("click", closeHelp);
   }
   if(modalBackdrop){
     modalBackdrop.addEventListener("click", (e) => {
       if(e.target === modalBackdrop) closeSettings();
+    });
+  }
+  if(helpBackdrop){
+    helpBackdrop.addEventListener("click", (e) => {
+      if(e.target === helpBackdrop) closeHelp();
     });
   }
   if(restartButton){
@@ -2193,7 +2249,7 @@
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
-    held=null; currentCombo=1; bestCombo=1; holdUsed=false;
+    held=null; currentCombo=0; bestCombo=0; holdUsed=false;
     fallInterval = BASE_FALL_MS;
     fallTimer = 0;
     rotateSlowUntil = 0;

@@ -16,7 +16,10 @@
   <div id="app">
     <header id="hud">
       <div class="left">
-        <button id="gear" aria-label="Settings">⚙️</button>
+        <div class="hudButtons">
+          <button id="gear" aria-label="Settings">⚙️</button>
+          <button id="helpButton" aria-label="Help">?</button>
+        </div>
         <div class="title">
           <div class="h1">Angry Wolves</div>
           <div class="sub">Match 10+ • wolves blast • black sheep convert</div>
@@ -24,8 +27,8 @@
       </div>
       <div class="right">
         <div class="score"><span id="score">0</span> 🪙</div>
-        <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span> · Chain <span id="combo">x1</span></div>
-        <div class="best" id="best">Best: —</div>
+        <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span> · Chain <span id="combo">x0</span></div>
+        <div class="best" id="best">Largest live group: —</div>
       </div>
     </header>
 
@@ -72,8 +75,8 @@
         </div>
         <div id="comboCard" class="planCard">
           <span class="planLabel">Best Chain</span>
-          <span id="comboBest" class="planValue">x1</span>
-          <span class="planHint">Back-to-back clears juice the score</span>
+          <span id="comboBest" class="planValue">x0</span>
+          <span class="planHint">Counts herds cleared before a settle whiffs</span>
         </div>
       </aside>
     </section>
@@ -127,12 +130,12 @@
           <span id="finalClears" class="statValue">0</span>
         </div>
         <div class="gameOverStat">
-          <span class="statLabel">Best group</span>
+          <span class="statLabel">Largest live group</span>
           <span id="finalBest" class="statValue">-</span>
         </div>
         <div class="gameOverStat">
           <span class="statLabel">Best chain</span>
-          <span id="finalCombo" class="statValue">x1</span>
+          <span id="finalCombo" class="statValue">x0</span>
         </div>
       </div>
       <button id="restartButton" class="closeBtn">Play Again</button>
@@ -163,6 +166,34 @@
         <div id="missionBriefPreview" class="previewGrid missionPreview"></div>
       </div>
       <button id="missionStartButton" class="closeBtn">Start</button>
+    </div>
+  </div>
+
+  <div id="helpBackdrop" class="modalBackdrop hidden">
+    <div class="modal helpModal">
+      <h2>How To Play</h2>
+      <div class="note gameOverNote">
+        Build groups of 10 or more matching animal blocks to clear them and earn coins.
+      </div>
+      <div class="gameOverStats">
+        <div class="gameOverStat">
+          <span class="statLabel">Mission</span>
+          <span class="statValue">Finish the goal, then catch the reward coin</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Chain</span>
+          <span class="statValue">Each herd clear adds to your chain until a settle clears nothing</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Touch</span>
+          <span class="statValue">Swipe sideways move · swipe down drop · swipe up rotate · double-tap hold</span>
+        </div>
+        <div class="gameOverStat">
+          <span class="statLabel">Specials</span>
+          <span class="statValue">Mission pieces drop on schedule. Their symbol shows what each tile does.</span>
+        </div>
+      </div>
+      <button id="closeHelp" class="closeBtn">Back To Barn</button>
     </div>
   </div>
 

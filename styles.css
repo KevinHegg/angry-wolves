@@ -43,8 +43,14 @@ html,body{
   background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15));
 }
 
+.hudButtons{
+  display:flex;
+  gap:8px;
+}
+
 #hud .left{ display:flex; gap:10px; align-items:flex-end; }
-#gear{
+#gear,
+#helpButton{
   width:40px;height:40px;
   border-radius:12px;
   border:1px solid var(--border);
@@ -52,7 +58,8 @@ html,body{
   color: var(--txt);
   font-size:18px;
 }
-#gear:active{ transform: translateY(1px); }
+#gear:active,
+#helpButton:active{ transform: translateY(1px); }
 
 .title .h1{ font-weight:900; letter-spacing:0.3px; font-size:18px; }
 .title .sub{ margin-top:3px; font-size:12px; color: var(--muted); max-width: 30ch; }
@@ -214,15 +221,17 @@ canvas{
 .toast{
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
-  bottom: 72px;
+  top: 50%;
+  transform: translate(-50%, -50%);
   background: rgba(0,0,0,0.75);
   color: #fff;
-  padding: 10px 12px;
+  padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.10);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
+  z-index: 4;
+  pointer-events:none;
 }
 .hidden{ display:none; }
 
@@ -249,6 +258,9 @@ canvas{
 .gameOverNote{
   margin: -2px 0 12px;
   color: var(--muted);
+}
+.helpModal{
+  width:min(640px, 100%);
 }
 .missionBriefModal{
   width: min(560px, 100%);
@@ -376,7 +388,8 @@ canvas{
     display:none;
   }
 
-  #gear{
+  #gear,
+  #helpButton{
     width:34px;
     height:34px;
     border-radius:10px;
