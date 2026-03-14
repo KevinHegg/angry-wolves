@@ -707,9 +707,9 @@ canvas{
   }
 
   #stage{
-    width:100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
+    width:calc(100vw - 12px);
+    margin-left:auto;
+    margin-right:auto;
     min-height: clamp(772px, 87svh, 1040px);
     justify-content:flex-start;
     box-sizing:border-box;

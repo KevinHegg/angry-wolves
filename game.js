@@ -9,6 +9,7 @@
   const COLS = 10;
   const ROWS = 13;                 // bigger tiles (reduced rows)
   const CLEAR_THRESHOLD = 10;
+  const BIG_GROUP_THRESHOLD = 12;
 
   const BASE_FALL_MS = 650;
   const MIN_FALL_MS  = 120;
@@ -336,8 +337,8 @@
     { id:"special_twice", type:"special_use", target:2, bonus:240, special:"seeder", title:"Special Encore" },
     { id:"feed_three", type:"clears", target:3, bonus:180, special:"feed", title:"Feed Rush" },
     { id:"feed_sounder", type:"animal", animal:TILE.PIG, target:18, bonus:190, special:"feed", title:"Sounder Supper" },
-    { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Steady Hands" },
-    { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Mud Marathon" }
+    { id:"locks_eight", type:"locks", target:14, bonus:190, special:"morph", title:"Steady Hands" },
+    { id:"locks_twelve", type:"locks", target:20, bonus:280, special:"reaper", title:"Mud Marathon" }
   ];
 
   // ===== Audio (silent unlock, no popups) =====
@@ -1009,21 +1010,21 @@
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
     if(mission.type === "animal") return `Clear ${mission.target} ${animalWord(mission.animal)}`;
-    if(mission.type === "clears") return `Clear ${mission.target} big groups`;
+    if(mission.type === "clears") return `Clear ${mission.target} big groups (${BIG_GROUP_THRESHOLD}+)`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `Trigger ${mission.target} wolf tantrum${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "score") return `Score ${mission.target} coins`;
     if(mission.type === "level") return `Reach level ${mission.target}`;
     if(mission.type === "big_group") return `Clear ${mission.target} jumbo groups`;
     if(mission.type === "special_use") return `Use your mission special ${mission.target} time${mission.target === 1 ? "" : "s"}`;
-    if(mission.type === "locks") return `Survive ${mission.target} settles`;
+    if(mission.type === "locks") return `Complete ${mission.target} settles`;
     return mission.title;
   }
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
     if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.`;
-    if(mission.type === "clears") return "Clear enough herds to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "clears") return `Clear enough big herds of ${BIG_GROUP_THRESHOLD} or more animals to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.`;
     if(mission.type === "combo") return "Build your chain by clearing herds on consecutive settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "wolf") return "Trigger enough wolf blasts to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "score") return "Rack up coins fast. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
@@ -1031,7 +1032,7 @@
     if(mission.type === "big_group") return "Build oversized clusters and clear them to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "build_group") return "Build a large live herd without clearing it too soon. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "special_use") return "Use your mission special on purpose to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
-    if(mission.type === "locks") return "Survive the required settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "locks") return "Complete the required settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     return "The barn demands something weird from you today. Finish the objective, then clear the reward herd before the run ends.";
   }
 
@@ -1192,9 +1193,9 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `You survived the required settles. Now clear the pulsing reward herd.`
-            : `You survived the required settles. Stay alive until the reward coin lands.`
-          : `${missionProgressText(locks, mission.target)} settles survived`;
+            ? `You completed the required settles. Now clear the pulsing reward herd.`
+            : `You completed the required settles. Stay alive until the reward coin lands.`
+          : `${missionProgressText(locks, mission.target)} settles completed`;
       return;
     }
 
@@ -2205,7 +2206,7 @@
     const topReserve = compact ? Math.floor(34 * dpr) : 0;
     const bottomReserve = 0;
 
-    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
+    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 18 : 8) * dpr));
     const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
 
     const padPx = pad*2*dpr;
@@ -2294,12 +2295,12 @@
         const gx = px + x*cell;
         const gy = px + y*cell;
         const accent = p === POWER.EGG ? "#ffd84d" : "#ff6a5b";
-        const icon = p === POWER.EGG ? TILE_LABEL[TILE.SEEDER_EGG] : TILE_LABEL[TILE.SEEDER_TURD];
+        const icon = p === POWER.EGG ? "🥚" : "💩";
 
         if(!aboveTiles){
-          ctx.globalAlpha = 0.24;
-          roundRectFill(gx+2, gy+2, cell-4, cell-4, 10, p === POWER.EGG ? "#5c4710" : "#4a1717");
-          ctx.globalAlpha = 0.32;
+          ctx.globalAlpha = 0.3;
+          roundRectFill(gx+2, gy+2, cell-4, cell-4, 10, p === POWER.EGG ? "#69541a" : "#532321");
+          ctx.globalAlpha = 0.4;
           ctx.strokeStyle = accent;
           ctx.lineWidth = Math.max(1, Math.floor(cell*0.08));
           roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
@@ -2493,8 +2494,8 @@
       for(let x=0;x<COLS;x++){
         const gx = px + x*cell;
         const gy = px + y*cell;
-        ctx.globalAlpha = 0.09;
-        ctx.fillStyle = "#d9dde5";
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = "#eef1f6";
         ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
         ctx.globalAlpha = 1;
       }

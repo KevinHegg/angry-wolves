@@ -23,7 +23,7 @@ The live mission logic still lives in [`game.js`](/Users/kevinhegg/Documents/ang
 | `Moo Move` | Clear `16` cows | `Cull Comb` |
 | `Hog Panic` | Clear `18` pigs | `Barn Buster` |
 | `Triple Clear` | Clear `3` big herds | `Cull Comb` |
-| `Quad Clear` | Clear `4` big herds | `Barn Buster` |
+| `Quad Clear` | Clear `4` big herds (`12+` animals) | `Barn Buster` |
 | `Chain Starter` | Reach `x2` combo | `Mystery Crate` |
 | `Chain Fever` | Reach `x3` combo | `Mystery Crate` |
 | `Wolf Pop` | Trigger `1` wolf blast | `Barn Buster` |
@@ -39,8 +39,8 @@ The live mission logic still lives in [`game.js`](/Users/kevinhegg/Documents/ang
 | `Special Encore` | Use a mission special `2` times | `Nest Bomber` |
 | `Feed Rush` | Clear `3` big herds | `Feed Wagon` |
 | `Sounder Supper` | Clear `18` pigs | `Feed Wagon` |
-| `Steady Hands` | Survive `8` settles | `Mystery Crate` |
-| `Mud Marathon` | Survive `12` settles | `Cull Comb` |
+| `Steady Hands` | Complete `14` settles | `Mystery Crate` |
+| `Mud Marathon` | Complete `20` settles | `Cull Comb` |
 
 ## Brainstorm: New Mission-Only Tetrads
 
