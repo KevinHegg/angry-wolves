@@ -25,6 +25,7 @@ html,body{
   min-height: 100svh;
   display:flex;
   flex-direction:column;
+  position:relative;
 
   /* safe-area for iPhone notch */
   padding-top: env(safe-area-inset-top);
@@ -377,18 +378,18 @@ canvas{
     grid-template-columns: 1fr;
     gap:8px;
     padding: 0 8px 8px;
+    position:relative;
   }
 
   #stage{
     order:1;
-    min-height: clamp(540px, 64svh, 760px);
+    min-height: clamp(620px, 74svh, 860px);
   }
 
   #rightRail{
     order:2;
-    display:grid;
-    grid-template-columns: minmax(0, 74px) minmax(0, 1fr);
-    gap:6px;
+    display:block;
+    min-height:0;
   }
 
   #leftRail{
@@ -446,8 +447,14 @@ canvas{
   }
 
   #nextCard{
+    position:absolute;
+    top:-46px;
+    right:8px;
+    z-index:3;
+    width:72px;
     padding:7px 6px;
     min-height:auto;
+    box-shadow: 0 10px 18px rgba(0,0,0,0.34);
   }
 
   #nextCard .planLabel{
@@ -498,7 +505,7 @@ canvas{
   }
 
   #stage{
-    min-height: clamp(590px, 70svh, 820px);
+    min-height: clamp(670px, 78svh, 920px);
   }
 
   .title .h1{
@@ -520,6 +527,17 @@ canvas{
 
   #missionSpecialPreview{
     max-width: 68px;
+  }
+
+  #nextCard{
+    top:-42px;
+    right:4px;
+    width:66px;
+    padding:6px 5px;
+  }
+
+  #nextPreview{
+    max-width: 52px;
   }
 
   .missionPreview{
