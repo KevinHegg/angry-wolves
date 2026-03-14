@@ -351,24 +351,30 @@
     });
   }
 
-  function playBarnyard(animal, size){
-    const big = Math.min(0.22, 0.10 + size/170);
+  function playBarnyard(animal, size, mode="clear"){
+    const isBig = mode === "clear";
+    const shape = Math.min(0.24, isBig ? (0.10 + size/170) : 0.05);
+    const gainBoost = isBig ? 1 : 0.58;
     if(animal === TILE.COW){
-      playTone({type:"sawtooth", f1:150, f2:70, dur:0.16+big, gain:0.18});
-      playTone({type:"sine", f1:95, f2:55, dur:0.18+big, gain:0.13});
+      playTone({type:"sawtooth", f1:isBig ? 145 : 170, f2:isBig ? 62 : 115, dur:(isBig ? 0.18 : 0.10)+shape, gain:0.18*gainBoost});
+      playTone({type:"sine", f1:isBig ? 92 : 120, f2:isBig ? 52 : 90, dur:(isBig ? 0.20 : 0.11)+shape, gain:0.13*gainBoost});
+      if(isBig) playTone({type:"triangle", f1:118, f2:72, dur:0.15, gain:0.08});
     } else if(animal === TILE.PIG){
-      playTone({type:"square", f1:210, f2:95, dur:0.12+big, gain:0.17});
-      playTone({type:"square", f1:170, f2:85, dur:0.10+big, gain:0.13});
+      playTone({type:"square", f1:isBig ? 235 : 255, f2:isBig ? 92 : 170, dur:(isBig ? 0.13 : 0.08)+shape, gain:0.17*gainBoost});
+      playTone({type:"square", f1:isBig ? 185 : 205, f2:isBig ? 84 : 145, dur:(isBig ? 0.11 : 0.07)+shape, gain:0.13*gainBoost});
+      if(isBig) playTone({type:"triangle", f1:310, f2:180, dur:0.09, gain:0.06});
     } else if(animal === TILE.SHEEP){
-      playTone({type:"triangle", f1:450, f2:300, dur:0.11+big, gain:0.14});
+      playTone({type:"triangle", f1:isBig ? 430 : 470, f2:isBig ? 250 : 360, dur:(isBig ? 0.15 : 0.09)+shape, gain:0.14*gainBoost});
+      if(isBig) playTone({type:"sine", f1:360, f2:230, dur:0.12, gain:0.07});
     } else if(animal === TILE.GOAT){
-      playTone({type:"triangle", f1:340, f2:170, dur:0.14+big, gain:0.14});
-      playTone({type:"sine", f1:280, f2:150, dur:0.10+big, gain:0.11});
+      playTone({type:"triangle", f1:isBig ? 330 : 360, f2:isBig ? 150 : 240, dur:(isBig ? 0.15 : 0.09)+shape, gain:0.14*gainBoost});
+      playTone({type:"sine", f1:isBig ? 285 : 320, f2:isBig ? 140 : 210, dur:(isBig ? 0.12 : 0.08)+shape, gain:0.10*gainBoost});
     } else if(animal === TILE.CHICKEN){
-      playTone({noise:true, dur:0.06+big, gain:0.12});
-      playTone({type:"square", f1:720, f2:460, dur:0.07+big, gain:0.11});
+      playTone({noise:true, dur:(isBig ? 0.08 : 0.045)+shape, gain:0.11*gainBoost});
+      playTone({type:"square", f1:isBig ? 760 : 680, f2:isBig ? 420 : 560, dur:(isBig ? 0.08 : 0.05)+shape, gain:0.10*gainBoost});
+      if(isBig) playTone({type:"triangle", f1:920, f2:720, dur:0.05, gain:0.05});
     } else {
-      playTone({type:"sine", f1:240, f2:120, dur:0.10+big, gain:0.11});
+      playTone({type:"sine", f1:isBig ? 240 : 280, f2:isBig ? 120 : 180, dur:(isBig ? 0.12 : 0.08)+shape, gain:0.11*gainBoost});
     }
   }
 
@@ -416,7 +422,7 @@
     if(!piece) return null;
     for(const row of piece.matrix){
       for(const v of row){
-        if(v) return v;
+        if(v && ANIMALS.includes(v)) return v;
       }
     }
     return null;
@@ -1338,12 +1344,18 @@
       for(const [x,y] of footprintCells(current)) board[y][x] = chosen;
     }
 
+    const landedCells = footprintCells(current);
+    const settleAnimal = current.kind === "BLACKSHEEP"
+      ? board[landedCells[0]?.[1] ?? 0]?.[landedCells[0]?.[0] ?? 0] ?? pieceLeadAnimal(current)
+      : pieceLeadAnimal(current);
+
     locks++;
     missionSpecialCharge++;
     syncPassiveMissionProgress();
     updateLevel();
     resolveBoard();
     if(!gameOver) spawnNext();
+    if(settleAnimal && ANIMALS.includes(settleAnimal)) playBarnyard(settleAnimal, 4, "settle");
     playLockTick();
     haptic(10);
   }
