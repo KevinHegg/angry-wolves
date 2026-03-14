@@ -63,7 +63,7 @@
     [TILE.REAPER]: "✂️",
     [TILE.MORPH]: "❓",
     [TILE.SEEDER]: "🥚",
-    [TILE.CASHOUT]: "🪙",
+    [TILE.CASHOUT]: "✦",
   };
 
   const TILE_COLOR = {
@@ -107,6 +107,8 @@
     [TILE.PIG]: "pigs",
   };
 
+  const MISSION_TILES = new Set([TILE.BOMB, TILE.REAPER, TILE.MORPH, TILE.SEEDER, TILE.CASHOUT]);
+
   // ===== Shapes =====
   const SHAPES = {
     I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
@@ -139,7 +141,6 @@
   const clearsEl = document.getElementById("clears");
   const comboEl = document.getElementById("combo");
   const comboBestEl = document.getElementById("comboBest");
-  const bestEl   = document.getElementById("best");
   const nextPreviewEl = document.getElementById("nextPreview");
   const holdPreviewEl = document.getElementById("holdPreview");
   const holdButton = document.getElementById("holdButton");
@@ -173,6 +174,8 @@
   const missionStartButton = document.getElementById("missionStartButton");
   const helpBackdrop = document.getElementById("helpBackdrop");
   const closeHelpButton = document.getElementById("closeHelp");
+  const helpGeneralSpecialsEl = document.getElementById("helpGeneralSpecials");
+  const helpMissionSpecialsEl = document.getElementById("helpMissionSpecials");
   const toastEl = document.getElementById("toast");
   const finalScoreEl = document.getElementById("finalScore");
   const finalLevelEl = document.getElementById("finalLevel");
@@ -194,6 +197,7 @@
   let herdsCleared = 0;
   let currentCombo = 0;
   let bestCombo = 0;
+  let bestHerd = null;
   let holdUsed = false;
   let mission = null;
   let runEndTitle = "Run Over";
@@ -238,29 +242,29 @@
   const SPECIAL_RULES = {
     bomb: {
       title: "Barn Buster",
-      desc: "On average, a bomb tetrad drops in as the next piece every 5 settles. It detonates nearby settled tiles.",
-      short: "Bomb tetrad drops about every 5 settles.",
+      desc: "On average, a bomb tetrad barges in about every 5 settles. It detonates nearby settled tiles.",
+      short: "Surprise bomb tetrad, about every 5 settles on average.",
       every: 5,
       tile: TILE.BOMB
     },
     reaper: {
       title: "Cull Comb",
-      desc: "On average, a scissor tetrad drops in as the next piece every 5 settles. It deletes the biggest animal group on the board.",
-      short: "Scissor tetrad drops about every 5 settles.",
+      desc: "On average, a scissor tetrad barges in about every 5 settles. It deletes the biggest animal group on the board.",
+      short: "Surprise scissor tetrad, about every 5 settles on average.",
       every: 5,
       tile: TILE.REAPER
     },
     morph: {
       title: "Mystery Crate",
-      desc: "On average, a question-mark tetrad drops in as the next piece every 4 settles. It becomes whatever animal touches it first.",
-      short: "Question-mark tetrad drops about every 4 settles.",
+      desc: "On average, a question-mark tetrad barges in about every 4 settles. It becomes whatever animal touches it first.",
+      short: "Surprise mystery tetrad, about every 4 settles on average.",
       every: 4,
       tile: TILE.MORPH
     },
     seeder: {
       title: "Nest Bomber",
-      desc: "On average, a nest tetrad drops in as the next piece every 5 settles. It seeds eggs and turds around its landing zone.",
-      short: "Nest tetrad drops about every 5 settles.",
+      desc: "On average, a nest tetrad barges in about every 5 settles. It seeds eggs and turds around its landing zone.",
+      short: "Surprise nest tetrad, about every 5 settles on average.",
       every: 5,
       tile: TILE.SEEDER
     }
@@ -543,14 +547,14 @@
   function missionProgressText(value, target){ return `${Math.min(value, target)} / ${target}`; }
   function quipForAnimal(animal){ return randChoice(CLEAR_QUIPS[animal] || ["Barnyard bedlam."]); }
   function specialJoinRateLabel(rule){
-    return rule ? `About every ${rule.every} settles` : "";
+    return rule ? `About every ${rule.every} settles on average` : "";
   }
   function animalWord(animal){
     return ANIMAL_NAME[animal] || "animals";
   }
-  function groupSummary(animal, count){
-    if(!animal || !count) return "-";
-    return `${count} ${animalWord(animal)} block${count === 1 ? "" : "s"}`;
+  function bestHerdSummary(best){
+    if(!best) return "-";
+    return `${best.count}-block ${GROUP_NAME[best.animal] || "herd"} ${TILE_LABEL[best.animal]} · 🪙 x${best.gain}`;
   }
   function compactMissionProgress(){
     if(!mission) return "Start dropping";
@@ -566,10 +570,6 @@
     if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials`;
     if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
     return `${missionProgressText(mission.progress, mission.target)}`;
-  }
-  function formatBestGroup(best){
-    if(!best) return "Largest cluster left: -";
-    return `Largest cluster left: ${groupSummary(best.animal, best.count)}`;
   }
   function missionCurrentProgress(){
     if(!mission) return 0;
@@ -587,9 +587,13 @@
     if(!toastEl) return;
     if(toastTimer) clearTimeout(toastTimer);
     toastEl.textContent = text;
+    toastEl.classList.remove("toastLive");
+    void toastEl.offsetWidth;
     toastEl.classList.remove("hidden");
+    toastEl.classList.add("toastLive");
     toastTimer = window.setTimeout(() => {
       toastEl.classList.add("hidden");
+      toastEl.classList.remove("toastLive");
       toastTimer = 0;
     }, ms);
   }
@@ -720,14 +724,90 @@
 
     el.innerHTML = grid.flat().map((tile) => {
       if(!tile) return '<span class="previewCell"></span>';
-      const bg = TILE_COLOR[tile] || "#666";
       const label = TILE_LABEL[tile] || "?";
+      const fg = tile === TILE.CASHOUT ? "#6f4300" : "#fff";
       const special = SPECIAL_TILE_META[tile];
+      const missionFrame = MISSION_TILES.has(tile)
+        ? ", 0 0 0 2px rgba(255,209,102,0.82), 0 0 16px rgba(255,209,102,0.24)"
+        : "";
+      const bg = tile === TILE.CASHOUT
+        ? "radial-gradient(circle at 34% 28%, #fff7cb 0 18%, #f7d568 19% 42%, #d4991d 64%, #8d5600 100%)"
+        : (TILE_COLOR[tile] || "#666");
       const style = special
-        ? `background:linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02) 42%), ${bg}; border-color:${special.accent}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 1px ${special.accent}, 0 0 14px rgba(0,0,0,0.18);`
-        : `background:${bg}`;
+        ? `background:linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02) 42%), ${bg}; border-color:${special.accent}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 1px ${special.accent}, 0 0 14px rgba(0,0,0,0.18)${missionFrame}; color:${fg};`
+        : `background:${bg}; color:${fg};`;
       return `<span class="previewCell filled" style="${style}">${label}</span>`;
     }).join("");
+  }
+
+  function helpPieceFromSpec(spec, kind="HELP"){
+    return { kind, x: 0, y: 0, matrix: materializeSpecMatrix(spec), rotates: !!spec.rotates };
+  }
+
+  function renderHelpSpecialList(el, entries){
+    if(!el) return;
+    el.innerHTML = entries.map((entry, idx) => `
+      <div class="helpSpecialCard">
+        <div id="${entry.id}-${idx}" class="previewGrid helpSpecialPreview"></div>
+        <div class="helpSpecialCopy">
+          <div class="helpSpecialName">${entry.name}</div>
+          <div class="helpSpecialText">${entry.text}</div>
+        </div>
+      </div>
+    `).join("");
+    entries.forEach((entry, idx) => {
+      renderPreview(document.getElementById(`${entry.id}-${idx}`), entry.piece);
+    });
+  }
+
+  function renderHelpSpecials(){
+    renderHelpSpecialList(helpGeneralSpecialsEl, [
+      {
+        id: "help-wolf",
+        name: "Wolf Pack",
+        text: "These drop as a general trouble piece. When they settle, they blast nearby settled tiles.",
+        piece: helpPieceFromSpec(SPECIAL.WOLVES_2, "WOLVES")
+      },
+      {
+        id: "help-blacksheep",
+        name: "Black Sheep",
+        text: "These drop as a general trouble piece. When they settle, they convert into the neighboring animal they fit best.",
+        piece: helpPieceFromSpec(SPECIAL.BLACKSHEEP_2, "BLACKSHEEP")
+      }
+    ]);
+
+    renderHelpSpecialList(helpMissionSpecialsEl, [
+      {
+        id: "help-bomb",
+        name: "Barn Buster",
+        text: "Mission-only tetrad with the shared gold mission frame. It blows up nearby settled tiles when it lands.",
+        piece: helpPieceFromSpec(SPECIAL.BOMB_T, "MISSION_BOMB")
+      },
+      {
+        id: "help-reaper",
+        name: "Cull Comb",
+        text: "Mission-only tetrad with the shared gold mission frame. It removes the biggest herd currently on the board.",
+        piece: helpPieceFromSpec(SPECIAL.REAPER_I, "MISSION_REAPER")
+      },
+      {
+        id: "help-morph",
+        name: "Mystery Crate",
+        text: "Mission-only tetrad with the shared gold mission frame. It turns into the first nearby animal it matches.",
+        piece: helpPieceFromSpec(SPECIAL.MORPH_L, "MISSION_MORPH")
+      },
+      {
+        id: "help-seeder",
+        name: "Nest Bomber",
+        text: "Mission-only tetrad with the shared gold mission frame. It seeds eggs and turds around its landing zone.",
+        piece: helpPieceFromSpec(SPECIAL.SEEDER_S, "MISSION_SEEDER")
+      },
+      {
+        id: "help-cashout",
+        name: "Reward Coin",
+        text: "Mission-only reward piece with the shared gold mission frame. Catch it after the mission is ready to end the run and earn the bonus.",
+        piece: helpPieceFromSpec(SPECIAL.CASHOUT_1, "MISSION_CASHOUT")
+      }
+    ]);
   }
 
   function newMission(){
@@ -841,7 +921,7 @@
     if(missionBriefTitleEl) missionBriefTitleEl.textContent = mission?.title ?? "Mission Briefing";
     if(missionBriefBodyEl) missionBriefBodyEl.textContent = missionBriefCopy();
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
-    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Base reward: +${mission?.bonus ?? 0} coins`;
+    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Earn at least +${mission?.bonus ?? 0} coins`;
     if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
     if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? specialRule.desc : "No special tetrad assigned.";
     renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
@@ -889,7 +969,7 @@
       if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = compactMissionProgress();
       missionSpecialNameEl.textContent = "Reward coin incoming";
       missionSpecialInfoEl.textContent = isCompactUI()
-        ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus} at risk.`
+        ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. +${mission.cashBonus} earned if you catch it.`
         : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a cash-out coin appears every ${missionCashoutEvery()} settles so you can end the run and earn it.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
@@ -900,9 +980,9 @@
       missionSpecialInfoEl.textContent = specialRule
         ? isCompactUI()
           ? specialQueued
-            ? "Primed to drop next."
-            : `${specialJoinRateLabel(specialRule)} · warming up ${specialWarmth}%`
-          : `${specialRule.desc} ${specialQueued ? "It is primed to drop as the next piece." : `Chance is warming up (${specialWarmth}%).`}`
+            ? "Mission tetrad is primed."
+            : `${specialJoinRateLabel(specialRule)} · ${specialWarmth}% primed`
+          : `${specialRule.desc} ${specialQueued ? "That mission tetrad is primed and can drop at any moment." : `Its odds are warming up (${specialWarmth}%).`}`
         : "No special tetrad assigned.";
       renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
     }
@@ -1088,11 +1168,6 @@
     if(clearsEl) clearsEl.textContent = herdsCleared;
     if(comboEl) comboEl.textContent = fmtChain(currentCombo);
     if(comboBestEl) comboBestEl.textContent = fmtChain(bestCombo);
-
-    const best = computeBestGroup();
-    if(bestEl){
-      bestEl.textContent = formatBestGroup(best);
-    }
     renderPreview(nextPreviewEl, next);
     renderPreview(holdPreviewEl, held);
     if(holdButton) holdButton.disabled = paused || gameOver || !current || holdUsed;
@@ -1131,13 +1206,12 @@
   }
 
   function updateGameOverStats(){
-    const best = computeBestGroup();
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
     if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
     if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
-    if(finalBestEl) finalBestEl.textContent = best ? `${groupSummary(best.animal, best.count)} ${TILE_LABEL[best.animal]}` : "-";
+    if(finalBestEl) finalBestEl.textContent = bestHerdSummary(bestHerd);
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
@@ -1563,6 +1637,9 @@
         if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
         if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
         if(cascadeDepth > 1) gain += Math.floor(gain * 0.2 * (cascadeDepth - 1));
+        if(!bestHerd || cells.length > bestHerd.count || (cells.length === bestHerd.count && gain > bestHerd.gain)){
+          bestHerd = { animal, count: cells.length, gain };
+        }
         score += gain;
         totalGain += gain;
         groupsCleared++;
@@ -1591,25 +1668,6 @@
     return { groupsCleared, totalGain };
   }
 
-  function computeBestGroup(){
-    const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
-    let best = null;
-
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
-        if(seen[y][x]) continue;
-        const t = board[y][x];
-        if(!ANIMALS.includes(t)){
-          seen[y][x] = true;
-          continue;
-        }
-        const cells = floodSameAnimal(x,y,t,seen);
-        if(!best || cells.length > best.count) best = { animal: t, count: cells.length };
-      }
-    }
-    return best;
-  }
-
   function applyChainResult(summary){
     if(!summary || summary.groupsCleared <= 0){
       currentCombo = 0;
@@ -1619,7 +1677,7 @@
     currentCombo += summary.groupsCleared;
     bestCombo = Math.max(bestCombo, currentCombo);
     bumpMission("combo", currentCombo);
-    showToast(`+${summary.totalGain} coins${currentCombo > 1 ? ` · ${fmtChain(currentCombo)} chain` : ""}`);
+    showToast(`🪙 x${summary.totalGain}`, 1850);
     updateHUD();
   }
 
@@ -1868,8 +1926,8 @@
     const compact = isCompactUI();
     pad = compact ? 8 : 14;
 
-    const topReserve = compact ? Math.floor(40 * dpr) : 0;
-    const bottomReserve = compact ? Math.floor(8 * dpr) : 0;
+    const topReserve = compact ? Math.floor(22 * dpr) : 0;
+    const bottomReserve = 0;
 
     const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
     const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
@@ -1913,6 +1971,38 @@
     ctx.arcTo(x, y, x+w, y, rr);
     ctx.closePath();
     ctx.stroke();
+  }
+
+  function drawCashoutCoin(gx, gy){
+    const cx = gx + cell / 2;
+    const cy = gy + cell / 2;
+    const radius = cell * 0.29;
+    const gradient = ctx.createRadialGradient(cx - cell * 0.08, cy - cell * 0.1, cell * 0.05, cx, cy, radius);
+    gradient.addColorStop(0, "#fff6c9");
+    gradient.addColorStop(0.28, "#ffd86f");
+    gradient.addColorStop(0.66, "#d79a20");
+    gradient.addColorStop(1, "#8a5400");
+
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.78;
+    ctx.strokeStyle = "rgba(255, 246, 206, 0.8)";
+    ctx.lineWidth = Math.max(1.5, cell * 0.045);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.96;
+    ctx.fillStyle = "#714100";
+    ctx.font = `900 ${Math.floor(cell * 0.26)}px system-ui`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✦", cx, cy + 1);
+    ctx.restore();
   }
 
   function drawOverlay(px, aboveTiles=false){
@@ -1968,6 +2058,7 @@
     const gx = px + x*cell;
     const gy = px + y*cell;
     const specialMeta = SPECIAL_TILE_META[t];
+    const missionTile = MISSION_TILES.has(t);
 
     ctx.globalAlpha = 0.96;
     roundRectFill(gx+1, gy+1, cell-2, cell-2, 10, TILE_COLOR[t] || "#ddd");
@@ -2003,12 +2094,29 @@
       ctx.restore();
     }
 
+    if(missionTile){
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 209, 102, 0.95)";
+      ctx.lineWidth = Math.max(2, Math.floor(cell*0.07));
+      roundRectStroke(gx+4, gy+4, cell-8, cell-8, 8);
+      ctx.globalAlpha = 0.34;
+      ctx.strokeStyle = "rgba(255, 243, 193, 0.88)";
+      ctx.lineWidth = Math.max(1, Math.floor(cell*0.035));
+      roundRectStroke(gx+7, gy+7, cell-14, cell-14, 6);
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.globalAlpha = 0.24;
     ctx.strokeStyle = specialMeta ? specialMeta.accent : "#ffffff";
     ctx.lineWidth = Math.max(1, Math.floor(cell*(specialMeta ? 0.07 : 0.06)));
     roundRectStroke(gx+2, gy+2, cell-4, cell-4, 9);
     ctx.restore();
+
+    if(withEmoji && t === TILE.CASHOUT){
+      drawCashoutCoin(gx, gy);
+      return;
+    }
 
     if(withEmoji){
       ctx.font = `${Math.floor(cell*0.66)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
@@ -2289,6 +2397,16 @@
       if(e.target === helpBackdrop) closeHelp();
     });
   }
+  function canTouchScroll(target){
+    return !!(target instanceof Element && target.closest(".helpScroll"));
+  }
+  if(IS_TOUCH){
+    document.addEventListener("touchmove", (e) => {
+      if(!e.cancelable) return;
+      if(canTouchScroll(e.target)) return;
+      e.preventDefault();
+    }, { passive:false, capture:true });
+  }
   if(restartButton){
     restartButton.addEventListener("click", () => {
       setOverlayOpen(gameOverBackdrop, false);
@@ -2359,6 +2477,7 @@
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
+    bestHerd = null;
     held=null; currentCombo=0; bestCombo=0; holdUsed=false;
     fallInterval = BASE_FALL_MS;
     fallTimer = 0;
@@ -2386,12 +2505,14 @@
     installToastObserver();
     ensureAudio();
     syncMasterGain();
+    renderHelpSpecials();
 
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
     missionSpecialPending = false;
     cashoutCharge = 0;
+    bestHerd = null;
 
     next = newPiece();
     spawnNext();

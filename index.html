@@ -28,7 +28,6 @@
       <div class="right">
         <div class="score"><span id="score">0</span> 🪙</div>
         <div class="meta">Level <span id="level">1</span> · Herds <span id="clears">0</span> · Chain <span id="combo">x0</span></div>
-        <div class="best" id="best">Largest cluster left: —</div>
       </div>
     </header>
 
@@ -143,7 +142,7 @@
           <span id="finalClears" class="statValue">0</span>
         </div>
         <div class="gameOverStat">
-          <span class="statLabel">Largest cluster left</span>
+          <span class="statLabel">Largest herd made</span>
           <span id="finalBest" class="statValue">-</span>
         </div>
         <div class="gameOverStat">
@@ -185,25 +184,38 @@
   <div id="helpBackdrop" class="modalBackdrop hidden">
     <div class="modal helpModal">
       <h2>How To Play</h2>
-      <div class="note gameOverNote">
-        Build groups of 10 or more matching animal blocks to clear them and earn coins.
-      </div>
-      <div class="gameOverStats">
-        <div class="gameOverStat">
-          <span class="statLabel">Mission</span>
-          <span class="statValue">Finish the goal, then catch the reward coin</span>
+      <div class="helpScroll">
+        <div class="note gameOverNote">
+          Build groups of 10 or more matching animal blocks to clear them and earn coins.
         </div>
-        <div class="gameOverStat">
-          <span class="statLabel">Chain</span>
-          <span class="statValue">Each herd clear adds to your chain until a settle clears nothing</span>
+        <div class="helpSection">
+          <div class="helpSectionTitle">Core Rules</div>
+          <div class="gameOverStats">
+            <div class="gameOverStat">
+              <span class="statLabel">Mission</span>
+              <span class="statValue">Hit the goal, then catch the reward coin</span>
+            </div>
+            <div class="gameOverStat">
+              <span class="statLabel">Chain</span>
+              <span class="statValue">Every herd clear adds to the chain until a settle clears nothing</span>
+            </div>
+            <div class="gameOverStat">
+              <span class="statLabel">Touch</span>
+              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe up rotate</span>
+            </div>
+            <div class="gameOverStat">
+              <span class="statLabel">Mission Pace</span>
+              <span class="statValue">Mission tetrads drop in on average over time, not on a perfect timer</span>
+            </div>
+          </div>
         </div>
-        <div class="gameOverStat">
-          <span class="statLabel">Touch</span>
-          <span class="statValue">Swipe sideways move · swipe down drop · swipe up rotate · double-tap hold</span>
+        <div class="helpSection">
+          <div class="helpSectionTitle">General Barn Trouble</div>
+          <div id="helpGeneralSpecials" class="helpSpecialList"></div>
         </div>
-        <div class="gameOverStat">
-          <span class="statLabel">Specials</span>
-          <span class="statValue">Mission pieces drop in on average over time. Their symbols show what each tile does.</span>
+        <div class="helpSection">
+          <div class="helpSectionTitle">Mission Tetrads</div>
+          <div id="helpMissionSpecials" class="helpSpecialList"></div>
         </div>
       </div>
       <button id="closeHelp" class="closeBtn">Back To Barn</button>
