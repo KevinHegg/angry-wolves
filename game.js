@@ -567,10 +567,10 @@
     const kind = weightedSpawnKind();
 
     if(kind === "WOLVES"){
-      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.WOLVES_2.matrix), rotates:false };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: materializeSpecMatrix(SPECIAL.WOLVES_2), rotates:false };
     }
     if(kind === "BLACKSHEEP"){
-      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: clone2(SPECIAL.BLACKSHEEP_2.matrix), rotates:false };
+      return { kind, x: Math.floor(COLS/2)-1, y: 0, matrix: materializeSpecMatrix(SPECIAL.BLACKSHEEP_2), rotates:false };
     }
 
     const shapeKey = randChoice(SHAPE_KEYS);
@@ -580,25 +580,29 @@
     return { kind, shapeKey, x: Math.floor(COLS/2)-2, y: 0, matrix: m, rotates:true };
   }
 
+  function materializeSpecMatrix(spec){
+    return spec.matrix.map((row) => row.map((v) => v ? spec.tile : 0));
+  }
+
   function createMissionSpecialPiece(){
     if(!mission) return null;
     if(mission.special === "bomb"){
-      return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: clone2(SPECIAL.BOMB_T.matrix), rotates:true };
+      return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BOMB_T), rotates:true };
     }
     if(mission.special === "reaper"){
-      return { kind:"MISSION_REAPER", x: Math.floor(COLS/2)-2, y:0, matrix: clone2(SPECIAL.REAPER_I.matrix), rotates:true };
+      return { kind:"MISSION_REAPER", x: Math.floor(COLS/2)-2, y:0, matrix: materializeSpecMatrix(SPECIAL.REAPER_I), rotates:true };
     }
     if(mission.special === "morph"){
-      return { kind:"MISSION_MORPH", x: Math.floor(COLS/2)-1, y:0, matrix: clone2(SPECIAL.MORPH_L.matrix), rotates:true };
+      return { kind:"MISSION_MORPH", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.MORPH_L), rotates:true };
     }
     if(mission.special === "seeder"){
-      return { kind:"MISSION_SEEDER", x: Math.floor(COLS/2)-1, y:0, matrix: clone2(SPECIAL.SEEDER_S.matrix), rotates:true };
+      return { kind:"MISSION_SEEDER", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.SEEDER_S), rotates:true };
     }
     return null;
   }
 
   function createCashoutPiece(){
-    return { kind:"MISSION_CASHOUT", x: Math.floor(COLS/2), y:0, matrix: clone2(SPECIAL.CASHOUT_1.matrix), rotates:false };
+    return { kind:"MISSION_CASHOUT", x: Math.floor(COLS/2), y:0, matrix: materializeSpecMatrix(SPECIAL.CASHOUT_1), rotates:false };
   }
 
   function clonePiece(piece){
@@ -1352,6 +1356,56 @@
     }
   }
 
+  function herdNeighborCount(x, y, animal){
+    let count = 0;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx = x + dx;
+      const ny = y + dy;
+      if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if(board[ny][nx] === animal) count++;
+    }
+    return count;
+  }
+
+  function applyHerdNudges(){
+    const moves = [];
+    for(let y=ROWS-1;y>=0;y--){
+      for(let x=0;x<COLS;x++){
+        const animal = board[y][x];
+        if(!ANIMALS.includes(animal)) continue;
+        if(y < ROWS-1 && board[y+1][x] === TILE.EMPTY) continue;
+
+        const currentScore = herdNeighborCount(x, y, animal);
+        let bestMove = null;
+
+        for(const dir of [-1, 1]){
+          const nx = x + dir;
+          if(nx < 0 || nx >= COLS) continue;
+          if(board[y][nx] !== TILE.EMPTY) continue;
+          if(y < ROWS-1 && board[y+1][nx] === TILE.EMPTY) continue;
+          const score = herdNeighborCount(nx, y, animal);
+          if(score <= currentScore) continue;
+          if(!bestMove || score > bestMove.score) bestMove = { fromX: x, toX: nx, y, score };
+        }
+
+        if(bestMove) moves.push(bestMove);
+      }
+    }
+
+    if(!moves.length) return false;
+
+    const claimed = new Set();
+    for(const move of moves){
+      const key = `${move.toX},${move.y}`;
+      if(claimed.has(key)) continue;
+      if(board[move.y][move.fromX] === TILE.EMPTY || board[move.y][move.toX] !== TILE.EMPTY) continue;
+      board[move.y][move.toX] = board[move.y][move.fromX];
+      board[move.y][move.fromX] = TILE.EMPTY;
+      claimed.add(key);
+    }
+    return claimed.size > 0;
+  }
+
   function resolveBoard(){
     let chainDepth = 0;
     while(true){
@@ -1402,6 +1456,9 @@
       }
 
       applyGravity();
+      while(applyHerdNudges()){
+        applyGravity();
+      }
     }
     updateHUD();
   }
@@ -1659,9 +1716,10 @@
   function resize(){
     const rect = stageEl.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
+    pad = isCompactUI() ? 8 : 14;
 
-    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor(8 * dpr));
-    const targetH = Math.max(280, Math.floor(rect.height * dpr) - Math.floor(8 * dpr));
+    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((isCompactUI() ? 2 : 8) * dpr));
+    const targetH = Math.max(280, Math.floor(rect.height * dpr) - Math.floor((isCompactUI() ? 2 : 8) * dpr));
 
     const padPx = pad*2*dpr;
     const cellByW = Math.floor((targetW - padPx) / COLS);
@@ -2084,7 +2142,13 @@
       soundOn = !soundOn;
       saveSoundPref();
       syncMasterGain();
-      if(soundOn) unlockAudioSilently();
+      if(soundOn){
+        unlockAudioSilently();
+        setTimeout(() => {
+          playRotateTick();
+          playMoveTick();
+        }, 90);
+      }
       syncSoundBtn();
       // if user turns it ON, it will unlock on the next touch
     };
