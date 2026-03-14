@@ -606,7 +606,7 @@
   }
   function bestHerdSummary(best){
     if(!best) return "-";
-    return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "herd"}) · ${best.gain} coins`;
+    return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "herd"}) · <span class="coinInline small" aria-hidden="true"></span> x ${best.gain}`;
   }
   function compactMissionProgress(){
     if(!mission) return "Start dropping";
@@ -1352,7 +1352,7 @@
     if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
-    if(finalBestEl) finalBestEl.textContent = bestHerdSummary(bestHerd);
+    if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
@@ -2202,7 +2202,7 @@
     const compact = isCompactUI();
     pad = compact ? 8 : 14;
 
-    const topReserve = compact ? Math.floor(10 * dpr) : 0;
+    const topReserve = compact ? Math.floor(34 * dpr) : 0;
     const bottomReserve = 0;
 
     const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
@@ -2294,7 +2294,7 @@
         const gx = px + x*cell;
         const gy = px + y*cell;
         const accent = p === POWER.EGG ? "#ffd84d" : "#ff6a5b";
-        const icon = p === POWER.EGG ? "🥚" : "💩";
+        const icon = p === POWER.EGG ? TILE_LABEL[TILE.SEEDER_EGG] : TILE_LABEL[TILE.SEEDER_TURD];
 
         if(!aboveTiles){
           ctx.globalAlpha = 0.24;
@@ -2493,8 +2493,8 @@
       for(let x=0;x<COLS;x++){
         const gx = px + x*cell;
         const gy = px + y*cell;
-        ctx.globalAlpha = 0.06;
-        ctx.fillStyle = "#ffffff";
+        ctx.globalAlpha = 0.09;
+        ctx.fillStyle = "#d9dde5";
         ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
         ctx.globalAlpha = 1;
       }

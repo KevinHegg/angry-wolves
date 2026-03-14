@@ -72,8 +72,39 @@ html,body{
 
 #hud .right{ text-align:right; min-width: 160px; font-variant-numeric: tabular-nums; }
 .score{ font-weight:900; color: var(--accent); font-size:18px; }
+.score{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+}
 .meta{ font-size:12px; color: var(--muted); line-height:1.25; }
 .best{ font-size:12px; color: var(--ok); margin-top:2px; }
+.coinInline{
+  display:inline-block;
+  width:0.9em;
+  height:0.9em;
+  border-radius:50%;
+  vertical-align:middle;
+  background:
+    radial-gradient(circle at 34% 30%, #fff7cf 0 16%, #ffd76c 17% 40%, #d89b1f 60%, #8a5400 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 246, 208, 0.45),
+    0 0 0 1px rgba(138, 84, 0, 0.35);
+  position:relative;
+}
+.coinInline::after{
+  content:"";
+  position:absolute;
+  inset:22%;
+  border-radius:50%;
+  border:1px solid rgba(255, 244, 201, 0.72);
+}
+.coinInline.small{
+  width:0.82em;
+  height:0.82em;
+  margin:0 2px 0 0;
+}
 
 #gameShell{
   flex:1;
@@ -647,6 +678,7 @@ canvas{
   .score{
     font-size:16px;
     line-height:1;
+    gap:5px;
   }
 
   .meta{
@@ -671,12 +703,12 @@ canvas{
     min-height: clamp(772px, 87svh, 1040px);
     justify-content:flex-start;
     box-sizing:border-box;
-    padding-top:12px;
+    padding-top:36px;
     padding-bottom:2px;
   }
 
   .stageMissionBar{
-    top:0;
+    top:12px;
     width:calc(100% - 86px);
     left:4px;
     transform:none;
@@ -860,7 +892,7 @@ canvas{
 
   #stage{
     min-height: clamp(804px, 89svh, 1100px);
-    padding-top:10px;
+    padding-top:34px;
   }
 
   .title .h1{
