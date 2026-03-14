@@ -1022,15 +1022,16 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} blocks ${TILE_LABEL[mission.animal]} to hit the goal. Then a reward coin lands, turns into an animal, and must be cleared inside a herd to earn the bonus.`;
-    if(mission.type === "clears") return "Clear enough herds to make the reward coin appear. It settles into the barn, joins a herd, and only pays out if you clear it before the barn buries you.";
-    if(mission.type === "combo") return "Your chain goes up whenever a settled piece clears one or more herds. A settle that clears nothing resets it.";
-    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then survive long enough to clear the reward herd before the barn collapses.";
-    if(mission.type === "score") return "Rack up coins fast. After you hit the target, the reward coin still has to be turned into a real herd clear.";
-    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you clear the reward herd.";
-    if(mission.type === "big_group") return "Build oversized clusters and clear them. Then turn the reward coin into one more successful herd before the run ends.";
-    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms the reward coin, but only a real herd clear earns the bonus.";
-    if(mission.type === "locks") return "Survive the required settles, then keep calm long enough to clear the reward herd.";
+    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} blocks ${TILE_LABEL[mission.animal]} to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.`;
+    if(mission.type === "clears") return "Clear enough herds to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "combo") return "Build your chain by clearing herds on consecutive settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "wolf") return "Trigger enough wolf blasts to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "score") return "Rack up coins fast. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "level") return "Stay alive long enough to reach the target level. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "big_group") return "Build oversized clusters and clear them to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "build_group") return "Build a large live herd without clearing it too soon. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "special_use") return "Use your mission special on purpose to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "locks") return "Survive the required settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     return "The barn demands something weird from you today. Finish the objective, then clear the reward herd before the run ends.";
   }
 
