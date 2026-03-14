@@ -60,7 +60,7 @@
     [TILE.BLACK_SHEEP]: "🐑‍⬛",
     [TILE.BOMB]: "💥",
     [TILE.REAPER]: "✂️",
-    [TILE.MORPH]: "🌀",
+    [TILE.MORPH]: "?",
     [TILE.SEEDER]: "🥚",
   };
 
@@ -74,7 +74,7 @@
     [TILE.BLACK_SHEEP]: "#1b1b24",
     [TILE.BOMB]: "#ff875d",
     [TILE.REAPER]: "#7ef0d1",
-    [TILE.MORPH]: "#72a8ff",
+    [TILE.MORPH]: "#5e8dff",
     [TILE.SEEDER]: "#f6d54a",
   };
 
@@ -214,9 +214,9 @@
       tile: TILE.REAPER
     },
     morph: {
-      title: "Copycat Crate",
-      desc: "Drops a swirl tetrad every 4 locks. It becomes whatever animal it lands on.",
-      short: "Swirl tetrad every 4 locks.",
+      title: "Mystery Crate",
+      desc: "Drops a question-mark tetrad every 4 locks. It becomes whatever animal touches it first.",
+      short: "Question-mark tetrad every 4 locks.",
       every: 4,
       tile: TILE.MORPH
     },
@@ -1108,7 +1108,7 @@
   function missionMorphPiece(piece){
     const animal = chooseLandingAnimal(piece);
     for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
-    banner.text = `Copycat Crate became ${TILE_LABEL[animal]}.`;
+    banner.text = `Mystery Crate revealed ${TILE_LABEL[animal]}.`;
     banner.t = performance.now();
     playBarnyard(animal, 6);
   }
