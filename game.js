@@ -48,6 +48,8 @@
     CASHOUT: 12,
     SEEDER_EGG: 13,
     SEEDER_TURD: 14,
+    BRAND: 15,
+    FEED: 16,
   };
 
   const POWER = { NONE:0, EGG:1, TURD:2 };
@@ -68,6 +70,8 @@
     [TILE.CASHOUT]: "✦",
     [TILE.SEEDER_EGG]: "🥚",
     [TILE.SEEDER_TURD]: "💩",
+    [TILE.BRAND]: "🧲",
+    [TILE.FEED]: "🌾",
   };
 
   const TILE_COLOR = {
@@ -85,6 +89,8 @@
     [TILE.CASHOUT]: "#c89a2f",
     [TILE.SEEDER_EGG]: "#f6d54a",
     [TILE.SEEDER_TURD]: "#e08c6a",
+    [TILE.BRAND]: "#c2afff",
+    [TILE.FEED]: "#9edb8c",
   };
 
   const SPECIAL_TILE_META = {
@@ -96,7 +102,9 @@
     [TILE.SEEDER]: { accent: "#fff0a6", badge: "+" },
     [TILE.CASHOUT]: { accent: "#f6dc88", badge: "¤" },
     [TILE.SEEDER_EGG]: { accent: "#fff0a6", badge: "+" },
-    [TILE.SEEDER_TURD]: { accent: "#fff0a6", badge: "+" }
+    [TILE.SEEDER_TURD]: { accent: "#fff0a6", badge: "+" },
+    [TILE.BRAND]: { accent: "#d3bcff", badge: "↔" },
+    [TILE.FEED]: { accent: "#b8f2a8", badge: "✦" }
   };
 
   const GROUP_NAME = {
@@ -123,6 +131,8 @@
     TILE.CASHOUT,
     TILE.SEEDER_EGG,
     TILE.SEEDER_TURD,
+    TILE.BRAND,
+    TILE.FEED,
   ]);
 
   // ===== Shapes =====
@@ -144,6 +154,8 @@
     REAPER_I:     { matrix:[[1,1,1,1]], tile:TILE.REAPER, rotates:true },
     MORPH_L:      { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.MORPH, rotates:true },
     SEEDER_S:     { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.SEEDER, rotates:true },
+    BRAND_T:      { matrix:[[1,1,1],[0,1,0],[0,0,0]], tile:TILE.BRAND, rotates:true },
+    FEED_L:       { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.FEED, rotates:true },
     CASHOUT_1:    { matrix:[[1]], tile:TILE.CASHOUT, rotates:false }
   };
 
@@ -284,6 +296,20 @@
       short: "Surprise nest tetrad, about every 5 settles on average.",
       every: 5,
       tile: TILE.SEEDER
+    },
+    brand: {
+      title: "Branding Iron",
+      desc: "On average, a branding tetrad barges in about every 5 settles. It becomes the touched animal and converts nearby animals to match, helping build a herd fast.",
+      short: "Surprise branding tetrad, about every 5 settles on average.",
+      every: 5,
+      tile: TILE.BRAND
+    },
+    feed: {
+      title: "Feed Wagon",
+      desc: "On average, a feed tetrad barges in about every 5 settles. It becomes the touched animal and scatters only eggs around itself.",
+      short: "Surprise feed tetrad, about every 5 settles on average.",
+      every: 5,
+      tile: TILE.FEED
     }
   };
 
@@ -304,8 +330,12 @@
     { id:"level_three", type:"level", target:3, bonus:200, special:"morph", title:"Level Rush" },
     { id:"level_four", type:"level", target:4, bonus:260, special:"bomb", title:"Boot Test" },
     { id:"big_group_two", type:"big_group", target:2, bonus:210, special:"reaper", title:"Jumbo Duo" },
+    { id:"build_nine", type:"build_group", target:9, bonus:180, special:"brand", title:"Flock Forge" },
+    { id:"build_ten", type:"build_group", target:10, bonus:220, special:"brand", title:"Barn Weave" },
     { id:"special_once", type:"special_use", target:1, bonus:150, special:"seeder", title:"Special Trial" },
     { id:"special_twice", type:"special_use", target:2, bonus:240, special:"seeder", title:"Special Encore" },
+    { id:"feed_three", type:"clears", target:3, bonus:180, special:"feed", title:"Feed Rush" },
+    { id:"feed_sounder", type:"animal", animal:TILE.PIG, target:18, bonus:190, special:"feed", title:"Sounder Supper" },
     { id:"locks_eight", type:"locks", target:8, bonus:160, special:"morph", title:"Steady Hands" },
     { id:"locks_twelve", type:"locks", target:12, bonus:240, special:"reaper", title:"Mud Marathon" }
   ];
@@ -530,6 +560,10 @@
       playJingle([392, 523, 659], { step:0.05, type:"triangle", gain:0.04 });
     } else if(piece?.kind === "MISSION_SEEDER"){
       playJingle([523, 440], { step:0.07, type:"square", gain:0.04 });
+    } else if(piece?.kind === "MISSION_BRAND"){
+      playJingle([392, 494, 440], { step:0.05, type:"triangle", gain:0.04 });
+    } else if(piece?.kind === "MISSION_FEED"){
+      playJingle([330, 392, 523], { step:0.06, type:"triangle", gain:0.04 });
     } else if(animal === TILE.WOLF){
       playJingle([220, 196], { step:0.08, type:"sawtooth", gain:0.045 });
     } else if(animal === TILE.BLACK_SHEEP){
@@ -572,7 +606,7 @@
   }
   function bestHerdSummary(best){
     if(!best) return "-";
-    return `${best.count}-block ${GROUP_NAME[best.animal] || "herd"} ${TILE_LABEL[best.animal]} · 🪙 x${best.gain}`;
+    return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "herd"}) · ${best.gain} coins`;
   }
   function compactMissionProgress(){
     if(!mission) return "Start dropping";
@@ -588,6 +622,7 @@
     if(mission.type === "score") return `${missionProgressText(score, mission.target)} coins`;
     if(mission.type === "level") return `Lv ${level}/${mission.target}`;
     if(mission.type === "big_group") return `${missionProgressText(mission.progress, mission.target)} jumbo`;
+    if(mission.type === "build_group") return `${missionCurrentProgress()} live`;
     if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials`;
     if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
     return `${missionProgressText(mission.progress, mission.target)}`;
@@ -603,6 +638,9 @@
     if(mission.type === "score") return score;
     if(mission.type === "level") return level;
     if(mission.type === "locks") return locks;
+    if(mission.type === "build_group"){
+      return findLargestAnimalGroup()?.cells.length || 0;
+    }
     return mission.progress ?? 0;
   }
   function missionProgressRatio(){
@@ -630,6 +668,8 @@
       "MISSION_REAPER",
       "MISSION_MORPH",
       "MISSION_SEEDER",
+      "MISSION_BRAND",
+      "MISSION_FEED",
     ].includes(piece.kind);
   }
 
@@ -717,6 +757,12 @@
         matrix: createSeederMatrix({ randomize: forSpawn }),
         rotates:true
       };
+    }
+    if(mission.special === "brand"){
+      return { kind:"MISSION_BRAND", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BRAND_T), rotates:true };
+    }
+    if(mission.special === "feed"){
+      return { kind:"MISSION_FEED", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.FEED_L), rotates:true };
     }
     return null;
   }
@@ -825,13 +871,13 @@
       {
         id: "help-wolf",
         name: "Wolf Pack",
-        text: "These drop as a general trouble piece. When they settle, they blast nearby settled tiles.",
+        text: "These are real trouble. When they settle, they blast nearby settled tiles. If they whiff completely, they still leave one rude 💩 behind.",
         piece: helpPieceFromSpec(SPECIAL.WOLVES_2, "WOLVES")
       },
       {
         id: "help-blacksheep",
         name: "Black Sheep",
-        text: "These drop as a general trouble piece. When they settle, they convert into the neighboring animal they fit best.",
+        text: "These are wild cards, not trouble. They convert into the neighboring animal they fit best. If they land isolated, they leave an egg behind before joining at random.",
         piece: helpPieceFromSpec(SPECIAL.BLACKSHEEP_2, "BLACKSHEEP")
       }
     ]);
@@ -860,6 +906,18 @@
         name: "Nest Bomber",
         text: "Mission-only tetrad with the shared gold mission frame. It spawns with a random egg-and-turd mix, then scatters that same mix around its landing zone.",
         piece: createSeederPreviewPiece()
+      },
+      {
+        id: "help-brand",
+        name: "Branding Iron",
+        text: "Mission-only tetrad with the shared gold mission frame. It becomes the touched animal and converts nearby animals to match, helping build herds.",
+        piece: helpPieceFromSpec(SPECIAL.BRAND_T, "MISSION_BRAND")
+      },
+      {
+        id: "help-feed",
+        name: "Feed Wagon",
+        text: "Mission-only tetrad with the shared gold mission frame. It becomes the touched animal and scatters only eggs around itself.",
+        piece: helpPieceFromSpec(SPECIAL.FEED_L, "MISSION_FEED")
       },
       {
         id: "help-cashout",
@@ -911,11 +969,11 @@
   }
 
   function missionPressureMultiplier(){
-    return (mission && mission.ready && !mission.done) ? 0.84 : 1;
+    return (mission && mission.ready && !mission.done) ? 0.93 : 1;
   }
 
   function missionReadyLockBonus(){
-    return 18 + level * 4;
+    return 26 + level * 5;
   }
 
   function registerLockCycle(opts={}){
@@ -1435,6 +1493,9 @@
       playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.16});
       haptic(18);
       bumpMission("wolf", 1);
+    } else if(markOneFootprintOverlay(piece, POWER.TURD)){
+      banner.text = "Wolf pack whiffed and still left a rude 💩 behind.";
+      banner.t = performance.now();
     }
   }
 
@@ -1453,7 +1514,10 @@
     let bestCount = -1;
     for(const a of ANIMALS) bestCount = Math.max(bestCount, counts.get(a));
     const tied = ANIMALS.filter(a => counts.get(a) === bestCount);
-    return (bestCount <= 0) ? randChoice(ANIMALS) : randChoice(tied);
+    return {
+      animal: (bestCount <= 0) ? randChoice(ANIMALS) : randChoice(tied),
+      hadNeighbor: bestCount > 0
+    };
   }
 
   function findLargestAnimalGroup(){
@@ -1488,6 +1552,14 @@
     for(const a of ANIMALS) bestCount = Math.max(bestCount, counts.get(a));
     const tied = ANIMALS.filter(a => counts.get(a) === bestCount);
     return bestCount > 0 ? randChoice(tied) : randChoice(ANIMALS);
+  }
+
+  function markOneFootprintOverlay(piece, power){
+    const cells = footprintCells(piece).filter(([x,y]) => overlay[y][x] === POWER.NONE);
+    if(!cells.length) return false;
+    const [x,y] = randChoice(cells);
+    overlay[y][x] = power;
+    return true;
   }
 
   function missionBombBlast(piece){
@@ -1583,6 +1655,45 @@
     banner.text = `Nest Bomber dropped ${eggsPlaced} eggs and ${turdsPlaced} turds.`;
     banner.t = performance.now();
     playTone({type:"square", f1:500, f2:200, dur:0.10, gain:0.07});
+  }
+
+  function missionBrandPiece(piece){
+    const animal = chooseLandingAnimal(piece);
+    for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
+    for(const [x,y] of footprintCells(piece)){
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx = x + dx, ny = y + dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        if(ANIMALS.includes(board[ny][nx])) board[ny][nx] = animal;
+      }
+    }
+    banner.text = `Branding Iron rallied a ${GROUP_NAME[animal] || "herd"} of ${TILE_LABEL[animal]}.`;
+    banner.t = performance.now();
+    playBarnyard(animal, 7);
+  }
+
+  function missionFeedPiece(piece){
+    const animal = chooseLandingAnimal(piece);
+    for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
+    const candidates = [];
+    for(const [x,y] of footprintCells(piece)){
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1]]){
+        const nx = x + dx, ny = y + dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        candidates.push([nx,ny]);
+      }
+    }
+    shuffleInPlace(candidates);
+    let eggsPlaced = 0;
+    for(const [x,y] of candidates){
+      if(overlay[y][x] !== POWER.NONE) continue;
+      overlay[y][x] = POWER.EGG;
+      eggsPlaced++;
+      if(eggsPlaced >= 3) break;
+    }
+    banner.text = `Feed Wagon sweetened the barn with ${eggsPlaced} eggs.`;
+    banner.t = performance.now();
+    playTone({type:"triangle", f1:480, f2:260, dur:0.12, gain:0.07});
   }
 
   // ===== Scoring =====
@@ -1874,6 +1985,30 @@
       return;
     }
 
+    if(current.kind === "MISSION_BRAND"){
+      missionBrandPiece(current);
+      bumpMission("special_use", 1);
+      registerLockCycle();
+      const summary = resolveBoard();
+      applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
+      if(!gameOver) spawnNext();
+      playLockTick();
+      return;
+    }
+
+    if(current.kind === "MISSION_FEED"){
+      missionFeedPiece(current);
+      bumpMission("special_use", 1);
+      registerLockCycle();
+      const summary = resolveBoard();
+      applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
+      if(!gameOver) spawnNext();
+      playLockTick();
+      return;
+    }
+
     if(current.kind === "MISSION_CASHOUT"){
       const rewardAnimal = chooseLandingAnimal(current);
       for(const [x,y] of footprintCells(current)){
@@ -1901,8 +2036,13 @@
     }
 
     if(current.kind === "BLACKSHEEP"){
-      const chosen = chooseConversionAnimalForBlackSheep(current);
-      for(const [x,y] of footprintCells(current)) board[y][x] = chosen;
+      const choice = chooseConversionAnimalForBlackSheep(current);
+      for(const [x,y] of footprintCells(current)) board[y][x] = choice.animal;
+      if(!choice.hadNeighbor){
+        markOneFootprintOverlay(current, POWER.EGG);
+        banner.text = "Black sheep landed alone, left an egg, and joined in anyway.";
+        banner.t = performance.now();
+      }
     }
 
     const landedCells = footprintCells(current);
