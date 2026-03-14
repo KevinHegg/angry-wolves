@@ -46,6 +46,8 @@
     MORPH: 10,
     SEEDER: 11,
     CASHOUT: 12,
+    SEEDER_EGG: 13,
+    SEEDER_TURD: 14,
   };
 
   const POWER = { NONE:0, EGG:1, TURD:2 };
@@ -64,6 +66,8 @@
     [TILE.MORPH]: "❓",
     [TILE.SEEDER]: "🥚",
     [TILE.CASHOUT]: "✦",
+    [TILE.SEEDER_EGG]: "🥚",
+    [TILE.SEEDER_TURD]: "💩",
   };
 
   const TILE_COLOR = {
@@ -79,6 +83,8 @@
     [TILE.MORPH]: "#5e8dff",
     [TILE.SEEDER]: "#f6d54a",
     [TILE.CASHOUT]: "#c89a2f",
+    [TILE.SEEDER_EGG]: "#f6d54a",
+    [TILE.SEEDER_TURD]: "#e08c6a",
   };
 
   const SPECIAL_TILE_META = {
@@ -88,7 +94,9 @@
     [TILE.REAPER]: { accent: "#9cf5df", badge: "✂" },
     [TILE.MORPH]: { accent: "#b8c9ff", badge: "?" },
     [TILE.SEEDER]: { accent: "#fff0a6", badge: "+" },
-    [TILE.CASHOUT]: { accent: "#f6dc88", badge: "¤" }
+    [TILE.CASHOUT]: { accent: "#f6dc88", badge: "¤" },
+    [TILE.SEEDER_EGG]: { accent: "#fff0a6", badge: "+" },
+    [TILE.SEEDER_TURD]: { accent: "#fff0a6", badge: "+" }
   };
 
   const GROUP_NAME = {
@@ -107,7 +115,15 @@
     [TILE.PIG]: "pigs",
   };
 
-  const MISSION_TILES = new Set([TILE.BOMB, TILE.REAPER, TILE.MORPH, TILE.SEEDER, TILE.CASHOUT]);
+  const MISSION_TILES = new Set([
+    TILE.BOMB,
+    TILE.REAPER,
+    TILE.MORPH,
+    TILE.SEEDER,
+    TILE.CASHOUT,
+    TILE.SEEDER_EGG,
+    TILE.SEEDER_TURD,
+  ]);
 
   // ===== Shapes =====
   const SHAPES = {
@@ -186,6 +202,7 @@
   // ===== State =====
   let board = makeBoard();
   let overlay = makeOverlay();
+  let rewardMap = makeRewardMap();
 
   let current = null;
   let next = null;
@@ -263,7 +280,7 @@
     },
     seeder: {
       title: "Nest Bomber",
-      desc: "On average, a nest tetrad barges in about every 5 settles. It seeds eggs and turds around its landing zone.",
+      desc: "On average, a nest tetrad barges in about every 5 settles. Its cells are a random mix of eggs and turds, and it seeds that same mess around its landing zone.",
       short: "Surprise nest tetrad, about every 5 settles on average.",
       every: 5,
       tile: TILE.SEEDER
@@ -540,6 +557,7 @@
   // ===== Utilities =====
   function makeBoard(){ return Array.from({length: ROWS}, () => Array(COLS).fill(TILE.EMPTY)); }
   function makeOverlay(){ return Array.from({length: ROWS}, () => Array(COLS).fill(POWER.NONE)); }
+  function makeRewardMap(){ return Array.from({length: ROWS}, () => Array(COLS).fill(false)); }
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
   function clone2(m){ return m.map(r => r.slice()); }
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
@@ -559,7 +577,10 @@
   function compactMissionProgress(){
     if(!mission) return "Start dropping";
     if(mission.done) return `+${mission.cashBonus} earned`;
-    if(mission.ready) return `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
+    if(mission.ready){
+      if(hasRewardCoinOnBoard()) return "Clear the reward herd";
+      return `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
+    }
     if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
     if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} clears`;
     if(mission.type === "combo") return `${fmtChain(bestCombo)} best`;
@@ -570,6 +591,12 @@
     if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials`;
     if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
     return `${missionProgressText(mission.progress, mission.target)}`;
+  }
+  function hasRewardCoinOnBoard(){
+    return rewardMap.some((row) => row.some(Boolean));
+  }
+  function clearRewardMap(){
+    rewardMap = makeRewardMap();
   }
   function missionCurrentProgress(){
     if(!mission) return 0;
@@ -648,7 +675,30 @@
     return spec.matrix.map((row) => row.map((v) => v ? spec.tile : 0));
   }
 
-  function createMissionSpecialPiece(){
+  function createSeederMatrix({ randomize=false } = {}){
+    const shape = SPECIAL.SEEDER_S.matrix;
+    const active = [];
+    for(let r=0;r<shape.length;r++){
+      for(let c=0;c<shape[r].length;c++){
+        if(shape[r][c]) active.push([r,c]);
+      }
+    }
+    const out = shape.map((row) => row.map(() => 0));
+    let eggCount = 2;
+    if(randomize){
+      eggCount = 1 + Math.floor(Math.random() * (active.length - 1));
+    }
+    const picks = active.slice();
+    shuffleInPlace(picks);
+    const eggSet = new Set(picks.slice(0, eggCount).map(([r,c]) => `${r},${c}`));
+    for(const [r,c] of active){
+      out[r][c] = eggSet.has(`${r},${c}`) ? TILE.SEEDER_EGG : TILE.SEEDER_TURD;
+    }
+    return out;
+  }
+
+  function createMissionSpecialPiece(opts={}){
+    const { forSpawn = false } = opts;
     if(!mission) return null;
     if(mission.special === "bomb"){
       return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BOMB_T), rotates:true };
@@ -660,7 +710,13 @@
       return { kind:"MISSION_MORPH", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.MORPH_L), rotates:true };
     }
     if(mission.special === "seeder"){
-      return { kind:"MISSION_SEEDER", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.SEEDER_S), rotates:true };
+      return {
+        kind:"MISSION_SEEDER",
+        x: Math.floor(COLS/2)-1,
+        y:0,
+        matrix: createSeederMatrix({ randomize: forSpawn }),
+        rotates:true
+      };
     }
     return null;
   }
@@ -744,6 +800,10 @@
     return { kind, x: 0, y: 0, matrix: materializeSpecMatrix(spec), rotates: !!spec.rotates };
   }
 
+  function createSeederPreviewPiece(){
+    return { kind:"MISSION_SEEDER", x:0, y:0, matrix:createSeederMatrix({ randomize:false }), rotates:true };
+  }
+
   function renderHelpSpecialList(el, entries){
     if(!el) return;
     el.innerHTML = entries.map((entry, idx) => `
@@ -798,8 +858,8 @@
       {
         id: "help-seeder",
         name: "Nest Bomber",
-        text: "Mission-only tetrad with the shared gold mission frame. It seeds eggs and turds around its landing zone.",
-        piece: helpPieceFromSpec(SPECIAL.SEEDER_S, "MISSION_SEEDER")
+        text: "Mission-only tetrad with the shared gold mission frame. It spawns with a random egg-and-turd mix, then scatters that same mix around its landing zone.",
+        piece: createSeederPreviewPiece()
       },
       {
         id: "help-cashout",
@@ -868,7 +928,7 @@
           banner.text = `Greed pays... for now. Bonus swelled to +${mission.cashBonus}.`;
           banner.t = performance.now();
         }
-        if(!opts.skipCashout){
+        if(!opts.skipCashout && !hasRewardCoinOnBoard()){
           cashoutCharge++;
           const locksLeft = Math.max(0, missionCashoutEvery() - cashoutCharge);
           if(locksLeft > 0){
@@ -904,16 +964,16 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} blocks ${TILE_LABEL[mission.animal]} to hit the goal. Then you can grab the reward coin or keep playing for a bigger payout while the barn speeds up.`;
-    if(mission.type === "clears") return "Clear enough herds to make the reward coin appear. Every extra settle after that sweetens the bonus and raises the risk.";
+    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} blocks ${TILE_LABEL[mission.animal]} to hit the goal. Then a reward coin lands, turns into an animal, and must be cleared inside a herd to earn the bonus.`;
+    if(mission.type === "clears") return "Clear enough herds to make the reward coin appear. It settles into the barn, joins a herd, and only pays out if you clear it before the barn buries you.";
     if(mission.type === "combo") return "Your chain goes up whenever a settled piece clears one or more herds. A settle that clears nothing resets it.";
-    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the reward coin shows up.";
-    if(mission.type === "score") return "Rack up coins fast. After you hit the target, you can stall for an even fatter mission payout if your nerves hold.";
-    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you collect the coin.";
-    if(mission.type === "big_group") return "Build oversized clusters and clear them. Then choose between a tidy win and a greedier, shakier finish.";
-    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms the reward coin, and every extra settle fattens the bonus.";
-    if(mission.type === "locks") return "Survive the required settles, then decide how much longer you want to tempt the barn gods before collecting the coin.";
-    return "The barn demands something weird from you today. Finish the objective, then choose whether to collect the coin or get greedy.";
+    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then survive long enough to clear the reward herd before the barn collapses.";
+    if(mission.type === "score") return "Rack up coins fast. After you hit the target, the reward coin still has to be turned into a real herd clear.";
+    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you clear the reward herd.";
+    if(mission.type === "big_group") return "Build oversized clusters and clear them. Then turn the reward coin into one more successful herd before the run ends.";
+    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms the reward coin, but only a real herd clear earns the bonus.";
+    if(mission.type === "locks") return "Survive the required settles, then keep calm long enough to clear the reward herd.";
+    return "The barn demands something weird from you today. Finish the objective, then clear the reward herd before the run ends.";
   }
 
   function openMissionBriefing(){
@@ -969,8 +1029,12 @@
       if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = compactMissionProgress();
       missionSpecialNameEl.textContent = "Reward coin incoming";
       missionSpecialInfoEl.textContent = isCompactUI()
-        ? `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. +${mission.cashBonus} earned if you catch it.`
-        : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a cash-out coin appears every ${missionCashoutEvery()} settles so you can end the run and earn it.`;
+        ? hasRewardCoinOnBoard()
+          ? `Clear the pulsing reward herd for +${mission.cashBonus}.`
+          : `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles, then clear it in a herd.`
+        : hasRewardCoinOnBoard()
+          ? `The reward coin has landed and turned into an animal. Clear the pulsing reward herd before the game ends to earn +${mission.cashBonus}.`
+          : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a reward coin appears every ${missionCashoutEvery()} settles until one lands. Then you still have to clear it inside a herd.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
       missionTitleEl.textContent = mission.title;
@@ -991,7 +1055,9 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Goal met. Keep clearing ${animalWord(mission.animal)} blocks for score while the coin charges.`
+          ? hasRewardCoinOnBoard()
+            ? `Goal met. Clear the pulsing reward herd to earn +${mission.cashBonus}.`
+            : `Goal met. Keep clearing ${animalWord(mission.animal)} blocks while the reward coin charges.`
           : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} blocks cleared`;
       return;
     }
@@ -1000,7 +1066,9 @@
       missionProgressEl.textContent = mission.done
         ? `Crowd goes feral: +${mission.cashBonus}`
         : mission.ready
-          ? `Combo landed. The bonus keeps fattening while the barn gets nastier.`
+          ? hasRewardCoinOnBoard()
+            ? `Combo landed. Clear the pulsing reward herd to earn the mission.`
+            : `Combo landed. The bonus keeps fattening until the reward coin lands.`
           : `Best chain this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
       return;
     }
@@ -1009,7 +1077,9 @@
       missionProgressEl.textContent = mission.done
         ? `The barn insurance rates exploded. +${mission.cashBonus}`
         : mission.ready
-          ? `Wolf mission complete. Survive the greed window and grab the coin.`
+          ? hasRewardCoinOnBoard()
+            ? `Wolf mission complete. Clear the pulsing reward herd.`
+            : `Wolf mission complete. Survive until the reward coin lands.`
           : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
       return;
     }
@@ -1018,7 +1088,9 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Target score hit. Now decide how greedy you feel.`
+          ? hasRewardCoinOnBoard()
+            ? `Target score hit. Clear the pulsing reward herd to lock it in.`
+            : `Target score hit. The reward coin still has to land and clear.`
           : `${missionProgressText(score, mission.target)} coins scored`;
       return;
     }
@@ -1027,7 +1099,9 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `You reached the target level. Grab the coin now or keep riding the speed-up.`
+          ? hasRewardCoinOnBoard()
+            ? `You reached the target level. Clear the pulsing reward herd.`
+            : `You reached the target level. Wait for the reward coin to land.`
           : `Current level ${level} (${missionProgressText(level, mission.target)})`;
       return;
     }
@@ -1036,7 +1110,9 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Jumbo herd goal complete. Extra settles now mean extra danger and extra bonus.`
+          ? hasRewardCoinOnBoard()
+            ? `Jumbo herd goal complete. Clear the pulsing reward herd now.`
+            : `Jumbo herd goal complete. Extra settles grow the bonus until the reward coin lands.`
           : `${missionProgressText(mission.progress, mission.target)} jumbo herds cleared`;
       return;
     }
@@ -1045,7 +1121,9 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `Special requirement met. The coin will let you earn the mission soon.`
+          ? hasRewardCoinOnBoard()
+            ? `Special requirement met. Clear the pulsing reward herd.`
+            : `Special requirement met. The reward coin is on its way.`
           : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
       return;
     }
@@ -1054,7 +1132,9 @@
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
-          ? `You survived the required settles. Anything after this is pure greed.`
+          ? hasRewardCoinOnBoard()
+            ? `You survived the required settles. Now clear the pulsing reward herd.`
+            : `You survived the required settles. Stay alive until the reward coin lands.`
           : `${missionProgressText(locks, mission.target)} settles survived`;
       return;
     }
@@ -1062,7 +1142,9 @@
     missionProgressEl.textContent = mission.done
       ? `Bonus earned: +${mission.cashBonus} coins`
       : mission.ready
-        ? `Clear goal done. The bonus grows until you grab the coin or wash out.`
+        ? hasRewardCoinOnBoard()
+          ? `Clear goal done. Clear the pulsing reward herd to earn the mission.`
+          : `Clear goal done. The bonus grows until the reward coin lands.`
         : `${missionProgressText(mission.progress, mission.target)} clears`;
   }
 
@@ -1073,7 +1155,7 @@
     missionSpecialPending = false;
     missionSpecialCharge = 0;
     cashoutCharge = 0;
-    banner.text = `Objective met! Push your luck or grab the coin. Bonus at risk: +${mission.cashBonus}`;
+    banner.text = `Objective met! Push your luck until the reward coin lands, then clear it in a herd. Bonus at risk: +${mission.cashBonus}`;
     banner.t = performance.now();
     playMissionJingle();
     updateMissionUI();
@@ -1127,11 +1209,11 @@
   }
 
   function spawnNext(){
-    if(mission && mission.ready && !mission.done && cashoutCharge >= missionCashoutEvery()){
+    if(mission && mission.ready && !mission.done && !hasRewardCoinOnBoard() && cashoutCharge >= missionCashoutEvery()){
       current = preparePiece(createCashoutPiece());
       cashoutCharge = 0;
     } else if(missionSpecialPending && mission && !mission.done && !mission.ready){
-      current = preparePiece(createMissionSpecialPiece());
+      current = preparePiece(createMissionSpecialPiece({ forSpawn: true }));
       missionSpecialPending = false;
     } else {
       current = preparePiece(next ?? newPiece());
@@ -1213,6 +1295,15 @@
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.textContent = bestHerdSummary(bestHerd);
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
+  }
+
+  function finishMissionEarned(){
+    updateHUD();
+    gameOverNow({
+      title: "Mission Earned",
+      note: `${mission.title} earned +${mission.cashBonus} coins after the reward herd cleared.`,
+      playSound: false
+    });
   }
 
   function gameOverNow(opts={}){
@@ -1333,6 +1424,7 @@
         board[y][x] = TILE.EMPTY;
       }
       overlay[y][x] = POWER.NONE;
+      rewardMap[y][x] = false;
     }
 
     if(popped.length){
@@ -1419,6 +1511,7 @@
         board[y][x] = TILE.EMPTY;
       }
       overlay[y][x] = POWER.NONE;
+      rewardMap[y][x] = false;
     }
     if(popped.length){
       spawnPopParticles(popped);
@@ -1428,17 +1521,23 @@
     }
   }
 
-  function missionReapLargestGroup(){
+  function missionReapLargestGroup(piece){
     const best = findLargestAnimalGroup();
-    if(!best) return;
-    for(const [x,y] of best.cells){
-      board[y][x] = TILE.EMPTY;
-      overlay[y][x] = POWER.NONE;
+    if(best){
+      for(const [x,y] of best.cells){
+        board[y][x] = TILE.EMPTY;
+        overlay[y][x] = POWER.NONE;
+        rewardMap[y][x] = false;
+      }
+      spawnPopParticles(best.cells.map(([x,y]) => [x,y,best.animal]));
+      banner.text = `Cull Comb clipped ${best.cells.length} ${TILE_LABEL[best.animal]}.`;
+      banner.t = performance.now();
+      playTone({type:"triangle", f1:620, f2:260, dur:0.14, gain:0.10});
     }
-    spawnPopParticles(best.cells.map(([x,y]) => [x,y,best.animal]));
-    banner.text = `Cull Comb clipped ${best.cells.length} ${TILE_LABEL[best.animal]}.`;
+    const landAnimal = chooseLandingAnimal(piece);
+    for(const [x,y] of footprintCells(piece)) board[y][x] = landAnimal;
+    banner.text = `Cull Comb clipped and turned into ${TILE_LABEL[landAnimal]}.`;
     banner.t = performance.now();
-    playTone({type:"triangle", f1:620, f2:260, dur:0.14, gain:0.10});
   }
 
   function missionMorphPiece(piece){
@@ -1462,13 +1561,26 @@
     }
     shuffleInPlace(candidates);
     let eggs = 0, turds = 0;
+    for(const row of piece.matrix){
+      for(const v of row){
+        if(v === TILE.SEEDER_EGG) eggs++;
+        if(v === TILE.SEEDER_TURD) turds++;
+      }
+    }
+    let eggsPlaced = 0;
+    let turdsPlaced = 0;
     for(const [x,y] of candidates){
       if(overlay[y][x] !== POWER.NONE) continue;
-      overlay[y][x] = eggs < 3 ? POWER.EGG : POWER.TURD;
-      if(eggs < 3) eggs++;
-      else if(++turds >= 2) break;
+      if(eggsPlaced < eggs){
+        overlay[y][x] = POWER.EGG;
+        eggsPlaced++;
+      } else if(turdsPlaced < turds){
+        overlay[y][x] = POWER.TURD;
+        turdsPlaced++;
+      }
+      if(eggsPlaced >= eggs && turdsPlaced >= turds) break;
     }
-    banner.text = `Nest Bomber left gifts. Some are rude.`;
+    banner.text = `Nest Bomber dropped ${eggsPlaced} eggs and ${turdsPlaced} turds.`;
     banner.t = performance.now();
     playTone({type:"square", f1:500, f2:200, dur:0.10, gain:0.07});
   }
@@ -1531,7 +1643,9 @@
         if(t !== TILE.EMPTY){
           if(write !== y){
             board[write][x] = t;
+            rewardMap[write][x] = rewardMap[y][x];
             board[y][x] = TILE.EMPTY;
+            rewardMap[y][x] = false;
           }
           write--;
         }
@@ -1583,7 +1697,9 @@
       if(claimed.has(key)) continue;
       if(board[move.y][move.fromX] === TILE.EMPTY || board[move.y][move.toX] !== TILE.EMPTY) continue;
       board[move.y][move.toX] = board[move.y][move.fromX];
+      rewardMap[move.y][move.toX] = rewardMap[move.y][move.fromX];
       board[move.y][move.fromX] = TILE.EMPTY;
+      rewardMap[move.y][move.fromX] = false;
       claimed.add(key);
     }
     return claimed.size > 0;
@@ -1613,6 +1729,7 @@
     let cascadeDepth = 0;
     let totalGain = 0;
     let groupsCleared = 0;
+    let rewardEarned = false;
     while(true){
       if(gameOver) break;
       const clears = findAnimalGroupsToClear();
@@ -1640,6 +1757,10 @@
         if(!bestHerd || cells.length > bestHerd.count || (cells.length === bestHerd.count && gain > bestHerd.gain)){
           bestHerd = { animal, count: cells.length, gain };
         }
+        const clearedReward = cells.some(([x,y]) => rewardMap[y][x]);
+        if(clearedReward){
+          rewardEarned = true;
+        }
         score += gain;
         totalGain += gain;
         groupsCleared++;
@@ -1648,6 +1769,7 @@
         for(const [x,y] of cells){
           board[y][x] = TILE.EMPTY;
           overlay[y][x] = POWER.NONE;
+          rewardMap[y][x] = false;
         }
 
         herdsCleared++;
@@ -1664,8 +1786,16 @@
 
       settleBoardNow();
     }
+    if(rewardEarned && mission && mission.ready && !mission.done){
+      mission.done = true;
+      score += mission.cashBonus;
+      totalGain += mission.cashBonus;
+      banner.text = `Reward herd cleared. Mission earned: +${mission.cashBonus} coins.`;
+      banner.t = performance.now();
+      playMissionJingle();
+    }
     updateHUD();
-    return { groupsCleared, totalGain };
+    return { groupsCleared, totalGain, rewardEarned };
   }
 
   function applyChainResult(summary){
@@ -1689,6 +1819,7 @@
       registerLockCycle();
       const summary = resolveBoard();
       applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
       if(!gameOver) spawnNext();
       return;
     }
@@ -1700,18 +1831,20 @@
       registerLockCycle();
       const summary = resolveBoard();
       applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
       if(!gameOver) spawnNext();
       playLockTick();
       return;
     }
 
     if(current.kind === "MISSION_REAPER"){
-      missionReapLargestGroup();
+      missionReapLargestGroup(current);
       settleBoardNow();
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
       applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
       if(!gameOver) spawnNext();
       playLockTick();
       return;
@@ -1723,6 +1856,7 @@
       registerLockCycle();
       const summary = resolveBoard();
       applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
       if(!gameOver) spawnNext();
       playLockTick();
       return;
@@ -1734,24 +1868,24 @@
       registerLockCycle();
       const summary = resolveBoard();
       applyChainResult(summary);
+      if(summary.rewardEarned) return finishMissionEarned();
       if(!gameOver) spawnNext();
       playLockTick();
       return;
     }
 
     if(current.kind === "MISSION_CASHOUT"){
+      const rewardAnimal = chooseLandingAnimal(current);
+      for(const [x,y] of footprintCells(current)){
+        board[y][x] = rewardAnimal;
+        rewardMap[y][x] = true;
+      }
       registerLockCycle({ skipCashout: true, skipMissionCharge: true });
-      mission.done = true;
-      score += mission.cashBonus;
-      banner.text = `Mission earned! +${mission.cashBonus} coins hauled out of the barn.`;
+      banner.text = `Reward coin settled as ${TILE_LABEL[rewardAnimal]}. Clear that pulsing herd for +${mission.cashBonus}.`;
       banner.t = performance.now();
-      playMissionJingle();
+      playTone({type:"triangle", f1:720, f2:360, dur:0.16, gain:0.08});
       updateHUD();
-      gameOverNow({
-        title: "Mission Earned",
-        note: `${mission.title} earned +${mission.cashBonus} coins after a very greedy run.`,
-        playSound: false
-      });
+      if(!gameOver) spawnNext();
       return;
     }
 
@@ -1779,6 +1913,7 @@
     registerLockCycle();
     const summary = resolveBoard();
     applyChainResult(summary);
+    if(summary.rewardEarned) return finishMissionEarned();
     if(!gameOver) spawnNext();
     if(settleAnimal && ANIMALS.includes(settleAnimal)) playBarnyard(settleAnimal, 4, "settle");
     playLockTick();
@@ -1926,7 +2061,7 @@
     const compact = isCompactUI();
     pad = compact ? 8 : 14;
 
-    const topReserve = compact ? Math.floor(22 * dpr) : 0;
+    const topReserve = compact ? Math.floor(10 * dpr) : 0;
     const bottomReserve = 0;
 
     const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
@@ -2183,6 +2318,29 @@
     ctx.restore();
   }
 
+  function drawRewardPulse(px){
+    if(!hasRewardCoinOnBoard()) return;
+    const pulse = (Math.sin(performance.now() / 180) + 1) / 2;
+    ctx.save();
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(!rewardMap[y][x]) continue;
+        const gx = px + x * cell;
+        const gy = px + y * cell;
+        ctx.globalAlpha = 0.22 + pulse * 0.2;
+        ctx.fillStyle = "#ffd86f";
+        ctx.beginPath();
+        ctx.arc(gx + cell/2, gy + cell/2, cell * (0.30 + pulse * 0.08), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.88;
+        ctx.strokeStyle = `rgba(255, 234, 154, ${0.6 + pulse * 0.35})`;
+        ctx.lineWidth = Math.max(2, Math.floor(cell * 0.06));
+        roundRectStroke(gx + 4, gy + 4, cell - 8, cell - 8, 8);
+      }
+    }
+    ctx.restore();
+  }
+
   function draw(){
     ctx.clearRect(0,0,W,H);
     roundRectFill(0,0,W,H,18, "#050507");
@@ -2209,6 +2367,8 @@
         if(t !== TILE.EMPTY) drawTile(x,y,t,px,true);
       }
     }
+
+    drawRewardPulse(px);
 
     drawOverlay(px, true);
 
@@ -2470,6 +2630,7 @@
   function restart(){
     board = makeBoard();
     sprinkleOverlayGeometric();
+    clearRewardMap();
     mission = newMission();
     missionSpecialCharge = 0;
     missionSpecialPending = false;
@@ -2508,6 +2669,7 @@
     renderHelpSpecials();
 
     sprinkleOverlayGeometric();
+    clearRewardMap();
     mission = newMission();
     missionSpecialCharge = 0;
     missionSpecialPending = false;

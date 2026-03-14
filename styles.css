@@ -599,8 +599,8 @@ canvas{
   #hud{
     align-items:flex-start;
     flex-wrap:nowrap;
-    gap:6px;
-    padding: 4px 84px 1px 6px;
+    gap:5px;
+    padding: 2px 84px 0 6px;
     position:relative;
   }
 
@@ -616,17 +616,18 @@ canvas{
   }
 
   #hud .right{
-    flex:1 1 auto;
-    text-align:left;
-    display:grid;
-    grid-template-columns:auto 1fr;
-    gap:1px 8px;
-    align-items:start;
-    padding-top:1px;
+    flex:0 0 auto;
+    width:112px;
+    text-align:right;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:1px;
+    padding-top:0;
   }
 
   .title .h1{
-    font-size:15px;
+    font-size:14px;
     line-height:1;
     white-space:nowrap;
   }
@@ -645,12 +646,12 @@ canvas{
 
   .score{
     font-size:16px;
-    grid-row:1 / span 1;
+    line-height:1;
   }
 
   .meta{
     font-size:11px;
-    line-height:1.15;
+    line-height:1.05;
     margin-top:0;
   }
 
@@ -667,15 +668,15 @@ canvas{
     width:100vw;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-    min-height: clamp(760px, 86svh, 1040px);
+    min-height: clamp(772px, 87svh, 1040px);
     justify-content:flex-start;
     box-sizing:border-box;
-    padding-top:22px;
+    padding-top:12px;
     padding-bottom:2px;
   }
 
   .stageMissionBar{
-    top:1px;
+    top:0;
     width:calc(100% - 86px);
     left:4px;
     transform:none;
@@ -691,12 +692,12 @@ canvas{
   }
 
   .stageMissionTitle{
-    font-size:11px;
+    font-size:10px;
     line-height:1.05;
   }
 
   .stageMissionProgressText{
-    font-size:10px;
+    font-size:9px;
     line-height:1.05;
     max-width:26vw;
     overflow:hidden;
@@ -849,7 +850,7 @@ canvas{
 
 @media (max-width: 480px){
   #hud{
-    padding: 3px 78px 0 5px;
+    padding: 1px 78px 0 5px;
   }
 
   #gameShell{
@@ -858,12 +859,12 @@ canvas{
   }
 
   #stage{
-    min-height: clamp(790px, 88svh, 1100px);
-    padding-top:18px;
+    min-height: clamp(804px, 89svh, 1100px);
+    padding-top:10px;
   }
 
   .title .h1{
-    font-size:14px;
+    font-size:13px;
   }
 
   .score{
@@ -871,7 +872,7 @@ canvas{
   }
 
   .meta{
-    font-size:10px;
+    font-size:9px;
   }
 
   #missionCard{
