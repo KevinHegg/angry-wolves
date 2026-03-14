@@ -45,6 +45,7 @@
     REAPER: 9,
     MORPH: 10,
     SEEDER: 11,
+    CASHOUT: 12,
   };
 
   const POWER = { NONE:0, EGG:1, TURD:2 };
@@ -62,6 +63,7 @@
     [TILE.REAPER]: "✂️",
     [TILE.MORPH]: "?",
     [TILE.SEEDER]: "🥚",
+    [TILE.CASHOUT]: "🔔",
   };
 
   const TILE_COLOR = {
@@ -76,6 +78,7 @@
     [TILE.REAPER]: "#7ef0d1",
     [TILE.MORPH]: "#5e8dff",
     [TILE.SEEDER]: "#f6d54a",
+    [TILE.CASHOUT]: "#ffd166",
   };
 
   const GROUP_NAME = {
@@ -104,7 +107,8 @@
     BOMB_T:       { matrix:[[1,1,1],[0,1,0],[0,0,0]], tile:TILE.BOMB, rotates:true },
     REAPER_I:     { matrix:[[1,1,1,1]], tile:TILE.REAPER, rotates:true },
     MORPH_L:      { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.MORPH, rotates:true },
-    SEEDER_S:     { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.SEEDER, rotates:true }
+    SEEDER_S:     { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.SEEDER, rotates:true },
+    CASHOUT_1:    { matrix:[[1]], tile:TILE.CASHOUT, rotates:false }
   };
 
   // ===== DOM =====
@@ -169,7 +173,7 @@
   let runEndTitle = "Run Over";
   let runEndNote = "The barn got crowded.";
   let missionSpecialCharge = 0;
-  let pendingMissionWin = null;
+  let cashoutCharge = 0;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -531,6 +535,10 @@
     return null;
   }
 
+  function createCashoutPiece(){
+    return { kind:"MISSION_CASHOUT", x: Math.floor(COLS/2), y:0, matrix: clone2(SPECIAL.CASHOUT_1.matrix), rotates:false };
+  }
+
   function clonePiece(piece){
     if(!piece) return null;
     return {
@@ -598,11 +606,51 @@
       ...def,
       progress: 0,
       done: false,
+      ready: false,
+      cashBonus: def.bonus,
     };
   }
 
   function missionSpecialRule(){
     return mission ? SPECIAL_RULES[mission.special] : null;
+  }
+
+  function missionCashoutEvery(){
+    return 3;
+  }
+
+  function missionPressureMultiplier(){
+    return (mission && mission.ready && !mission.done) ? 0.84 : 1;
+  }
+
+  function missionReadyLockBonus(){
+    return 18 + level * 4;
+  }
+
+  function registerLockCycle(opts={}){
+    locks++;
+    if(mission && !mission.done){
+      if(mission.ready){
+        const bonusGain = opts.skipCashout ? 0 : missionReadyLockBonus();
+        if(bonusGain > 0){
+          mission.cashBonus += bonusGain;
+          banner.text = `Greed pays... for now. Bonus swelled to +${mission.cashBonus}.`;
+          banner.t = performance.now();
+        }
+        if(!opts.skipCashout){
+          cashoutCharge++;
+          const locksLeft = Math.max(0, missionCashoutEvery() - cashoutCharge);
+          if(locksLeft > 0){
+            banner.text = `Cash-out bell in ${locksLeft} more lock${locksLeft === 1 ? "" : "s"}. Bonus at risk: +${mission.cashBonus}.`;
+            banner.t = performance.now();
+          }
+        }
+      } else if(!opts.skipMissionCharge){
+        missionSpecialCharge++;
+      }
+    }
+    syncPassiveMissionProgress();
+    updateLevel();
   }
 
   function isCompactUI(){
@@ -625,16 +673,16 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Clean up enough of them and call it a win.`;
-    if(mission.type === "clears") return "No fancy math today. Just clear enough herds before the field gets clogged.";
-    if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain.";
-    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Try not to make eye contact.";
-    if(mission.type === "score") return "Rack up coins fast. Efficiency beats elegance in this barn.";
-    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Then stay alive a bit longer.";
-    if(mission.type === "big_group") return "Build oversized clusters and cash them out before they become a liability.";
-    if(mission.type === "special_use") return "Lean on the mission special. This run is about using the gimmick on purpose.";
-    if(mission.type === "locks") return "Just survive. Neat, tidy, controlled survival.";
-    return "The barn demands something weird from you today.";
+    if(mission.type === "animal") return `Today’s panic is all about ${TILE_LABEL[mission.animal]}. Hit the target, then decide whether to bank the run or greed out a bigger payout while the barn speeds up.`;
+    if(mission.type === "clears") return "Clear enough herds to arm the cash-out bell. After that, every extra lock sweetens the mission bonus and makes survival sketchier.";
+    if(mission.type === "combo") return "Stack clever, let gravity cook, and chase a juicy combo chain. Once you land it, the greed phase begins.";
+    if(mission.type === "wolf") return "You are actively encouraging wolf misconduct. Finish the mission, then flirt with disaster until the cash-out bell shows up.";
+    if(mission.type === "score") return "Rack up coins fast. After you hit the target, you can stall for an even fatter mission payout if your nerves hold.";
+    if(mission.type === "level") return "Stay alive long enough for the barn to get mean. Once the mission pops, it gets meaner still until you cash out.";
+    if(mission.type === "big_group") return "Build oversized clusters and clear them. Then choose between a tidy win and a greedier, shakier finish.";
+    if(mission.type === "special_use") return "Lean on the mission special on purpose. Completing the objective arms a bell, and every extra lock fattens the bonus.";
+    if(mission.type === "locks") return "Survive the required locks, then decide how much longer you want to tempt the barn gods before ringing out.";
+    return "The barn demands something weird from you today. Finish the objective, then choose whether to cash out or get greedy.";
   }
 
   function openMissionBriefing(){
@@ -642,7 +690,7 @@
     if(missionBriefTitleEl) missionBriefTitleEl.textContent = "Mission Briefing";
     if(missionBriefBodyEl) missionBriefBodyEl.textContent = missionBriefCopy();
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
-    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `+${mission?.bonus ?? 0}`;
+    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Base +${mission?.bonus ?? 0} before greed`;
     if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
     if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? specialRule.desc : "No special tetrad assigned.";
     renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
@@ -652,13 +700,6 @@
   function closeMissionBriefing(){
     setOverlayOpen(missionBriefBackdrop, false);
     draw();
-  }
-
-  function finishPendingMissionWin(){
-    if(!pendingMissionWin || gameOver) return;
-    const win = pendingMissionWin;
-    pendingMissionWin = null;
-    gameOverNow(win);
   }
 
   function updateMissionUI(){
@@ -672,94 +713,122 @@
       return;
     }
     const specialRule = missionSpecialRule();
-    missionTitleEl.textContent = mission.done ? `${mission.title} complete` : mission.title;
-    missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
-    missionSpecialInfoEl.textContent = specialRule
-      ? isCompactUI()
-        ? `Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
-        : `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
-      : "No special tetrad assigned.";
-    renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
+    if(mission.done){
+      missionTitleEl.textContent = `${mission.title} banked`;
+      missionSpecialNameEl.textContent = "Mission cashed out";
+      missionSpecialInfoEl.textContent = `You banked +${mission.cashBonus} coins.`;
+      renderPreview(missionSpecialPreviewEl, createCashoutPiece());
+    } else if(mission.ready){
+      missionTitleEl.textContent = `${mission.title} ready`;
+      missionSpecialNameEl.textContent = "Cash-out bell armed";
+      missionSpecialInfoEl.textContent = isCompactUI()
+        ? `Bell in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} locks. Bonus +${mission.cashBonus} at risk.`
+        : `Objective met. Stall for score if you dare: the barn speeds up, your bonus grows every lock, and a bell tetrad appears every ${missionCashoutEvery()} locks so you can cash out before the barn buries you.`;
+      renderPreview(missionSpecialPreviewEl, createCashoutPiece());
+    } else {
+      missionTitleEl.textContent = mission.title;
+      missionSpecialNameEl.textContent = specialRule ? `Special tetrad: ${specialRule.title}` : "Special tetrad: none";
+      missionSpecialInfoEl.textContent = specialRule
+        ? isCompactUI()
+          ? `Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+          : `${specialRule.desc} Next in ${Math.max(0, specialRule.every - missionSpecialCharge)} lock${Math.max(0, specialRule.every - missionSpecialCharge) === 1 ? "" : "s"}.`
+        : "No special tetrad assigned.";
+      renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
+    }
 
     if(mission.type === "animal"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.bonus} coins`
-        : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} cleared`;
+        ? `Bonus banked: +${mission.cashBonus} coins`
+        : mission.ready
+          ? `Objective met. Keep clearing ${TILE_LABEL[mission.animal]} for score while the bell charges.`
+          : `${missionProgressText(mission.progress, mission.target)} ${TILE_LABEL[mission.animal]} cleared`;
       return;
     }
 
     if(mission.type === "combo"){
       missionProgressEl.textContent = mission.done
-        ? `Crowd goes feral: +${mission.bonus}`
-        : `Current best this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
+        ? `Crowd goes feral: +${mission.cashBonus}`
+        : mission.ready
+          ? `Combo landed. The bonus keeps fattening while the barn gets nastier.`
+          : `Current best this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
       return;
     }
 
     if(mission.type === "wolf"){
       missionProgressEl.textContent = mission.done
-        ? `The barn insurance rates exploded. +${mission.bonus}`
-        : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
+        ? `The barn insurance rates exploded. +${mission.cashBonus}`
+        : mission.ready
+          ? `Wolf mission complete. Survive the greed window and ring the bell.`
+          : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
       return;
     }
 
     if(mission.type === "score"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.bonus} coins`
-        : `${missionProgressText(score, mission.target)} coins banked`;
+        ? `Bonus banked: +${mission.cashBonus} coins`
+        : mission.ready
+          ? `Target score hit. Now decide how greedy you feel.`
+          : `${missionProgressText(score, mission.target)} coins banked`;
       return;
     }
 
     if(mission.type === "level"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.bonus} coins`
-        : `Current level ${level} (${missionProgressText(level, mission.target)})`;
+        ? `Bonus banked: +${mission.cashBonus} coins`
+        : mission.ready
+          ? `You reached the target level. Ring out now or ride the speed-up.`
+          : `Current level ${level} (${missionProgressText(level, mission.target)})`;
       return;
     }
 
     if(mission.type === "big_group"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.bonus} coins`
-        : `${missionProgressText(mission.progress, mission.target)} jumbo herds cleared`;
+        ? `Bonus banked: +${mission.cashBonus} coins`
+        : mission.ready
+          ? `Jumbo herd goal complete. Extra locks now mean extra danger and extra bonus.`
+          : `${missionProgressText(mission.progress, mission.target)} jumbo herds cleared`;
       return;
     }
 
     if(mission.type === "special_use"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.bonus} coins`
-        : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
+        ? `Bonus banked: +${mission.cashBonus} coins`
+        : mission.ready
+          ? `Special requirement met. A bell will let you bank the mission soon.`
+          : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
       return;
     }
 
     if(mission.type === "locks"){
       missionProgressEl.textContent = mission.done
-        ? `Bonus banked: +${mission.bonus} coins`
-        : `${missionProgressText(locks, mission.target)} lock-ins survived`;
+        ? `Bonus banked: +${mission.cashBonus} coins`
+        : mission.ready
+          ? `You survived the required locks. Anything after this is pure greed.`
+          : `${missionProgressText(locks, mission.target)} lock-ins survived`;
       return;
     }
 
     missionProgressEl.textContent = mission.done
-      ? `Bonus banked: +${mission.bonus} coins`
-      : `${missionProgressText(mission.progress, mission.target)} clears`;
+      ? `Bonus banked: +${mission.cashBonus} coins`
+      : mission.ready
+        ? `Clear goal done. The bonus grows until you ring the bell or wash out.`
+        : `${missionProgressText(mission.progress, mission.target)} clears`;
   }
 
   function completeMission(){
-    if(!mission || mission.done) return;
-    mission.done = true;
-    score += mission.bonus;
-    banner.text = `Mission complete! ${mission.title}. Farmer impressed. +${mission.bonus}`;
+    if(!mission || mission.done || mission.ready) return;
+    mission.ready = true;
+    mission.cashBonus = mission.bonus;
+    cashoutCharge = 0;
+    banner.text = `Objective met! Push your luck or grab the bell. Bonus at risk: +${mission.cashBonus}`;
     banner.t = performance.now();
     playMissionJingle();
     updateMissionUI();
     updateHUD();
-    pendingMissionWin = {
-      title: "Mission Complete",
-      note: `${mission.title} complete. Bonus secured: +${mission.bonus} coins.`,
-      playSound: false
-    };
   }
 
   function bumpMission(event, value){
-    if(!mission || mission.done) return;
+    if(!mission || mission.done || mission.ready) return;
     if(event === "animal" && mission.type === "animal" && mission.animal === value.animal){
       mission.progress += value.amount;
     } else if(event === "clears" && mission.type === "clears"){
@@ -781,7 +850,7 @@
   }
 
   function syncPassiveMissionProgress(){
-    if(!mission || mission.done) return;
+    if(!mission || mission.done || mission.ready) return;
     if(mission.type === "score") mission.progress = score;
     else if(mission.type === "level") mission.progress = level;
     else if(mission.type === "locks") mission.progress = locks;
@@ -806,7 +875,10 @@
 
   function spawnNext(){
     const specialRule = missionSpecialRule();
-    if(mission && !mission.done && specialRule && missionSpecialCharge >= specialRule.every){
+    if(mission && mission.ready && !mission.done && cashoutCharge >= missionCashoutEvery()){
+      current = preparePiece(createCashoutPiece());
+      cashoutCharge = 0;
+    } else if(mission && !mission.done && !mission.ready && specialRule && missionSpecialCharge >= specialRule.every){
       current = preparePiece(createMissionSpecialPiece());
       missionSpecialCharge = 0;
     } else {
@@ -824,7 +896,10 @@
   function updateLevel(){
     const prevLevel = level;
     level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
-    fallInterval = Math.max(MIN_FALL_MS, Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1)));
+    fallInterval = Math.max(
+      MIN_FALL_MS,
+      Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1) * missionPressureMultiplier())
+    );
     if(level > prevLevel){
       banner.text = `Level ${level}! The barn got meaner.`;
       banner.t = performance.now();
@@ -885,7 +960,11 @@
 
   function gameOverNow(opts={}){
     runEndTitle = opts.title ?? "Run Over";
-    runEndNote = opts.note ?? "The barn got crowded.";
+    runEndNote = opts.note ?? (
+      mission && mission.ready && !mission.done
+        ? `You had +${mission.cashBonus} coins on the line, but the barn buried the bell before you could bank it.`
+        : "The barn got crowded."
+    );
     gameOver = true;
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
@@ -1254,7 +1333,6 @@
 
       applyGravity();
     }
-    finishPendingMissionWin();
     updateHUD();
   }
 
@@ -1281,10 +1359,7 @@
   function lockPiece(){
     if(current.kind === "WOLVES"){
       wolvesExplode(current);
-      locks++;
-      missionSpecialCharge++;
-      syncPassiveMissionProgress();
-      updateLevel();
+      registerLockCycle();
       resolveBoard();
       if(!gameOver) spawnNext();
       return;
@@ -1292,10 +1367,8 @@
 
     if(current.kind === "MISSION_BOMB"){
       missionBombBlast(current);
-      locks++;
       bumpMission("special_use", 1);
-      syncPassiveMissionProgress();
-      updateLevel();
+      registerLockCycle();
       resolveBoard();
       if(!gameOver) spawnNext();
       playLockTick();
@@ -1304,10 +1377,8 @@
 
     if(current.kind === "MISSION_REAPER"){
       missionReapLargestGroup();
-      locks++;
       bumpMission("special_use", 1);
-      syncPassiveMissionProgress();
-      updateLevel();
+      registerLockCycle();
       resolveBoard();
       if(!gameOver) spawnNext();
       playLockTick();
@@ -1316,10 +1387,8 @@
 
     if(current.kind === "MISSION_MORPH"){
       missionMorphPiece(current);
-      locks++;
       bumpMission("special_use", 1);
-      syncPassiveMissionProgress();
-      updateLevel();
+      registerLockCycle();
       resolveBoard();
       if(!gameOver) spawnNext();
       playLockTick();
@@ -1328,13 +1397,27 @@
 
     if(current.kind === "MISSION_SEEDER"){
       missionSeedOverlay(current);
-      locks++;
       bumpMission("special_use", 1);
-      syncPassiveMissionProgress();
-      updateLevel();
+      registerLockCycle();
       resolveBoard();
       if(!gameOver) spawnNext();
       playLockTick();
+      return;
+    }
+
+    if(current.kind === "MISSION_CASHOUT"){
+      registerLockCycle({ skipCashout: true, skipMissionCharge: true });
+      mission.done = true;
+      score += mission.cashBonus;
+      banner.text = `Mission banked! +${mission.cashBonus} coins hauled out of the barn.`;
+      banner.t = performance.now();
+      playMissionJingle();
+      updateHUD();
+      gameOverNow({
+        title: "Mission Banked",
+        note: `${mission.title} paid out +${mission.cashBonus} coins after a very greedy run.`,
+        playSound: false
+      });
       return;
     }
 
@@ -1359,10 +1442,7 @@
       ? board[landedCells[0]?.[1] ?? 0]?.[landedCells[0]?.[0] ?? 0] ?? pieceLeadAnimal(current)
       : pieceLeadAnimal(current);
 
-    locks++;
-    missionSpecialCharge++;
-    syncPassiveMissionProgress();
-    updateLevel();
+    registerLockCycle();
     resolveBoard();
     if(!gameOver) spawnNext();
     if(settleAnimal && ANIMALS.includes(settleAnimal)) playBarnyard(settleAnimal, 4, "settle");
@@ -1918,7 +1998,7 @@
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
-    pendingMissionWin = null;
+    cashoutCharge = 0;
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
@@ -1948,7 +2028,7 @@
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
-    pendingMissionWin = null;
+    cashoutCharge = 0;
 
     next = newPiece();
     spawnNext();
