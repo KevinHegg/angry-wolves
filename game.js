@@ -57,13 +57,13 @@
   };
 
   const TILE_COLOR = {
-    [TILE.SHEEP]: "#cbd5e1",
-    [TILE.GOAT]: "#d7b68c",
-    [TILE.CHICKEN]: "#f3e6a4",
-    [TILE.COW]: "#b9c7ff",
-    [TILE.PIG]: "#ffc0cb",
-    [TILE.WOLF]: "#7b8799",
-    [TILE.BLACK_SHEEP]: "#12121a",
+    [TILE.SHEEP]: "#eaf4ff",
+    [TILE.GOAT]: "#e6c79a",
+    [TILE.CHICKEN]: "#ffe889",
+    [TILE.COW]: "#b9c6ff",
+    [TILE.PIG]: "#ffb6c9",
+    [TILE.WOLF]: "#93a1b5",
+    [TILE.BLACK_SHEEP]: "#1b1b24",
   };
 
   const GROUP_NAME = {
@@ -92,6 +92,7 @@
   };
 
   // ===== DOM =====
+  const stageEl = document.getElementById("stage");
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
 
@@ -198,7 +199,7 @@
     if(!soundOn) return;
     ensureAudio();
     if(!audioCtx) return;
-    if(audioCtx.state === "suspended") audioCtx.resume();
+    if(audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
     audioUnlocked = true;
   }
 
@@ -314,10 +315,46 @@
     playTone({type:"square", f1:100, f2:65, dur:0.06, gain:0.08});
   }
 
+  function playMoveTick(){
+    playTone({type:"triangle", f1:420, f2:390, dur:0.035, gain:0.028});
+  }
+
+  function playRotateTick(){
+    playTone({type:"triangle", f1:520, f2:690, dur:0.05, gain:0.04});
+  }
+
+  function playLockTick(){
+    playTone({type:"square", f1:170, f2:120, dur:0.05, gain:0.045});
+  }
+
+  function pieceLeadAnimal(piece){
+    if(!piece) return null;
+    for(const row of piece.matrix){
+      for(const v of row){
+        if(v) return v;
+      }
+    }
+    return null;
+  }
+
+  function playSpawnCue(piece){
+    const animal = pieceLeadAnimal(piece);
+    if(animal === TILE.WOLF){
+      playJingle([220, 196], { step:0.08, type:"sawtooth", gain:0.045 });
+    } else if(animal === TILE.BLACK_SHEEP){
+      playJingle([311, 277], { step:0.07, type:"triangle", gain:0.04 });
+    } else if(animal){
+      playJingle([{ f: 392 + animal * 12, d: 0.05, g: 0.03, type: "triangle" }], { step:0.05 });
+    }
+  }
+
   function playAmbienceTick(){
     if(!soundOn || !audioUnlocked) return;
-    if(Math.random() < 0.03){
-      playTone({type:"sine", f1:110 + Math.random()*30, f2:80, dur:0.06, gain:0.045});
+    if(Math.random() < 0.08){
+      playJingle([
+        { f: 165 + Math.random()*35, d: 0.08, g: 0.03, type: "sine" },
+        { f: 220 + Math.random()*25, d: 0.06, g: 0.02, type: "triangle" }
+      ], { step:0.12 });
     }
   }
 
@@ -559,6 +596,7 @@
     next = newPiece();
     holdUsed = false;
     currentCombo = 1;
+    playSpawnCue(current);
     updateHUD();
     if(collides(current,0,0)) gameOverNow();
   }
@@ -931,6 +969,7 @@
     updateLevel();
     resolveBoard();
     spawnNext();
+    playLockTick();
     haptic(10);
   }
 
@@ -956,14 +995,20 @@
   // ===== Movement =====
   function move(dx){
     if(paused || !current) return;
-    if(!collides(current, dx, 0)) current.x += dx;
+    if(!collides(current, dx, 0)){
+      current.x += dx;
+      playMoveTick();
+    }
     else haptic(6);
     draw();
   }
 
   function dropOne(){
     if(paused || !current) return;
-    if(!collides(current, 0, 1)) current.y += 1;
+    if(!collides(current, 0, 1)){
+      current.y += 1;
+      playMoveTick();
+    }
     else lockPiece();
     draw();
   }
@@ -992,6 +1037,7 @@
         current.matrix = test;
         current.x += k;
         haptic(6);
+        playRotateTick();
         break;
       }
     }
@@ -1048,23 +1094,15 @@
   }
 
   function fitCanvasToViewport(){
-    const vv = window.visualViewport;
-    const vh = vv ? vv.height : window.innerHeight;
-    const r = canvas.getBoundingClientRect();
-    const top = r.top;
-    const safeBottom = 10;
-    const targetH = Math.max(240, Math.floor(vh - top - safeBottom));
-    canvas.style.width = "100%";
-    canvas.style.height = `${targetH}px`;
     resize();
   }
 
   function resize(){
-    const rect = canvas.getBoundingClientRect();
+    const rect = stageEl.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-    const targetW = Math.floor(rect.width * dpr);
-    const targetH = Math.floor(rect.height * dpr);
+    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor(8 * dpr));
+    const targetH = Math.max(280, Math.floor(rect.height * dpr) - Math.floor(8 * dpr));
 
     const padPx = pad*2*dpr;
     const cellByW = Math.floor((targetW - padPx) / COLS);
@@ -1076,6 +1114,8 @@
 
     canvas.width = W;
     canvas.height = H;
+    canvas.style.width = `${Math.floor(W / dpr)}px`;
+    canvas.style.height = `${Math.floor(H / dpr)}px`;
     draw();
   }
 
@@ -1104,29 +1144,54 @@
     ctx.stroke();
   }
 
-  function drawOverlay(px){
-    // subtle, embedded look
+  function drawOverlay(px, aboveTiles=false){
     ctx.save();
-    ctx.globalAlpha = 0.14;
-    ctx.filter = "grayscale(0.65) saturate(0.60) contrast(0.92)";
-
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const p = overlay[y][x];
         if(p === POWER.NONE) continue;
 
+        const hasTile = board[y][x] !== TILE.EMPTY;
+        if(aboveTiles !== hasTile) continue;
+
         const gx = px + x*cell;
         const gy = px + y*cell;
+        const accent = p === POWER.EGG ? "#ffd84d" : "#ff6a5b";
+        const label = p === POWER.EGG ? "x2" : "/2";
+        const icon = p === POWER.EGG ? "🥚" : "💩";
 
-        ctx.save();
-        ctx.translate(gx + cell/2, gy + cell/2);
-        ctx.rotate((x+y)%2 ? -0.10 : 0.08);
-        ctx.font = `${Math.floor(cell*0.50)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = "#fff";
-        ctx.fillText(p === POWER.EGG ? "🥚" : "💩", 0, 1);
-        ctx.restore();
+        if(!aboveTiles){
+          ctx.globalAlpha = 0.24;
+          roundRectFill(gx+2, gy+2, cell-4, cell-4, 10, p === POWER.EGG ? "#5c4710" : "#4a1717");
+          ctx.globalAlpha = 0.32;
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = Math.max(1, Math.floor(cell*0.08));
+          roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = accent;
+          ctx.beginPath();
+          ctx.arc(gx + cell/2, gy + cell/2, Math.max(6, cell*0.22), 0, Math.PI*2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = "#20160a";
+          ctx.font = `900 ${Math.floor(cell*0.20)}px system-ui`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, gx + cell/2, gy + cell/2 + 1);
+          ctx.font = `${Math.floor(cell*0.42)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+          ctx.fillStyle = "#fff";
+          ctx.fillText(icon, gx + cell/2, gy + cell*0.22);
+        } else {
+          const badgeW = Math.max(18, cell*0.32);
+          const badgeH = Math.max(14, cell*0.22);
+          ctx.globalAlpha = 0.95;
+          roundRectFill(gx + cell - badgeW - 4, gy + 4, badgeW, badgeH, 7, accent);
+          ctx.fillStyle = "#24150a";
+          ctx.font = `900 ${Math.floor(cell*0.16)}px system-ui`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, gx + cell - badgeW/2 - 4, gy + 4 + badgeH/2 + 1);
+        }
       }
     }
     ctx.restore();
@@ -1230,7 +1295,7 @@
       }
     }
 
-    drawOverlay(px);
+    drawOverlay(px, false);
 
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
@@ -1238,6 +1303,8 @@
         if(t !== TILE.EMPTY) drawTile(x,y,t,px,true);
       }
     }
+
+    drawOverlay(px, true);
 
     if(current && !paused){
       const gy = getGhostY(current);
@@ -1333,6 +1400,10 @@
   canvas.addEventListener("pointermove", onPointerMove, {passive:true});
   canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
   canvas.addEventListener("pointercancel", () => { gesture = null; });
+  window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "visible") unlockAudioSilently();
+  });
 
   // ===== Keyboard (non-touch) =====
   if(!IS_TOUCH){

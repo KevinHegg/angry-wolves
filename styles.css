@@ -63,7 +63,7 @@ html,body{
   flex:1;
   min-height:0;
   display:grid;
-  grid-template-columns: minmax(180px, 220px) minmax(320px, 1fr) minmax(180px, 220px);
+  grid-template-columns: minmax(150px, 190px) minmax(420px, 1fr) minmax(150px, 190px);
   gap:12px;
   padding: 0 12px 10px;
 }
@@ -148,13 +148,15 @@ html,body{
 
 #stage{
   display:flex;
+  align-items:center;
+  justify-content:center;
   position: relative;
   min-width:0;
+  min-height: clamp(520px, 76svh, 980px);
+  overflow:hidden;
 }
 
 canvas{
-  width:100%;
-  height:100%;
   display:block;
   border-radius:14px;
   background:
@@ -291,6 +293,10 @@ canvas{
     display:grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  #stage{
+    min-height: clamp(460px, 68svh, 860px);
+  }
 }
 
 @media (max-width: 760px){
@@ -311,6 +317,10 @@ canvas{
   .rail{
     display:grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #stage{
+    min-height: clamp(360px, 58svh, 720px);
   }
 
   #help{
