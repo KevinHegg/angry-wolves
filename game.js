@@ -132,6 +132,7 @@
   // ===== DOM =====
   const stageEl = document.getElementById("stage");
   const canvas = document.getElementById("c");
+  const mobileTapZone = document.getElementById("mobileTapZone");
   const ctx = canvas.getContext("2d");
 
   const scoreEl  = document.getElementById("score");
@@ -199,6 +200,7 @@
   let runEndTitle = "Run Over";
   let runEndNote = "The barn got crowded.";
   let missionSpecialCharge = 0;
+  let missionSpecialPending = false;
   let cashoutCharge = 0;
 
   let fallTimer = 0;
@@ -225,6 +227,7 @@
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
   let gesture = null;
+  let tapZoneGesture = null;
 
   const CLEAR_QUIPS = {
     [TILE.SHEEP]: ["Wool done.", "That flock got absolutely sheepish.", "The meadow trembles."],
@@ -237,29 +240,29 @@
   const SPECIAL_RULES = {
     bomb: {
       title: "Barn Buster",
-      desc: "On average, a bomb tetrad slips into Next every 5 settles. It detonates nearby settled tiles.",
-      short: "Bomb tetrad joins Next about every 5 settles.",
+      desc: "On average, a bomb tetrad drops in as the next piece every 5 settles. It detonates nearby settled tiles.",
+      short: "Bomb tetrad drops about every 5 settles.",
       every: 5,
       tile: TILE.BOMB
     },
     reaper: {
       title: "Cull Comb",
-      desc: "On average, a scissor tetrad slips into Next every 5 settles. It deletes the biggest animal group on the board.",
-      short: "Scissor tetrad joins Next about every 5 settles.",
+      desc: "On average, a scissor tetrad drops in as the next piece every 5 settles. It deletes the biggest animal group on the board.",
+      short: "Scissor tetrad drops about every 5 settles.",
       every: 5,
       tile: TILE.REAPER
     },
     morph: {
       title: "Mystery Crate",
-      desc: "On average, a question-mark tetrad slips into Next every 4 settles. It becomes whatever animal touches it first.",
-      short: "Question-mark tetrad joins Next about every 4 settles.",
+      desc: "On average, a question-mark tetrad drops in as the next piece every 4 settles. It becomes whatever animal touches it first.",
+      short: "Question-mark tetrad drops about every 4 settles.",
       every: 4,
       tile: TILE.MORPH
     },
     seeder: {
       title: "Nest Bomber",
-      desc: "On average, a nest tetrad slips into Next every 5 settles. It seeds eggs and turds around its landing zone.",
-      short: "Nest tetrad joins Next about every 5 settles.",
+      desc: "On average, a nest tetrad drops in as the next piece every 5 settles. It seeds eggs and turds around its landing zone.",
+      short: "Nest tetrad drops about every 5 settles.",
       every: 5,
       tile: TILE.SEEDER
     }
@@ -741,7 +744,7 @@
     if(!mission || mission.done || mission.ready) return false;
     const specialRule = missionSpecialRule();
     if(!specialRule) return false;
-    if(isMissionSpecialPiece(next) || isMissionSpecialPiece(current)) return false;
+    if(missionSpecialPending || isMissionSpecialPiece(current)) return false;
 
     const averageStep = 1 / specialRule.every;
     const jitteredStep = averageStep * (0.65 + Math.random() * 0.7);
@@ -749,10 +752,8 @@
 
     if(missionSpecialCharge < 1) return false;
 
-    next = createMissionSpecialPiece();
+    missionSpecialPending = true;
     missionSpecialCharge = Math.max(0, missionSpecialCharge - 1);
-    banner.text = `${specialRule.title} slipped into Next.`;
-    banner.t = performance.now();
     return true;
   }
 
@@ -858,7 +859,7 @@
     if(missionMeterFillEl) missionMeterFillEl.style.width = progressWidth;
     if(stageMissionMeterFillEl) stageMissionMeterFillEl.style.width = progressWidth;
     const specialRule = missionSpecialRule();
-    const specialQueued = isMissionSpecialPiece(next);
+    const specialQueued = missionSpecialPending;
     const specialWarmth = Math.round(missionSpecialWarmth() * 100);
     const objectiveLabel = missionObjectiveLabel();
 
@@ -886,9 +887,9 @@
       missionSpecialInfoEl.textContent = specialRule
         ? isCompactUI()
           ? specialQueued
-            ? "Queued in Next now."
+            ? "Primed to drop next."
             : `${specialJoinRateLabel(specialRule)} · warming up ${specialWarmth}%`
-          : `${specialRule.desc} ${specialQueued ? "It is queued in Next right now." : `Chance is warming up (${specialWarmth}%).`}`
+          : `${specialRule.desc} ${specialQueued ? "It is primed to drop as the next piece." : `Chance is warming up (${specialWarmth}%).`}`
         : "No special tetrad assigned.";
       renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
     }
@@ -985,6 +986,8 @@
     if(!mission || mission.done || mission.ready) return;
     mission.ready = true;
     mission.cashBonus = mission.bonus;
+    missionSpecialPending = false;
+    missionSpecialCharge = 0;
     cashoutCharge = 0;
     banner.text = `Objective met! Push your luck or grab the coin. Bonus at risk: +${mission.cashBonus}`;
     banner.t = performance.now();
@@ -1043,6 +1046,9 @@
     if(mission && mission.ready && !mission.done && cashoutCharge >= missionCashoutEvery()){
       current = preparePiece(createCashoutPiece());
       cashoutCharge = 0;
+    } else if(missionSpecialPending && mission && !mission.done && !mission.ready){
+      current = preparePiece(createMissionSpecialPiece());
+      missionSpecialPending = false;
     } else {
       current = preparePiece(next ?? newPiece());
       next = newPiece();
@@ -1505,6 +1511,21 @@
     return claimed.size > 0;
   }
 
+  function boardSignature(){
+    return board.map((row) => row.join(",")).join("|");
+  }
+
+  function stabilizeBoardAfterGravity(maxPasses=6){
+    const seen = new Set();
+    for(let pass=0; pass<maxPasses; pass++){
+      const signature = boardSignature();
+      if(seen.has(signature)) break;
+      seen.add(signature);
+      if(!applyHerdNudges()) break;
+      applyGravity();
+    }
+  }
+
   function resolveBoard(){
     let cascadeDepth = 0;
     let totalGain = 0;
@@ -1556,9 +1577,7 @@
       }
 
       applyGravity();
-      while(applyHerdNudges()){
-        applyGravity();
-      }
+      stabilizeBoardAfterGravity();
     }
     updateHUD();
     return { groupsCleared, totalGain };
@@ -1835,10 +1854,15 @@
   function resize(){
     const rect = stageEl.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
-    pad = isCompactUI() ? 8 : 14;
+    const compact = isCompactUI();
+    pad = compact ? 8 : 14;
 
-    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((isCompactUI() ? 2 : 8) * dpr));
-    const targetH = Math.max(280, Math.floor(rect.height * dpr) - Math.floor((isCompactUI() ? 2 : 8) * dpr));
+    const mobileTapZoneHeight = compact && mobileTapZone ? Math.floor(88 * dpr) : 0;
+    const topReserve = compact ? Math.floor(62 * dpr) : 0;
+    const bottomReserve = compact ? Math.floor(20 * dpr) : 0;
+
+    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
+    const targetH = Math.max(280, Math.floor(rect.height * dpr) - mobileTapZoneHeight - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
 
     const padPx = pad*2*dpr;
     const cellByW = Math.floor((targetW - padPx) / COLS);
@@ -1852,6 +1876,7 @@
     canvas.height = H;
     canvas.style.width = `${Math.floor(W / dpr)}px`;
     canvas.style.height = `${Math.floor(H / dpr)}px`;
+    stageEl.style.setProperty("--cell-size-px", `${Math.max(12, Math.floor(cell / dpr))}px`);
     draw();
   }
 
@@ -2170,10 +2195,73 @@
     gesture = null;
   }
 
+  function tapZoneSingleAction(clientX, rect){
+    const rel = (clientX - rect.left) / Math.max(1, rect.width);
+    if(rel < 0.34){
+      move(-1);
+      return;
+    }
+    if(rel > 0.66){
+      move(1);
+      return;
+    }
+    rotate(true);
+  }
+
+  function onTapZonePointerDown(e){
+    e.preventDefault();
+    unlockAudioSilently();
+    tapZoneGesture = {
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      movedX: 0,
+      movedY: 0,
+      t0: performance.now()
+    };
+  }
+
+  function onTapZonePointerMove(e){
+    if(!IS_TOUCH || !tapZoneGesture) return;
+    const dx = e.clientX - tapZoneGesture.lastX;
+    tapZoneGesture.lastX = e.clientX;
+    tapZoneGesture.movedX += dx;
+    tapZoneGesture.movedY = e.clientY - tapZoneGesture.startY;
+    while(tapZoneGesture.movedX <= -STEP_X){ move(-1); tapZoneGesture.movedX += STEP_X; }
+    while(tapZoneGesture.movedX >=  STEP_X){ move( 1); tapZoneGesture.movedX -= STEP_X; }
+  }
+
+  function onTapZonePointerUp(e){
+    e.preventDefault();
+    if(!tapZoneGesture) return;
+    const dt = performance.now() - tapZoneGesture.t0;
+    const dist = Math.hypot(e.clientX - tapZoneGesture.startX, e.clientY - tapZoneGesture.startY);
+    if(dt < 280 && dist < 12){
+      const now = performance.now();
+      const doubleTap = (now - lastTapTime) < 300 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 32;
+      lastTapTime = now;
+      lastTapX = e.clientX;
+      lastTapY = e.clientY;
+      if(doubleTap){
+        hardDrop();
+        tapZoneGesture = null;
+        return;
+      }
+      tapZoneSingleAction(e.clientX, mobileTapZone.getBoundingClientRect());
+    }
+    tapZoneGesture = null;
+  }
+
   canvas.addEventListener("pointerdown", onPointerDown, {passive:false});
   canvas.addEventListener("pointermove", onPointerMove, {passive:true});
   canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
   canvas.addEventListener("pointercancel", () => { gesture = null; });
+  if(mobileTapZone){
+    mobileTapZone.addEventListener("pointerdown", onTapZonePointerDown, {passive:false});
+    mobileTapZone.addEventListener("pointermove", onTapZonePointerMove, {passive:true});
+    mobileTapZone.addEventListener("pointerup", onTapZonePointerUp, {passive:false});
+    mobileTapZone.addEventListener("pointercancel", () => { tapZoneGesture = null; });
+  }
   window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
   window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
   window.addEventListener("click", unlockAudioSilently, {passive:true});
@@ -2319,6 +2407,7 @@
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
+    missionSpecialPending = false;
     cashoutCharge = 0;
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
@@ -2354,6 +2443,7 @@
     sprinkleOverlayGeometric();
     mission = newMission();
     missionSpecialCharge = 0;
+    missionSpecialPending = false;
     cashoutCharge = 0;
 
     next = newPiece();

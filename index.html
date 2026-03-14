@@ -46,9 +46,13 @@
           <div id="missionMeter" class="missionMeter" aria-hidden="true">
             <span id="missionMeterFill" class="missionMeterFill"></span>
           </div>
-          <span id="missionSpecialName" class="planHint">Special tetrad: warming up</span>
-          <span id="missionSpecialInfo" class="planHint">Mission tricks will appear here.</span>
-          <div id="missionSpecialPreview" class="previewGrid"></div>
+          <div class="missionSpecialStrip">
+            <div class="missionSpecialCopyBlock">
+              <span id="missionSpecialName" class="planHint">Special tetrad: warming up</span>
+              <span id="missionSpecialInfo" class="planHint">Mission tricks will appear here.</span>
+            </div>
+            <div id="missionSpecialPreview" class="previewGrid"></div>
+          </div>
         </div>
         <div id="keysCard" class="planCard">
           <span class="planLabel">Laptop Controls</span>
@@ -70,6 +74,7 @@
           </div>
         </div>
         <canvas id="c"></canvas>
+        <div id="mobileTapZone" class="mobileTapZone" aria-label="Quick touch controls"></div>
         <div id="toast" class="toast hidden"></div>
       </main>
 
@@ -199,7 +204,7 @@
         </div>
         <div class="gameOverStat">
           <span class="statLabel">Specials</span>
-          <span class="statValue">Mission pieces drift into Next over time. Their symbols show what each tile does.</span>
+          <span class="statValue">Mission pieces drop in on average over time. Their symbols show what each tile does.</span>
         </div>
       </div>
       <button id="closeHelp" class="closeBtn">Back To Barn</button>
