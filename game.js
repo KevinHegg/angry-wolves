@@ -132,7 +132,6 @@
   // ===== DOM =====
   const stageEl = document.getElementById("stage");
   const canvas = document.getElementById("c");
-  const mobileTapZone = document.getElementById("mobileTapZone");
   const ctx = canvas.getContext("2d");
 
   const scoreEl  = document.getElementById("score");
@@ -227,7 +226,6 @@
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
   let gesture = null;
-  let tapZoneGesture = null;
 
   const CLEAR_QUIPS = {
     [TILE.SHEEP]: ["Wool done.", "That flock got absolutely sheepish.", "The meadow trembles."],
@@ -1864,12 +1862,11 @@
     const compact = isCompactUI();
     pad = compact ? 8 : 14;
 
-    const mobileTapZoneHeight = compact && mobileTapZone ? Math.floor(90 * dpr) : 0;
     const topReserve = compact ? Math.floor(40 * dpr) : 0;
     const bottomReserve = compact ? Math.floor(8 * dpr) : 0;
 
     const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 2 : 8) * dpr));
-    const targetH = Math.max(280, Math.floor(rect.height * dpr) - mobileTapZoneHeight - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
+    const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
 
     const padPx = pad*2*dpr;
     const cellByW = Math.floor((targetW - padPx) / COLS);
@@ -2202,73 +2199,10 @@
     gesture = null;
   }
 
-  function tapZoneSingleAction(clientX, rect){
-    const rel = (clientX - rect.left) / Math.max(1, rect.width);
-    if(rel < 0.34){
-      move(-1);
-      return;
-    }
-    if(rel > 0.66){
-      move(1);
-      return;
-    }
-    rotate(true);
-  }
-
-  function onTapZonePointerDown(e){
-    e.preventDefault();
-    unlockAudioSilently();
-    tapZoneGesture = {
-      startX: e.clientX,
-      startY: e.clientY,
-      lastX: e.clientX,
-      movedX: 0,
-      movedY: 0,
-      t0: performance.now()
-    };
-  }
-
-  function onTapZonePointerMove(e){
-    if(!IS_TOUCH || !tapZoneGesture) return;
-    const dx = e.clientX - tapZoneGesture.lastX;
-    tapZoneGesture.lastX = e.clientX;
-    tapZoneGesture.movedX += dx;
-    tapZoneGesture.movedY = e.clientY - tapZoneGesture.startY;
-    while(tapZoneGesture.movedX <= -STEP_X){ move(-1); tapZoneGesture.movedX += STEP_X; }
-    while(tapZoneGesture.movedX >=  STEP_X){ move( 1); tapZoneGesture.movedX -= STEP_X; }
-  }
-
-  function onTapZonePointerUp(e){
-    e.preventDefault();
-    if(!tapZoneGesture) return;
-    const dt = performance.now() - tapZoneGesture.t0;
-    const dist = Math.hypot(e.clientX - tapZoneGesture.startX, e.clientY - tapZoneGesture.startY);
-    if(dt < 280 && dist < 12){
-      const now = performance.now();
-      const doubleTap = (now - lastTapTime) < 300 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 32;
-      lastTapTime = now;
-      lastTapX = e.clientX;
-      lastTapY = e.clientY;
-      if(doubleTap){
-        hardDrop();
-        tapZoneGesture = null;
-        return;
-      }
-      tapZoneSingleAction(e.clientX, mobileTapZone.getBoundingClientRect());
-    }
-    tapZoneGesture = null;
-  }
-
   canvas.addEventListener("pointerdown", onPointerDown, {passive:false});
   canvas.addEventListener("pointermove", onPointerMove, {passive:true});
   canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
   canvas.addEventListener("pointercancel", () => { gesture = null; });
-  if(mobileTapZone){
-    mobileTapZone.addEventListener("pointerdown", onTapZonePointerDown, {passive:false});
-    mobileTapZone.addEventListener("pointermove", onTapZonePointerMove, {passive:true});
-    mobileTapZone.addEventListener("pointerup", onTapZonePointerUp, {passive:false});
-    mobileTapZone.addEventListener("pointercancel", () => { tapZoneGesture = null; });
-  }
   window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
   window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
   window.addEventListener("click", unlockAudioSilently, {passive:true});
