@@ -1361,10 +1361,11 @@
 
   function updateGameOverStats(){
     const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    const herdScore = Math.max(0, score|0);
     const totalScore = Math.max(0, (score + missionBonus)|0);
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
     if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
-    if(finalScoreEl) finalScoreEl.textContent = `${Math.max(0, score|0)} + ${missionBonus} = ${totalScore}`;
+    if(finalScoreEl) finalScoreEl.innerHTML = `${herdScore} <span class="scoreBreakdownNote">(herd score)</span> + ${missionBonus} <span class="scoreBreakdownNote">(bonus)</span> = ${totalScore}`;
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
