@@ -55,7 +55,7 @@ html,body{
   gap:8px;
 }
 
-#hud .left{ display:flex; gap:10px; align-items:flex-end; }
+#hud .left{ display:flex; gap:10px; align-items:flex-start; }
 #gear,
 #helpButton{
   width:40px;height:40px;
@@ -69,6 +69,7 @@ html,body{
 #helpButton:active{ transform: translateY(1px); }
 
 .title .h1{ font-weight:900; letter-spacing:0.3px; font-size:18px; }
+.title{ padding-top:0; }
 .title .sub{ margin-top:3px; font-size:12px; color: var(--muted); max-width: 30ch; }
 
 #hud .right{ text-align:right; min-width: 160px; font-variant-numeric: tabular-nums; }
@@ -439,6 +440,9 @@ canvas{
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.06);
 }
+.gameOverStatWide{
+  grid-column:1 / -1;
+}
 .statLabel{
   font-size:12px;
   color: var(--muted);
@@ -684,7 +688,8 @@ canvas{
     grid-column:2;
     grid-row:1;
     min-width:0;
-    padding-top:1px;
+    padding-top:0;
+    align-self:start;
   }
 
   .title .h1{

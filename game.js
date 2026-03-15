@@ -279,7 +279,7 @@
     },
     reaper: {
       title: "Cull Comb",
-      desc: "On average, a scissor tetrad barges in about every 5 settles. It deletes the biggest animal group on the board.",
+      desc: "On average, a scissor tetrad barges in about every 5 settles. It deletes the biggest animal group on the board, then turns into the touching animal so you can place it usefully.",
       short: "Surprise scissor tetrad, about every 5 settles on average.",
       every: 5,
       tile: TILE.REAPER
@@ -893,7 +893,7 @@
       {
         id: "help-reaper",
         name: "Cull Comb",
-        text: "Mission-only tetrad with the shared gold mission frame. It removes the biggest herd currently on the board.",
+        text: "Mission-only tetrad with the shared gold mission frame. It removes the biggest herd currently on the board, then turns into the touching animal so you can place it usefully.",
         piece: helpPieceFromSpec(SPECIAL.REAPER_I, "MISSION_REAPER")
       },
       {
@@ -923,7 +923,7 @@
       {
         id: "help-cashout",
         name: "Reward Coin",
-        text: "Mission-only reward piece with the shared gold mission frame. Catch it after the mission is ready to end the run and earn the bonus.",
+        text: "Mission-only reward piece with the shared gold mission frame. It becomes part of a herd, and that herd must be cleared to earn the mission bonus.",
         piece: helpPieceFromSpec(SPECIAL.CASHOUT_1, "MISSION_CASHOUT")
       }
     ]);
@@ -1030,7 +1030,7 @@
     if(mission.type === "score") return "Rack up coins fast. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "level") return "Stay alive long enough to reach the target pace. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "big_group") return "Build oversized clusters and clear them to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
-    if(mission.type === "build_group") return "Build a large live herd without clearing it too soon. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "build_group") return "Build a live herd up to the target size without clearing it too soon. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "special_use") return "Use your mission special on purpose to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "locks") return "Complete the required settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     return "The barn demands something weird from you today. Finish the objective, then clear the reward herd before the run ends.";
@@ -1177,6 +1177,17 @@
       return;
     }
 
+    if(mission.type === "build_group"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus earned: +${mission.cashBonus} coins`
+        : mission.ready
+          ? hasRewardCoinOnBoard()
+            ? `Live herd goal reached. Clear the pulsing reward herd now.`
+            : `Live herd goal reached. Wait for the reward coin to land.`
+          : `${missionCurrentProgress()} / ${mission.target} live in the biggest herd`;
+      return;
+    }
+
     if(mission.type === "special_use"){
       missionProgressEl.textContent = mission.done
         ? `Bonus earned: +${mission.cashBonus} coins`
@@ -1249,6 +1260,7 @@
     if(mission.type === "score") mission.progress = score;
     else if(mission.type === "level") mission.progress = level;
     else if(mission.type === "locks") mission.progress = locks;
+    else if(mission.type === "build_group") mission.progress = missionCurrentProgress();
     if(mission.progress >= mission.target) completeMission();
     else updateMissionUI();
   }
@@ -2530,8 +2542,8 @@
       for(let x=0;x<COLS;x++){
         const gx = px + x*cell;
         const gy = px + y*cell;
-        ctx.globalAlpha = 0.14;
-        ctx.fillStyle = "#eef1f6";
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = "#f5f7fb";
         ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
         ctx.globalAlpha = 1;
       }
