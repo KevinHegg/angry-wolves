@@ -2282,6 +2282,30 @@
     ctx.restore();
   }
 
+  function drawTurdGlyph(cx, cy, size){
+    const s = size;
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + s * 0.2, s * 0.34, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy - s * 0.02, s * 0.26, s * 0.17, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy - s * 0.18, s * 0.17, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy - s * 0.31, s * 0.1, s * 0.08, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#7b4322";
+    ctx.fill();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(cx + s * 0.06, cy + s * 0.06, s * 0.24, s * 0.15, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = "#f0b08d";
+    ctx.lineWidth = Math.max(1, s * 0.04);
+    ctx.beginPath();
+    ctx.arc(cx - s * 0.12, cy - s * 0.08, s * 0.12, Math.PI * 1.1, Math.PI * 1.88);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawOverlay(px, aboveTiles=false){
     ctx.save();
     for(let y=0;y<ROWS;y++){
@@ -2295,7 +2319,6 @@
         const gx = px + x*cell;
         const gy = px + y*cell;
         const accent = p === POWER.EGG ? "#ffd84d" : "#ff6a5b";
-        const icon = p === POWER.EGG ? "🥚" : "💩";
 
         if(!aboveTiles){
           const bg = p === POWER.EGG ? TILE_COLOR[TILE.SEEDER_EGG] : TILE_COLOR[TILE.SEEDER_TURD];
@@ -2305,28 +2328,34 @@
           ctx.strokeStyle = accent;
           ctx.lineWidth = Math.max(1, Math.floor(cell*0.075));
           roundRectStroke(gx+4, gy+4, cell-8, cell-8, 9);
-          ctx.globalAlpha = 0.2;
-          ctx.fillStyle = "#000";
-          ctx.font = `${Math.floor(cell*0.46)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(icon, gx + cell/2 + 1, gy + cell/2 + 2);
-          ctx.globalAlpha = 1;
-          ctx.font = `${Math.floor(cell*0.46)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = "#fff";
-          ctx.fillText(icon, gx + cell/2, gy + cell/2 + 1);
+          if(p === POWER.EGG){
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = "#000";
+            ctx.font = `${Math.floor(cell*0.46)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🥚", gx + cell/2 + 1, gy + cell/2 + 2);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = "#fff";
+            ctx.fillText("🥚", gx + cell/2, gy + cell/2 + 1);
+          } else {
+            ctx.globalAlpha = 1;
+            drawTurdGlyph(gx + cell/2, gy + cell/2 + 1, cell * 0.66);
+          }
         } else {
           const badgeW = Math.max(18, cell*0.32);
           const badgeH = Math.max(14, cell*0.22);
           ctx.globalAlpha = 0.95;
           roundRectFill(gx + cell - badgeW - 4, gy + 4, badgeW, badgeH, 7, accent);
-          ctx.fillStyle = "#1d120a";
-          ctx.font = `${Math.floor(cell*0.18)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(icon, gx + cell - badgeW/2 - 4, gy + 4 + badgeH/2 + 1);
+          if(p === POWER.EGG){
+            ctx.fillStyle = "#1d120a";
+            ctx.font = `${Math.floor(cell*0.18)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🥚", gx + cell - badgeW/2 - 4, gy + 4 + badgeH/2 + 1);
+          } else {
+            drawTurdGlyph(gx + cell - badgeW/2 - 4, gy + 4 + badgeH/2 + 1, badgeH * 1.25);
+          }
         }
       }
     }
@@ -2394,6 +2423,11 @@
 
     if(withEmoji && t === TILE.CASHOUT){
       drawCashoutCoin(gx, gy);
+      return;
+    }
+
+    if(withEmoji && t === TILE.SEEDER_TURD){
+      drawTurdGlyph(gx + cell/2, gy + cell/2 + 1, cell * 0.68);
       return;
     }
 
