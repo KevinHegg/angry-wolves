@@ -974,7 +974,7 @@
   }
 
   function missionReadyLockBonus(){
-    return 26 + level * 5;
+    return 14 + level * 3;
   }
 
   function registerLockCycle(opts={}){
@@ -2334,9 +2334,9 @@
 
         if(!aboveTiles){
           const bg = p === POWER.EGG ? TILE_COLOR[TILE.SEEDER_EGG] : TILE_COLOR[TILE.SEEDER_TURD];
-          ctx.globalAlpha = 0.82;
+          ctx.globalAlpha = 0.62;
           roundRectFill(gx+4, gy+4, cell-8, cell-8, 9, bg);
-          ctx.globalAlpha = 0.58;
+          ctx.globalAlpha = 0.42;
           ctx.strokeStyle = accent;
           ctx.lineWidth = Math.max(1, Math.floor(cell*0.075));
           roundRectStroke(gx+4, gy+4, cell-8, cell-8, 9);

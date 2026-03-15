@@ -753,7 +753,7 @@ canvas{
     left:6px;
     right:6px;
     transform:none;
-    padding:5px 8px;
+    padding:5px 10px 5px 8px;
     border-radius:10px;
   }
 
@@ -772,11 +772,12 @@ canvas{
   .stageMissionProgressText{
     font-size:9px;
     line-height:1.05;
-    max-width:26vw;
+    max-width:30vw;
     overflow:hidden;
     text-overflow:ellipsis;
     text-align:right;
-    padding-right:2px;
+    padding-right:6px;
+    justify-self:end;
   }
 
   .stageMissionMeter{
