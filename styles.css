@@ -579,32 +579,58 @@ canvas{
 }
 
 @media (min-width: 761px){
+  html,
+  body{
+    overflow:auto;
+  }
+
+  #app{
+    height:auto;
+    min-height:100svh;
+    overflow:visible;
+  }
+
+  #hud{
+    width:min(980px, calc(100% - 48px));
+  }
+
+  #gameShell{
+    width:min(980px, calc(100% - 48px));
+    grid-template-rows:auto auto;
+    align-content:start;
+    padding: 0 0 18px;
+  }
+
   #missionCard{
     display:none;
+  }
+
+  .rail{
+    display:contents;
   }
 
   #holdButton{
     grid-column:1;
     grid-row:2;
-    min-height:104px;
+    min-height:112px;
   }
 
   #keysCard{
     grid-column:2;
     grid-row:2;
-    min-height:104px;
+    min-height:112px;
   }
 
   #holdSlotCard{
     grid-column:3;
     grid-row:2;
-    min-height:104px;
+    min-height:112px;
   }
 
   #comboCard{
     grid-column:4;
     grid-row:2;
-    min-height:104px;
+    min-height:112px;
   }
 
   #nextCard{
@@ -636,6 +662,21 @@ canvas{
 
   #help{
     display:none;
+  }
+
+  #stage{
+    width:min(860px, 100%);
+    min-height:clamp(620px, 72vh, 920px);
+    height:auto;
+    max-height:none;
+    align-self:start;
+    padding-top:60px;
+    margin:0 auto;
+  }
+
+  .stageMissionBar{
+    left:0;
+    right:0;
   }
 }
 
@@ -700,6 +741,8 @@ canvas{
     height:34px;
     border-radius:11px;
     font-size:16px;
+    background: rgba(245,247,251,0.14);
+    border-color: rgba(255,255,255,0.09);
   }
 
   .score{
