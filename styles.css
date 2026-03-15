@@ -431,6 +431,9 @@ canvas{
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap:10px;
 }
+.gameOverModal .gameOverStats{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .gameOverStat{
   display:flex;
   flex-direction:column;
@@ -682,6 +685,7 @@ canvas{
     grid-column:1;
     grid-row:1;
     gap:8px;
+    transform:translateY(-10px);
   }
 
   .title{
@@ -879,6 +883,8 @@ canvas{
   }
 
   #nextPreview .previewCell{
+    background: rgba(245,247,251,0.14);
+    border-color: rgba(255,255,255,0.08);
     border-radius:4px;
     font-size:9px;
   }
