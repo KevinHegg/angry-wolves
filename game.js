@@ -2203,10 +2203,10 @@
     const compact = isCompactUI();
     pad = compact ? 8 : 14;
 
-    const topReserve = compact ? Math.floor(34 * dpr) : 0;
+    const topReserve = compact ? Math.floor(18 * dpr) : 0;
     const bottomReserve = 0;
 
-    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 18 : 8) * dpr));
+    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 10 : 8) * dpr));
     const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
 
     const padPx = pad*2*dpr;
@@ -2298,19 +2298,21 @@
         const icon = p === POWER.EGG ? "🥚" : "💩";
 
         if(!aboveTiles){
-          ctx.globalAlpha = 0.3;
-          roundRectFill(gx+2, gy+2, cell-4, cell-4, 10, p === POWER.EGG ? "#69541a" : "#532321");
-          ctx.globalAlpha = 0.4;
+          const bg = p === POWER.EGG ? TILE_COLOR[TILE.SEEDER_EGG] : TILE_COLOR[TILE.SEEDER_TURD];
+          ctx.globalAlpha = 0.82;
+          roundRectFill(gx+4, gy+4, cell-8, cell-8, 9, bg);
+          ctx.globalAlpha = 0.58;
           ctx.strokeStyle = accent;
-          ctx.lineWidth = Math.max(1, Math.floor(cell*0.08));
-          roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
-          ctx.globalAlpha = 0.85;
-          ctx.fillStyle = accent;
-          ctx.beginPath();
-          ctx.arc(gx + cell/2, gy + cell/2, Math.max(6, cell*0.22), 0, Math.PI*2);
-          ctx.fill();
+          ctx.lineWidth = Math.max(1, Math.floor(cell*0.075));
+          roundRectStroke(gx+4, gy+4, cell-8, cell-8, 9);
+          ctx.globalAlpha = 0.2;
+          ctx.fillStyle = "#000";
+          ctx.font = `${Math.floor(cell*0.46)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(icon, gx + cell/2 + 1, gy + cell/2 + 2);
           ctx.globalAlpha = 1;
-          ctx.font = `${Math.floor(cell*0.42)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+          ctx.font = `${Math.floor(cell*0.46)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillStyle = "#fff";
