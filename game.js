@@ -933,12 +933,14 @@
 
   function newMission(){
     const def = randChoice(MISSION_DEFS);
+    const tunedBonus = Math.max(90, Math.round(def.bonus * 0.72));
     return {
       ...def,
+      bonus: tunedBonus,
       progress: 0,
       done: false,
       ready: false,
-      cashBonus: def.bonus,
+      cashBonus: tunedBonus,
     };
   }
 
@@ -976,20 +978,21 @@
   }
 
   function missionReadyLockBonus(){
-    return 14 + level * 3;
+    return 6 + Math.floor(level * 1.5);
   }
 
   function registerLockCycle(opts={}){
     locks++;
     if(mission && !mission.done){
       if(mission.ready){
-        const bonusGain = opts.skipCashout ? 0 : missionReadyLockBonus();
+        const rewardCoinWaiting = hasRewardCoinOnBoard();
+        const bonusGain = (!opts.skipCashout && !rewardCoinWaiting) ? missionReadyLockBonus() : 0;
         if(bonusGain > 0){
           mission.cashBonus += bonusGain;
           banner.text = `Greed pays... for now. Bonus swelled to +${mission.cashBonus}.`;
           banner.t = performance.now();
         }
-        if(!opts.skipCashout && !hasRewardCoinOnBoard()){
+        if(!opts.skipCashout && !rewardCoinWaiting){
           cashoutCharge++;
           const locksLeft = Math.max(0, missionCashoutEvery() - cashoutCharge);
           if(locksLeft > 0){
@@ -2244,8 +2247,9 @@
         hudEl.style.maxWidth = `${canvasCssW}px`;
       }
       if(stageMissionBarEl){
-        stageMissionBarEl.style.left = `${boardOffset + 6}px`;
-        stageMissionBarEl.style.right = `${boardOffset + 6}px`;
+        stageMissionBarEl.style.width = `${canvasCssW}px`;
+        stageMissionBarEl.style.left = `${boardOffset}px`;
+        stageMissionBarEl.style.right = "auto";
       }
     } else {
       if(hudEl){
@@ -2253,6 +2257,7 @@
         hudEl.style.removeProperty("max-width");
       }
       if(stageMissionBarEl){
+        stageMissionBarEl.style.removeProperty("width");
         stageMissionBarEl.style.removeProperty("left");
         stageMissionBarEl.style.removeProperty("right");
       }
