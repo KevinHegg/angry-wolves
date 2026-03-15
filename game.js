@@ -2240,7 +2240,9 @@
     canvas.style.width = `${Math.floor(W / dpr)}px`;
     canvas.style.height = `${Math.floor(H / dpr)}px`;
     const canvasCssW = Math.floor(W / dpr);
+    const canvasCssH = Math.floor(H / dpr);
     const boardOffset = Math.max(0, Math.floor((rect.width - canvasCssW) / 2));
+    const stagePadTop = Math.floor(parseFloat(getComputedStyle(stageEl).paddingTop) || 0);
     if(compact){
       if(hudEl){
         hudEl.style.width = `${canvasCssW}px`;
@@ -2261,6 +2263,10 @@
         stageMissionBarEl.style.removeProperty("left");
         stageMissionBarEl.style.removeProperty("right");
       }
+    }
+    if(toastEl){
+      toastEl.style.left = `${boardOffset + Math.floor(canvasCssW / 2)}px`;
+      toastEl.style.top = `${stagePadTop + Math.floor(canvasCssH / 2)}px`;
     }
     stageEl.style.setProperty("--cell-size-px", `${Math.max(12, Math.floor(cell / dpr))}px`);
     draw();

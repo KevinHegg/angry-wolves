@@ -258,6 +258,7 @@ html,body{
   top:12px;
   left:12px;
   right:12px;
+  box-sizing:border-box;
   transform:none;
   padding:8px 10px;
   border-radius:14px;
@@ -641,14 +642,15 @@ canvas{
 @media (max-width: 760px){
   #hud{
     display:grid;
-    grid-template-columns:auto minmax(0, 1fr) auto;
+    grid-template-columns:auto minmax(0, 1fr) 84px;
+    grid-template-rows:min-content min-content;
     grid-template-areas:
       "buttons title next"
       "right right next";
     align-items:start;
-    gap:6px 10px;
+    gap:4px 10px;
     padding: 8px 0 2px;
-    min-height:98px;
+    min-height:auto;
   }
 
   #hud .left{
@@ -663,7 +665,7 @@ canvas{
     align-items:center;
     gap:12px;
     flex-wrap:wrap;
-    padding-top:2px;
+    padding-top:0;
     justify-self:start;
     min-width:0;
   }
@@ -683,7 +685,7 @@ canvas{
   }
 
   .title .h1{
-    font-size:15px;
+    font-size:16px;
     line-height:1.05;
     white-space:nowrap;
   }
@@ -849,12 +851,13 @@ canvas{
     position:static;
     align-self:start;
     justify-self:end;
-    width:86px;
+    width:84px;
     height:auto;
-    padding:4px;
-    min-height:92px;
+    padding:3px;
+    min-height:84px;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
     border-radius:14px;
+    margin-top:-1px;
   }
 
   #nextCard .planLabel{
@@ -862,7 +865,7 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 74px;
+    max-width: 72px;
     gap:2px;
     margin-top:0;
   }
@@ -911,9 +914,9 @@ canvas{
 
 @media (max-width: 480px){
   #hud{
-    gap:6px 10px;
+    gap:4px 10px;
     padding: 8px 0 2px;
-    min-height:100px;
+    min-height:auto;
   }
 
   #gameShell{
@@ -943,9 +946,9 @@ canvas{
   }
 
   #nextCard{
-    width:86px;
-    min-height:92px;
-    padding:4px;
+    width:84px;
+    min-height:84px;
+    padding:3px;
   }
 
   .stageMissionBar{
@@ -954,7 +957,7 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 74px;
+    max-width: 72px;
   }
 
   .missionPreview{
