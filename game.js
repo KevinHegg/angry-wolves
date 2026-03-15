@@ -1014,7 +1014,7 @@
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `Trigger ${mission.target} wolf tantrum${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "score") return `Score ${mission.target} coins`;
-    if(mission.type === "level") return `Reach level ${mission.target}`;
+    if(mission.type === "level") return `Reach pace ${mission.target}`;
     if(mission.type === "big_group") return `Clear ${mission.target} jumbo groups`;
     if(mission.type === "special_use") return `Use your mission special ${mission.target} time${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "locks") return `Complete ${mission.target} settles`;
@@ -1028,7 +1028,7 @@
     if(mission.type === "combo") return "Build your chain by clearing herds on consecutive settles. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "wolf") return "Trigger enough wolf blasts to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "score") return "Rack up coins fast. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
-    if(mission.type === "level") return "Stay alive long enough to reach the target level. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
+    if(mission.type === "level") return "Stay alive long enough to reach the target pace. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "big_group") return "Build oversized clusters and clear them to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "build_group") return "Build a large live herd without clearing it too soon. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
     if(mission.type === "special_use") return "Use your mission special on purpose to hit the goal. Then the reward coin will become part of a herd, and that herd must be cleared to end the game with the mission bonus.";
@@ -1160,9 +1160,9 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `You reached the target level. Clear the pulsing reward herd.`
-            : `You reached the target level. Wait for the reward coin to land.`
-          : `Current level ${level} (${missionProgressText(level, mission.target)})`;
+            ? `You reached the target pace. Clear the pulsing reward herd.`
+            : `You reached the target pace. Wait for the reward coin to land.`
+          : `Current pace ${level} (${missionProgressText(level, mission.target)})`;
       return;
     }
 
@@ -1296,7 +1296,7 @@
       Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1) * missionPressureMultiplier())
     );
     if(level > prevLevel){
-      banner.text = `Level ${level}! The barn got meaner.`;
+      banner.text = `Pace ${level}! The barn got meaner.`;
       banner.t = performance.now();
       playLevelUpJingle();
     }

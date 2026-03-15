@@ -643,9 +643,10 @@ canvas{
       "left left next"
       ". right next";
     align-items:start;
-    gap:4px 8px;
-    padding: 6px 8px 0;
-    width:min(100%, calc(100% - 8px));
+    gap:6px 10px;
+    padding: 8px 10px 2px;
+    width:min(100%, calc(100% - 6px));
+    min-height:96px;
   }
 
   #hud .left,
@@ -655,27 +656,40 @@ canvas{
 
   #hud .left{
     grid-area:left;
-    flex:1 1 auto;
-    align-items:flex-start;
-    gap:6px;
+    display:grid;
+    grid-template-columns:auto minmax(0, 1fr);
+    align-items:start;
+    column-gap:10px;
   }
 
   #hud .right{
     grid-area:right;
-    flex:0 0 auto;
     width:auto;
-    text-align:right;
+    text-align:left;
     display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    gap:2px;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
     padding-top:0;
-    justify-self:end;
+    justify-self:start;
+  }
+
+  .hudButtons{
+    grid-column:1;
+    grid-row:1;
+    gap:8px;
+  }
+
+  .title{
+    grid-column:2;
+    grid-row:1;
+    min-width:0;
+    padding-top:1px;
   }
 
   .title .h1{
-    font-size:14px;
-    line-height:1;
+    font-size:15px;
+    line-height:1.02;
     white-space:nowrap;
   }
 
@@ -685,22 +699,23 @@ canvas{
 
   #gear,
   #helpButton{
-    width:31px;
-    height:31px;
-    border-radius:9px;
-    font-size:15px;
+    width:34px;
+    height:34px;
+    border-radius:11px;
+    font-size:16px;
   }
 
   .score{
-    font-size:17px;
+    font-size:19px;
     line-height:1;
     gap:5px;
   }
 
   .meta{
-    font-size:10px;
-    line-height:1.12;
+    font-size:11px;
+    line-height:1.1;
     margin-top:0;
+    white-space:nowrap;
   }
 
   .best{
@@ -719,7 +734,7 @@ canvas{
     min-height: clamp(804px, 90svh, 1080px);
     justify-content:flex-start;
     box-sizing:border-box;
-    padding-top:56px;
+    padding-top:54px;
     padding-bottom:2px;
   }
 
@@ -840,11 +855,12 @@ canvas{
     position:static;
     align-self:stretch;
     justify-self:end;
-    width:74px;
+    width:82px;
     height:auto;
-    padding:4px;
-    min-height:72px;
+    padding:5px;
+    min-height:88px;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
+    border-radius:16px;
   }
 
   #nextCard .planLabel{
@@ -852,18 +868,18 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 64px;
-    gap:2px;
+    max-width: 70px;
+    gap:3px;
     margin-top:0;
   }
 
   #nextPreview .previewCell{
-    border-radius:3px;
-    font-size:8px;
+    border-radius:4px;
+    font-size:9px;
   }
 
   #nextPreview .previewCell.filled{
-    font-size:12px;
+    font-size:13px;
   }
 
   .missionBriefModal{
@@ -899,8 +915,9 @@ canvas{
 
 @media (max-width: 480px){
   #hud{
-    gap:4px 7px;
-    padding: 6px 8px 0;
+    gap:5px 9px;
+    padding: 8px 10px 2px;
+    min-height:92px;
   }
 
   #gameShell{
@@ -910,19 +927,19 @@ canvas{
 
   #stage{
     min-height: clamp(836px, 92svh, 1140px);
-    padding-top:54px;
+    padding-top:52px;
   }
 
   .title .h1{
-    font-size:13px;
-  }
-
-  .score{
     font-size:15px;
   }
 
+  .score{
+    font-size:18px;
+  }
+
   .meta{
-    font-size:10px;
+    font-size:11px;
   }
 
   #missionCard{
@@ -930,9 +947,9 @@ canvas{
   }
 
   #nextCard{
-    width:76px;
-    min-height:74px;
-    padding:4px;
+    width:82px;
+    min-height:86px;
+    padding:5px;
   }
 
   .stageMissionBar{
@@ -942,7 +959,7 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 66px;
+    max-width: 70px;
   }
 
   .missionPreview{
