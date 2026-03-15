@@ -1348,9 +1348,11 @@
   }
 
   function updateGameOverStats(){
+    const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    const totalScore = Math.max(0, (score + missionBonus)|0);
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
     if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
-    if(finalScoreEl) finalScoreEl.textContent = Math.max(0, score|0);
+    if(finalScoreEl) finalScoreEl.textContent = `${Math.max(0, score|0)} + ${missionBonus} = ${totalScore}`;
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
@@ -1901,8 +1903,6 @@
     }
     if(rewardEarned && mission && mission.ready && !mission.done){
       mission.done = true;
-      score += mission.cashBonus;
-      totalGain += mission.cashBonus;
       banner.text = `Reward herd cleared. Mission earned: +${mission.cashBonus} coins.`;
       banner.t = performance.now();
       playMissionJingle();
