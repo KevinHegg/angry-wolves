@@ -455,11 +455,6 @@ canvas{
   font-weight:900;
   color: var(--accent);
 }
-.scoreBreakdownNote{
-  font-size:0.66em;
-  color: var(--muted);
-  font-weight:700;
-}
 .row{
   display:flex;
   justify-content:space-between;
@@ -690,7 +685,7 @@ canvas{
     grid-column:1;
     grid-row:1;
     gap:8px;
-    transform:translateY(-10px);
+    transform:translateY(-14px);
   }
 
   .title{
@@ -870,12 +865,12 @@ canvas{
     position:static;
     align-self:stretch;
     justify-self:end;
-    width:78px;
+    width:72px;
     height:auto;
-    padding:3px;
-    min-height:84px;
+    padding:2px;
+    min-height:78px;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
-    border-radius:14px;
+    border-radius:12px;
   }
 
   #nextCard .planLabel{
@@ -883,15 +878,15 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 68px;
-    gap:3px;
+    max-width: 64px;
+    gap:2px;
     margin-top:0;
   }
 
   #nextPreview .previewCell{
     background: rgba(245,247,251,0.14);
     border-color: rgba(255,255,255,0.08);
-    border-radius:4px;
+    border-radius:3px;
     font-size:9px;
   }
 
@@ -964,9 +959,9 @@ canvas{
   }
 
   #nextCard{
-    width:78px;
-    min-height:82px;
-    padding:3px;
+    width:72px;
+    min-height:76px;
+    padding:2px;
   }
 
   .stageMissionBar{
@@ -976,7 +971,7 @@ canvas{
   }
 
   #nextPreview{
-    max-width: 68px;
+    max-width: 64px;
   }
 
   .missionPreview{

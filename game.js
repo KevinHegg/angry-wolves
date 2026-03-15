@@ -162,6 +162,8 @@
 
   // ===== DOM =====
   const stageEl = document.getElementById("stage");
+  const hudEl = document.getElementById("hud");
+  const stageMissionBarEl = document.getElementById("stageMissionBar");
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
 
@@ -1365,7 +1367,7 @@
     const totalScore = Math.max(0, (score + missionBonus)|0);
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
     if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
-    if(finalScoreEl) finalScoreEl.innerHTML = `${herdScore} <span class="scoreBreakdownNote">(herd score)</span> + ${missionBonus} <span class="scoreBreakdownNote">(bonus)</span> = ${totalScore}`;
+    if(finalScoreEl) finalScoreEl.textContent = `${herdScore} (herd score) + ${missionBonus} (bonus) = ${totalScore}`;
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
@@ -2234,6 +2236,27 @@
     canvas.height = H;
     canvas.style.width = `${Math.floor(W / dpr)}px`;
     canvas.style.height = `${Math.floor(H / dpr)}px`;
+    const canvasCssW = Math.floor(W / dpr);
+    const boardOffset = Math.max(0, Math.floor((rect.width - canvasCssW) / 2));
+    if(compact){
+      if(hudEl){
+        hudEl.style.width = `${canvasCssW}px`;
+        hudEl.style.maxWidth = `${canvasCssW}px`;
+      }
+      if(stageMissionBarEl){
+        stageMissionBarEl.style.left = `${boardOffset + 6}px`;
+        stageMissionBarEl.style.right = `${boardOffset + 6}px`;
+      }
+    } else {
+      if(hudEl){
+        hudEl.style.removeProperty("width");
+        hudEl.style.removeProperty("max-width");
+      }
+      if(stageMissionBarEl){
+        stageMissionBarEl.style.removeProperty("left");
+        stageMissionBarEl.style.removeProperty("right");
+      }
+    }
     stageEl.style.setProperty("--cell-size-px", `${Math.max(12, Math.floor(cell / dpr))}px`);
     draw();
   }
