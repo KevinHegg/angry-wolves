@@ -701,6 +701,22 @@
   function shareUrl(){
     return "https://kevinhegg.github.io/angry-wolves/";
   }
+  function shareBragLine(){
+    const missionName = mission?.title ?? shareSnapshot?.missionTitle ?? "Barn Trouble";
+    const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    const groupScore = Math.max(0, score|0);
+    const totalScore = groupScore + missionBonus;
+    if(mission?.done){
+      return `I beat ${missionName} in Angry Wolves for ${totalScore} coins.`;
+    }
+    if(bestCombo >= 3){
+      return `I kicked up a ${fmtChain(bestCombo)} chain in Angry Wolves and still hauled in ${totalScore} coins.`;
+    }
+    if(bestHerd){
+      return `I built a ${bestHerd.count}-${GROUP_NAME[bestHerd.animal] || "group"} in Angry Wolves for ${totalScore} coins.`;
+    }
+    return `I stirred up the barn in Angry Wolves for ${totalScore} coins.`;
+  }
   function captureShareSnapshot(){
     return {
       board: clone2(board),
@@ -3121,21 +3137,25 @@
     targetCtx.font = "900 46px system-ui, -apple-system, sans-serif";
     targetCtx.fillText(runEndTitle || "Run Over", 108, 190);
 
+    targetCtx.fillStyle = "#7dd3fc";
+    targetCtx.font = "700 27px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(shareBragLine(), 108, 232);
+
     targetCtx.fillStyle = "#f2ede2";
     targetCtx.font = "700 34px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", 108, 238);
+    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", 108, 286);
 
     targetCtx.fillStyle = "#ffd166";
     targetCtx.font = "900 38px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, 108, 298);
+    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, 108, 342);
 
     targetCtx.fillStyle = "#b9af9f";
     targetCtx.font = "600 25px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, 108, 340);
-    targetCtx.fillText(bestGroupPlain(bestHerd), 108, 376);
+    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, 108, 384);
+    targetCtx.fillText(bestGroupPlain(bestHerd), 108, 420);
 
     const boardWrapX = 92;
-    const boardWrapY = 430;
+    const boardWrapY = 474;
     const boardWrapW = card.width - boardWrapX * 2;
     const boardWrapH = card.height - boardWrapY - 190;
     roundRectFillFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "#050507");
@@ -3178,7 +3198,7 @@
     const groupScore = Math.max(0, score|0);
     const totalScore = groupScore + missionBonus;
     const title = `Angry Wolves · ${mission?.title ?? "Barn Trouble"}`;
-    const text = `${runEndTitle}: ${mission?.title ?? "Barn Trouble"}\n${groupScore} group score + ${missionBonus} bonus = ${totalScore}\nPlay here: ${shareUrl()}`;
+    const text = `${shareBragLine()}\nMission: ${mission?.title ?? "Barn Trouble"}\n${groupScore} group score + ${missionBonus} bonus = ${totalScore}\nPlay here: ${shareUrl()}`;
 
     if(shareButton) shareButton.disabled = true;
     try{
