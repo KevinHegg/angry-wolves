@@ -221,6 +221,7 @@
   const soundToggle = document.getElementById("soundToggle");
   const gameOverBackdrop = document.getElementById("gameOverBackdrop");
   const restartButton = document.getElementById("restartButton");
+  const shareButton = document.getElementById("shareButton");
   const gameOverTitleEl = document.getElementById("gameOverTitle");
   const gameOverNoteEl = document.getElementById("gameOverNote");
   const missionBriefBackdrop = document.getElementById("missionBriefBackdrop");
@@ -290,6 +291,7 @@
   let particles = [];
   let banner = { text:"", t:0, ttl: 900 };
   let toastTimer = 0;
+  let shareSnapshot = null;
 
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
@@ -691,6 +693,26 @@
   function bestHerdSummary(best){
     if(!best) return "-";
     return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "group"}) · <span class="coinInline small" aria-hidden="true"></span> x ${best.gain}`;
+  }
+  function bestGroupPlain(best){
+    if(!best) return "No big groups yet";
+    return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "group"}) · coin x ${best.gain}`;
+  }
+  function shareUrl(){
+    return "https://kevinhegg.github.io/angry-wolves/";
+  }
+  function captureShareSnapshot(){
+    return {
+      board: clone2(board),
+      overlay: clone2(overlay),
+      rewardMap: clone2(rewardMap),
+      productMap: clone2(productMap),
+      productTokenInfo: new Map(Array.from(productTokenInfo.entries(), ([token, info]) => [token, { ...info }])),
+      missionTitle: mission?.title ?? "Barn Trouble"
+    };
+  }
+  function rememberShareSnapshot(snapshot=captureShareSnapshot()){
+    shareSnapshot = snapshot;
   }
   function compactMissionProgress(){
     if(!mission) return "Start dropping";
@@ -1531,6 +1553,7 @@
         : "The barn got crowded."
     );
     gameOver = true;
+    if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
     setOverlayOpen(gameOverBackdrop, true);
@@ -2061,6 +2084,7 @@
   }
 
   function resolveBoard(){
+    const preResolveSnapshot = captureShareSnapshot();
     let cascadeDepth = 0;
     let totalGain = 0;
     let groupsCleared = 0;
@@ -2134,9 +2158,12 @@
     }
     if(rewardEarned && mission && mission.ready && !mission.done){
       mission.done = true;
-        banner.text = `Reward group cleared. Mission earned: +${mission.cashBonus} coins.`;
+      banner.text = `Reward group cleared. Mission earned: +${mission.cashBonus} coins.`;
       banner.t = performance.now();
+      rememberShareSnapshot(preResolveSnapshot);
       playMissionJingle();
+    } else {
+      rememberShareSnapshot();
     }
     updateHUD();
     return { groupsCleared, totalGain, rewardEarned };
@@ -2521,6 +2548,27 @@
     ctx.closePath();
     ctx.stroke();
   }
+  function roundRectPathFor(targetCtx, x, y, w, h, r){
+    const rr = Math.min(r, w/2, h/2);
+    targetCtx.beginPath();
+    targetCtx.moveTo(x+rr, y);
+    targetCtx.arcTo(x+w, y, x+w, y+h, rr);
+    targetCtx.arcTo(x+w, y+h, x, y+h, rr);
+    targetCtx.arcTo(x, y+h, x, y, rr);
+    targetCtx.arcTo(x, y, x+w, y, rr);
+    targetCtx.closePath();
+  }
+  function roundRectFillFor(targetCtx, x, y, w, h, r, color){
+    roundRectPathFor(targetCtx, x, y, w, h, r);
+    targetCtx.fillStyle = color;
+    targetCtx.fill();
+  }
+  function roundRectStrokeFor(targetCtx, x, y, w, h, r, color, lineWidth=1){
+    roundRectPathFor(targetCtx, x, y, w, h, r);
+    targetCtx.strokeStyle = color;
+    targetCtx.lineWidth = lineWidth;
+    targetCtx.stroke();
+  }
 
   function drawCashoutCoin(gx, gy){
     const cx = gx + cell / 2;
@@ -2838,6 +2886,329 @@
     ctx.restore();
   }
 
+  function drawShareTurdGlyph(targetCtx, cx, cy, s){
+    targetCtx.save();
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy + s * 0.2, s * 0.34, s * 0.2, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(cx, cy - s * 0.02, s * 0.26, s * 0.17, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(cx, cy - s * 0.18, s * 0.17, s * 0.12, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(cx, cy - s * 0.31, s * 0.1, s * 0.08, 0, 0, Math.PI * 2);
+    targetCtx.fillStyle = "#7b4322";
+    targetCtx.fill();
+    targetCtx.globalAlpha = 0.18;
+    targetCtx.fillStyle = "#000";
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx + s * 0.06, cy + s * 0.06, s * 0.24, s * 0.15, -0.3, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.restore();
+  }
+
+  function drawShareCoinGlyph(targetCtx, cx, cy, radius){
+    const gradient = targetCtx.createRadialGradient(cx - radius * 0.28, cy - radius * 0.32, radius * 0.12, cx, cy, radius);
+    gradient.addColorStop(0, "#fff7cf");
+    gradient.addColorStop(0.28, "#ffd76c");
+    gradient.addColorStop(0.66, "#d89b1f");
+    gradient.addColorStop(1, "#8a5400");
+    targetCtx.fillStyle = gradient;
+    targetCtx.beginPath();
+    targetCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.strokeStyle = "rgba(255, 244, 201, 0.76)";
+    targetCtx.lineWidth = Math.max(1, radius * 0.16);
+    targetCtx.beginPath();
+    targetCtx.arc(cx, cy, radius * 0.72, 0, Math.PI * 2);
+    targetCtx.stroke();
+  }
+
+  function drawShareTile(targetCtx, gx, gy, tileSize, tile){
+    const specialMeta = SPECIAL_TILE_META[tile];
+    const missionTile = MISSION_TILES.has(tile);
+    roundRectFillFor(targetCtx, gx+1, gy+1, tileSize-2, tileSize-2, 10, TILE_COLOR[tile] || "#ddd");
+
+    if(specialMeta){
+      targetCtx.save();
+      targetCtx.globalAlpha = 0.16;
+      roundRectFillFor(targetCtx, gx+3, gy+3, tileSize-6, tileSize-6, 10, specialMeta.accent);
+      targetCtx.globalAlpha = 0.92;
+      roundRectStrokeFor(targetCtx, gx+2, gy+2, tileSize-4, tileSize-4, 9, specialMeta.accent, Math.max(2, Math.floor(tileSize*0.08)));
+      const badgeR = Math.max(8, tileSize * 0.14);
+      targetCtx.globalAlpha = 0.98;
+      targetCtx.fillStyle = specialMeta.accent;
+      targetCtx.beginPath();
+      targetCtx.arc(gx + tileSize - badgeR - 4, gy + badgeR + 4, badgeR, 0, Math.PI*2);
+      targetCtx.fill();
+      targetCtx.fillStyle = "#101014";
+      targetCtx.font = `900 ${Math.floor(tileSize*0.22)}px system-ui`;
+      targetCtx.textAlign = "center";
+      targetCtx.textBaseline = "middle";
+      targetCtx.fillText(specialMeta.badge, gx + tileSize - badgeR - 4, gy + badgeR + 5);
+      targetCtx.restore();
+    }
+
+    if(missionTile){
+      roundRectStrokeFor(targetCtx, gx+4, gy+4, tileSize-8, tileSize-8, 8, "rgba(255, 209, 102, 0.95)", Math.max(2, Math.floor(tileSize*0.07)));
+      targetCtx.save();
+      targetCtx.globalAlpha = 0.34;
+      roundRectStrokeFor(targetCtx, gx+7, gy+7, tileSize-14, tileSize-14, 6, "rgba(255, 243, 193, 0.88)", Math.max(1, Math.floor(tileSize*0.035)));
+      targetCtx.restore();
+    }
+
+    roundRectStrokeFor(targetCtx, gx+2, gy+2, tileSize-4, tileSize-4, 9, specialMeta ? specialMeta.accent : "rgba(255,255,255,0.26)", Math.max(1, Math.floor(tileSize*0.05)));
+
+    if(tile === TILE.CASHOUT){
+      drawShareCoinGlyph(targetCtx, gx + tileSize/2, gy + tileSize/2, tileSize * 0.28);
+      return;
+    }
+    if(tile === TILE.SEEDER_TURD){
+      drawShareTurdGlyph(targetCtx, gx + tileSize/2, gy + tileSize/2 + 1, tileSize * 0.68);
+      return;
+    }
+
+    targetCtx.font = `${Math.floor(tileSize*0.62)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+    targetCtx.textAlign = "center";
+    targetCtx.textBaseline = "middle";
+    targetCtx.globalAlpha = 0.18;
+    targetCtx.fillStyle = "#000";
+    targetCtx.fillText(TILE_LABEL[tile] || "?", gx + tileSize/2 + 1, gy + tileSize/2 + 2);
+    targetCtx.globalAlpha = 1;
+    targetCtx.fillStyle = "#fff";
+    targetCtx.fillText(TILE_LABEL[tile] || "?", gx + tileSize/2, gy + tileSize/2 + 1);
+  }
+
+  function drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, aboveTiles=false){
+    targetCtx.save();
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const power = snapshot.overlay[y][x];
+        if(power === POWER.NONE) continue;
+        const hasTile = snapshot.board[y][x] !== TILE.EMPTY;
+        if(aboveTiles !== hasTile) continue;
+        const gx = bx + x * tileSize;
+        const gy = by + y * tileSize;
+        const accent = power === POWER.EGG ? "#ffd84d" : "#ff6a5b";
+        if(!aboveTiles){
+          const bg = power === POWER.EGG ? TILE_COLOR[TILE.SEEDER_EGG] : TILE_COLOR[TILE.SEEDER_TURD];
+          targetCtx.globalAlpha = 0.58;
+          roundRectFillFor(targetCtx, gx+4, gy+4, tileSize-8, tileSize-8, 9, bg);
+          targetCtx.globalAlpha = 0.38;
+          roundRectStrokeFor(targetCtx, gx+4, gy+4, tileSize-8, tileSize-8, 9, accent, Math.max(1, Math.floor(tileSize*0.075)));
+          if(power === POWER.EGG){
+            targetCtx.globalAlpha = 0.9;
+            targetCtx.font = `${Math.floor(tileSize*0.42)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+            targetCtx.textAlign = "center";
+            targetCtx.textBaseline = "middle";
+            targetCtx.fillStyle = "#fff";
+            targetCtx.fillText("🥚", gx + tileSize/2, gy + tileSize/2 + 1);
+          } else {
+            targetCtx.globalAlpha = 0.92;
+            drawShareTurdGlyph(targetCtx, gx + tileSize/2, gy + tileSize/2 + 1, tileSize * 0.62);
+          }
+        } else {
+          const badgeW = Math.max(18, tileSize * 0.32);
+          const badgeH = Math.max(14, tileSize * 0.22);
+          targetCtx.globalAlpha = 0.92;
+          roundRectFillFor(targetCtx, gx + tileSize - badgeW - 4, gy + 4, badgeW, badgeH, 7, accent);
+          if(power === POWER.EGG){
+            targetCtx.fillStyle = "#1d120a";
+            targetCtx.font = `${Math.floor(tileSize*0.17)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+            targetCtx.textAlign = "center";
+            targetCtx.textBaseline = "middle";
+            targetCtx.fillText("🥚", gx + tileSize - badgeW/2 - 4, gy + 4 + badgeH/2 + 1);
+          } else {
+            drawShareTurdGlyph(targetCtx, gx + tileSize - badgeW/2 - 4, gy + 4 + badgeH/2 + 1, badgeH * 1.22);
+          }
+        }
+      }
+    }
+    targetCtx.restore();
+  }
+
+  function drawShareRewardMarkers(targetCtx, snapshot, bx, by, tileSize){
+    targetCtx.save();
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(!snapshot.rewardMap[y][x]) continue;
+        const gx = bx + x * tileSize;
+        const gy = by + y * tileSize;
+        targetCtx.globalAlpha = 0.35;
+        targetCtx.fillStyle = "#ffd86f";
+        targetCtx.beginPath();
+        targetCtx.arc(gx + tileSize/2, gy + tileSize/2, tileSize * 0.36, 0, Math.PI * 2);
+        targetCtx.fill();
+        targetCtx.globalAlpha = 0.9;
+        roundRectStrokeFor(targetCtx, gx + 2, gy + 2, tileSize - 4, tileSize - 4, 10, "rgba(255, 214, 90, 0.9)", Math.max(2, Math.floor(tileSize * 0.07)));
+        roundRectStrokeFor(targetCtx, gx + 6, gy + 6, tileSize - 12, tileSize - 12, 8, "rgba(255, 247, 191, 0.9)", Math.max(1, Math.floor(tileSize * 0.04)));
+        drawShareCoinGlyph(targetCtx, gx + tileSize * 0.78, gy + tileSize * 0.23, tileSize * 0.11);
+      }
+    }
+    targetCtx.restore();
+  }
+
+  function drawShareProductTags(targetCtx, snapshot, bx, by, tileSize){
+    targetCtx.save();
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const token = snapshot.productMap[y][x];
+        if(!token) continue;
+        const info = snapshot.productTokenInfo.get(token);
+        if(!info) continue;
+        const gx = bx + x * tileSize;
+        const gy = by + y * tileSize;
+        const badgeW = Math.max(20, tileSize * 0.34);
+        const badgeH = Math.max(16, tileSize * 0.24);
+        roundRectFillFor(targetCtx, gx + 4, gy + 4, badgeW, badgeH, 7, "rgba(255, 209, 102, 0.98)");
+        targetCtx.fillStyle = "#1d120a";
+        targetCtx.font = `${Math.floor(tileSize*0.18)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+        targetCtx.textAlign = "center";
+        targetCtx.textBaseline = "middle";
+        targetCtx.fillText(info.label, gx + 4 + badgeW/2, gy + 4 + badgeH/2 + 1);
+      }
+    }
+    targetCtx.restore();
+  }
+
+  function drawShareBoard(targetCtx, snapshot, bx, by, tileSize){
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const gx = bx + x * tileSize;
+        const gy = by + y * tileSize;
+        targetCtx.globalAlpha = 0.26;
+        targetCtx.fillStyle = "#f5f7fb";
+        targetCtx.fillRect(gx+2, gy+2, tileSize-4, tileSize-4);
+        targetCtx.globalAlpha = 1;
+      }
+    }
+    drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, false);
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const tile = snapshot.board[y][x];
+        if(tile !== TILE.EMPTY) drawShareTile(targetCtx, bx + x * tileSize, by + y * tileSize, tileSize, tile);
+      }
+    }
+    drawShareRewardMarkers(targetCtx, snapshot, bx, by, tileSize);
+    drawShareProductTags(targetCtx, snapshot, bx, by, tileSize);
+    drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, true);
+  }
+
+  async function buildShareImageBlob(){
+    const snapshot = shareSnapshot || captureShareSnapshot();
+    const card = document.createElement("canvas");
+    card.width = 1200;
+    card.height = 1600;
+    const targetCtx = card.getContext("2d");
+
+    const bg = targetCtx.createLinearGradient(0, 0, 0, card.height);
+    bg.addColorStop(0, "#0b0b10");
+    bg.addColorStop(0.55, "#060608");
+    bg.addColorStop(1, "#040405");
+    targetCtx.fillStyle = bg;
+    targetCtx.fillRect(0, 0, card.width, card.height);
+
+    const outerPad = 64;
+    roundRectFillFor(targetCtx, outerPad, 48, card.width - outerPad*2, card.height - 96, 30, "rgba(9, 9, 14, 0.92)");
+    roundRectStrokeFor(targetCtx, outerPad, 48, card.width - outerPad*2, card.height - 96, 30, "rgba(255,255,255,0.07)", 2);
+
+    const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    const groupScore = Math.max(0, score|0);
+    const totalScore = groupScore + missionBonus;
+
+    targetCtx.fillStyle = "#f2ede2";
+    targetCtx.font = "900 62px system-ui, -apple-system, sans-serif";
+    targetCtx.textAlign = "left";
+    targetCtx.fillText("Angry Wolves", 108, 132);
+
+    targetCtx.fillStyle = "#ffd166";
+    targetCtx.font = "900 46px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(runEndTitle || "Run Over", 108, 190);
+
+    targetCtx.fillStyle = "#f2ede2";
+    targetCtx.font = "700 34px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", 108, 238);
+
+    targetCtx.fillStyle = "#ffd166";
+    targetCtx.font = "900 38px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, 108, 298);
+
+    targetCtx.fillStyle = "#b9af9f";
+    targetCtx.font = "600 25px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, 108, 340);
+    targetCtx.fillText(bestGroupPlain(bestHerd), 108, 376);
+
+    const boardWrapX = 92;
+    const boardWrapY = 430;
+    const boardWrapW = card.width - boardWrapX * 2;
+    const boardWrapH = card.height - boardWrapY - 190;
+    roundRectFillFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "#050507");
+    roundRectStrokeFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "rgba(255,255,255,0.06)", 2);
+    const boardCell = Math.floor(Math.min((boardWrapW - 44) / COLS, (boardWrapH - 44) / ROWS));
+    const boardPixelW = boardCell * COLS;
+    const boardPixelH = boardCell * ROWS;
+    const boardX = Math.floor(boardWrapX + (boardWrapW - boardPixelW) / 2);
+    const boardY = Math.floor(boardWrapY + (boardWrapH - boardPixelH) / 2);
+    drawShareBoard(targetCtx, snapshot, boardX, boardY, boardCell);
+
+    targetCtx.fillStyle = "#7dd3fc";
+    targetCtx.font = "700 24px system-ui, -apple-system, sans-serif";
+    targetCtx.textAlign = "center";
+    targetCtx.fillText(`Play it here: ${shareUrl()}`, card.width / 2, card.height - 74);
+
+    return await new Promise((resolve, reject) => {
+      card.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not build share image.")), "image/png");
+    });
+  }
+
+  async function copyShareText(text){
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.setAttribute("readonly", "");
+    el.style.position = "absolute";
+    el.style.left = "-9999px";
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
+
+  async function shareResults(){
+    const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    const groupScore = Math.max(0, score|0);
+    const totalScore = groupScore + missionBonus;
+    const title = `Angry Wolves · ${mission?.title ?? "Barn Trouble"}`;
+    const text = `${runEndTitle}: ${mission?.title ?? "Barn Trouble"}\n${groupScore} group score + ${missionBonus} bonus = ${totalScore}\nPlay here: ${shareUrl()}`;
+
+    if(shareButton) shareButton.disabled = true;
+    try{
+      if(navigator.share){
+        try{
+          const blob = await buildShareImageBlob();
+          const file = new File([blob], "angry-wolves-result.png", { type: "image/png" });
+          if(navigator.canShare?.({ files: [file] })){
+            await navigator.share({ title, text, files: [file] });
+            return;
+          }
+        }catch{}
+        await navigator.share({ title, text, url: shareUrl() });
+        return;
+      }
+      await copyShareText(text);
+      showToast("Share text copied.", 1450);
+    }catch(err){
+      if(err && err.name === "AbortError") return;
+      try{
+        await copyShareText(text);
+        showToast("Share text copied.", 1450);
+      }catch{
+        showToast("Share failed.", 1450);
+      }
+    }finally{
+      if(shareButton) shareButton.disabled = false;
+    }
+  }
+
   function draw(){
     ctx.clearRect(0,0,W,H);
     roundRectFill(0,0,W,H,18, "#050507");
@@ -3071,6 +3442,9 @@
       restart();
     });
   }
+  if(shareButton){
+    shareButton.addEventListener("click", shareResults);
+  }
   if(missionStartButton){
     missionStartButton.addEventListener("click", closeMissionBriefing);
   }
@@ -3153,6 +3527,7 @@
     setOverlayOpen(missionBriefBackdrop, false);
     next = newPiece();
     spawnNext();
+    rememberShareSnapshot();
     updateHUD();
     openMissionBriefing();
     draw();
@@ -3178,6 +3553,7 @@
 
     next = newPiece();
     spawnNext();
+    rememberShareSnapshot();
 
     updateHUD();
     syncSoundBtn();
