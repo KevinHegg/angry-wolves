@@ -22,23 +22,26 @@ The live mission logic still lives in [`game.js`](/Users/kevinhegg/Documents/ang
 | `Coop Cleanup` | Clear `18` chickens | `Nest Bomber` |
 | `Moo Move` | Clear `16` cows | `Cull Comb` |
 | `Hog Panic` | Clear `18` pigs | `Barn Buster` |
-| `Triple Clear` | Clear `3` big groups | `Cull Comb` |
-| `Quad Clear` | Clear `4` big groups (`12+` animals) | `Barn Buster` |
-| `Chain Starter` | Reach `x2` combo | `Mystery Crate` |
-| `Chain Fever` | Reach `x3` combo | `Mystery Crate` |
-| `Wolf Pop` | Trigger `1` wolf blast | `Barn Buster` |
+| `Quad Clear` | Clear `4` big groups (`13+` animals) | `Barn Buster` |
+| `Chain Fever` | Reach `x4` combo | `Mystery Crate` |
 | `Wolf Rampage` | Trigger `2` wolf blasts | `Barn Buster` |
-| `Sunrise Scramble` | Score `320` coins | `Cull Comb` |
-| `Boot Test` | Reach level `4` | `Barn Buster` |
-| `Jumbo Duo` | Clear `2` jumbo groups | `Cull Comb` |
-| `Flock Forge` | Build a live group of `9` | `Branding Iron` |
-| `Barn Weave` | Build a live group of `10` | `Branding Iron` |
-| `Feed Rush` | Clear `3` big groups | `Feed Wagon` |
+| `Sunrise Scramble` | Score `380` coins | `Cull Comb` |
+| `Barn Weave` | Build a live group of `12` | `Branding Iron` |
+| `Feed Rush` | Clear `4` big groups (`13+` animals) | `Feed Wagon` |
 | `Wool Patrol` | Cash in `2` wool bundles | `Barn Goods` |
 | `Cheese Chase` | Cash in `2` cheese wedges | `Barn Goods` |
 | `Egg Run` | Cash in `2` egg crates | `Barn Goods` |
 | `Milk Run` | Cash in `2` milk bottles | `Barn Goods` |
 | `Pigskin Parade` | Cash in `2` footballs | `Barn Goods` |
+
+## Trimmed From Live Rotation
+
+- `Triple Clear`: too close to `Quad Clear`
+- `Chain Starter`: too easy after cascade conversions
+- `Wolf Pop`: too close to `Wolf Rampage`
+- `Boot Test`: pace-only mission was less flavorful than the others
+- `Jumbo Duo`: too similar to the big-group clear missions once big groups got easier
+- `Flock Forge`: too close to `Barn Weave`
 
 ## Brainstorm: New Mission-Only Tetrads
 

@@ -9,7 +9,7 @@
   const COLS = 10;
   const ROWS = 13;                 // bigger tiles (reduced rows)
   const CLEAR_THRESHOLD = 10;
-  const BIG_GROUP_THRESHOLD = 12;
+  const BIG_GROUP_THRESHOLD = 13;
 
   const BASE_FALL_MS = 650;
   const MIN_FALL_MS  = 120;
@@ -358,28 +358,22 @@
   };
 
   const MISSION_DEFS = [
-    { id:"sheep_roundup", type:"animal", animal:TILE.SHEEP, target:17, bonus:150, special:"bomb", title:"Sheep Sweep" },
-    { id:"goat_roundup", type:"animal", animal:TILE.GOAT, target:17, bonus:150, special:"morph", title:"Goat Evac" },
-    { id:"chicken_roundup", type:"animal", animal:TILE.CHICKEN, target:18, bonus:155, special:"seeder", title:"Coop Cleanup" },
-    { id:"cow_roundup", type:"animal", animal:TILE.COW, target:16, bonus:160, special:"reaper", title:"Moo Move" },
-    { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:155, special:"bomb", title:"Hog Panic" },
-    { id:"clear_three", type:"clears", target:3, bonus:155, special:"reaper", title:"Triple Clear" },
-    { id:"clear_four", type:"clears", target:4, bonus:190, special:"bomb", title:"Quad Clear" },
-    { id:"combo_two", type:"combo", target:2, bonus:185, special:"morph", title:"Chain Starter" },
-    { id:"combo_three", type:"combo", target:3, bonus:240, special:"morph", title:"Chain Fever" },
-    { id:"wolf_once", type:"wolf", target:1, bonus:220, special:"bomb", title:"Wolf Pop" },
-    { id:"wolf_twice", type:"wolf", target:2, bonus:300, special:"bomb", title:"Wolf Rampage" },
-    { id:"score_320", type:"score", target:320, bonus:220, special:"reaper", title:"Sunrise Scramble" },
-    { id:"level_four", type:"level", target:4, bonus:260, special:"bomb", title:"Boot Test" },
-    { id:"big_group_two", type:"big_group", target:2, bonus:210, special:"reaper", title:"Jumbo Duo" },
-    { id:"build_nine", type:"build_group", target:9, bonus:180, special:"brand", title:"Flock Forge" },
-    { id:"build_ten", type:"build_group", target:10, bonus:220, special:"brand", title:"Barn Weave" },
-    { id:"feed_three", type:"clears", target:3, bonus:180, special:"feed", title:"Feed Rush" },
-    { id:"wool_patrol", type:"product", animal:TILE.SHEEP, target:2, bonus:190, special:"produce", title:"Wool Patrol" },
-    { id:"cheese_chase", type:"product", animal:TILE.GOAT, target:2, bonus:190, special:"produce", title:"Cheese Chase" },
-    { id:"egg_run", type:"product", animal:TILE.CHICKEN, target:2, bonus:185, special:"produce", title:"Egg Run" },
-    { id:"milk_run", type:"product", animal:TILE.COW, target:2, bonus:195, special:"produce", title:"Milk Run" },
-    { id:"pigskin_parade", type:"product", animal:TILE.PIG, target:2, bonus:190, special:"produce", title:"Pigskin Parade" }
+    { id:"sheep_roundup", type:"animal", animal:TILE.SHEEP, target:17, bonus:145, special:"bomb", title:"Sheep Sweep" },
+    { id:"goat_roundup", type:"animal", animal:TILE.GOAT, target:17, bonus:145, special:"morph", title:"Goat Evac" },
+    { id:"chicken_roundup", type:"animal", animal:TILE.CHICKEN, target:18, bonus:150, special:"seeder", title:"Coop Cleanup" },
+    { id:"cow_roundup", type:"animal", animal:TILE.COW, target:16, bonus:150, special:"reaper", title:"Moo Move" },
+    { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:150, special:"bomb", title:"Hog Panic" },
+    { id:"clear_four", type:"clears", target:4, bonus:180, special:"bomb", title:"Quad Clear" },
+    { id:"combo_three", type:"combo", target:4, bonus:215, special:"morph", title:"Chain Fever" },
+    { id:"wolf_twice", type:"wolf", target:2, bonus:240, special:"bomb", title:"Wolf Rampage" },
+    { id:"score_320", type:"score", target:380, bonus:210, special:"reaper", title:"Sunrise Scramble" },
+    { id:"build_ten", type:"build_group", target:12, bonus:210, special:"brand", title:"Barn Weave" },
+    { id:"feed_three", type:"clears", target:4, bonus:175, special:"feed", title:"Feed Rush" },
+    { id:"wool_patrol", type:"product", animal:TILE.SHEEP, target:2, bonus:175, special:"produce", title:"Wool Patrol" },
+    { id:"cheese_chase", type:"product", animal:TILE.GOAT, target:2, bonus:175, special:"produce", title:"Cheese Chase" },
+    { id:"egg_run", type:"product", animal:TILE.CHICKEN, target:2, bonus:170, special:"produce", title:"Egg Run" },
+    { id:"milk_run", type:"product", animal:TILE.COW, target:2, bonus:180, special:"produce", title:"Milk Run" },
+    { id:"pigskin_parade", type:"product", animal:TILE.PIG, target:2, bonus:175, special:"produce", title:"Pigskin Parade" }
   ];
 
   // ===== Audio (silent unlock, no popups) =====
@@ -1078,7 +1072,7 @@
 
   function newMission(){
     const def = randChoice(MISSION_DEFS);
-    const tunedBonus = Math.max(90, Math.round(def.bonus * 0.72));
+    const tunedBonus = Math.max(80, Math.round(def.bonus * 0.6));
     return {
       ...def,
       bonus: tunedBonus,
@@ -1134,7 +1128,7 @@
   }
 
   function missionReadyLockBonus(){
-    return 6 + Math.floor(level * 1.5);
+    return 3 + level;
   }
 
   function registerLockCycle(opts={}){
