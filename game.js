@@ -1187,7 +1187,7 @@
     if(!mission) return "The barn is quiet. It will not stay that way.";
     if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.`;
     if(mission.type === "clears") return `Clear enough big groups of ${BIG_GROUP_THRESHOLD} or more animals to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.`;
-    if(mission.type === "combo") return "Build your chain by clearing groups on consecutive settles. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
+    if(mission.type === "combo") return "Build your chain by clearing a group, letting the perimeter flip into nearby animals, and then letting straight gravity trigger another clear. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
     if(mission.type === "wolf") return "Trigger enough wolf blasts to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
     if(mission.type === "score") return "Rack up coins fast. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
     if(mission.type === "level") return "Stay alive long enough to reach the target pace. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
@@ -1295,7 +1295,7 @@
           ? hasRewardCoinOnBoard()
             ? `Combo landed. Clear the pulsing reward group to earn the mission.`
             : `Combo landed. The bonus keeps fattening until the reward coin lands.`
-          : `Best chain this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
+          : `Best cascade this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
       return;
     }
 
@@ -1964,6 +1964,11 @@
     return b;
   }
 
+  function chainBonusForDepth(depth){
+    if(depth <= 1) return 0;
+    return fib(depth + 3);
+  }
+
   // ===== Cluster clearing =====
   function findAnimalGroupsToClear(){
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
@@ -2025,78 +2030,87 @@
     }
   }
 
-  function herdNeighborCount(x, y, animal){
-    let count = 0;
+  function keyForCell(x, y){
+    return `${x},${y}`;
+  }
+
+  function connectedAnimalSizeExcluding(sx, sy, animal, blocked, cache){
+    const startKey = keyForCell(sx, sy);
+    if(cache.has(startKey)) return cache.get(startKey);
+
+    const q = [[sx, sy]];
+    const seen = new Set([startKey]);
+    const cells = [];
+
+    while(q.length){
+      const [x, y] = q.pop();
+      cells.push([x, y]);
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx = x + dx;
+        const ny = y + dy;
+        if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+        const key = keyForCell(nx, ny);
+        if(blocked.has(key) || seen.has(key)) continue;
+        if(board[ny][nx] !== animal) continue;
+        seen.add(key);
+        q.push([nx, ny]);
+      }
+    }
+
+    const size = cells.length;
+    for(const [x, y] of cells) cache.set(keyForCell(x, y), size);
+    return size;
+  }
+
+  function choosePerimeterConversionAnimal(x, y, blocked, cache){
+    const candidateSizes = new Map();
+
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
       const nx = x + dx;
       const ny = y + dy;
       if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
-      if(board[ny][nx] === animal) count++;
+      const key = keyForCell(nx, ny);
+      if(blocked.has(key)) continue;
+      const animal = board[ny][nx];
+      if(!ANIMALS.includes(animal)) continue;
+      const size = connectedAnimalSizeExcluding(nx, ny, animal, blocked, cache);
+      candidateSizes.set(animal, Math.max(candidateSizes.get(animal) || 0, size));
     }
-    return count;
-  }
 
-  function applyHerdNudges(){
-    const moves = [];
-    for(let y=ROWS-1;y>=0;y--){
-      for(let x=0;x<COLS;x++){
-        const animal = board[y][x];
-        if(!ANIMALS.includes(animal)) continue;
-        if(y < ROWS-1 && board[y+1][x] === TILE.EMPTY) continue;
-
-        const currentScore = herdNeighborCount(x, y, animal);
-        let bestMove = null;
-
-        for(const dir of [-1, 1]){
-          const nx = x + dir;
-          if(nx < 0 || nx >= COLS) continue;
-          if(board[y][nx] !== TILE.EMPTY) continue;
-          if(y < ROWS-1 && board[y+1][nx] === TILE.EMPTY) continue;
-          const score = herdNeighborCount(nx, y, animal);
-          if(score <= currentScore) continue;
-          if(!bestMove || score > bestMove.score) bestMove = { fromX: x, toX: nx, y, score };
-        }
-
-        if(bestMove) moves.push(bestMove);
+    let bestSize = 0;
+    let tied = [];
+    for(const [animal, size] of candidateSizes){
+      if(size > bestSize){
+        bestSize = size;
+        tied = [animal];
+      } else if(size === bestSize){
+        tied.push(animal);
       }
     }
 
-    if(!moves.length) return false;
-
-    const claimed = new Set();
-    for(const move of moves){
-      const key = `${move.toX},${move.y}`;
-      if(claimed.has(key)) continue;
-      if(board[move.y][move.fromX] === TILE.EMPTY || board[move.y][move.toX] !== TILE.EMPTY) continue;
-      board[move.y][move.toX] = board[move.y][move.fromX];
-      rewardMap[move.y][move.toX] = rewardMap[move.y][move.fromX];
-      productMap[move.y][move.toX] = productMap[move.y][move.fromX];
-      board[move.y][move.fromX] = TILE.EMPTY;
-      rewardMap[move.y][move.fromX] = false;
-      productMap[move.y][move.fromX] = 0;
-      claimed.add(key);
-    }
-    return claimed.size > 0;
+    if(bestSize <= 0 || !tied.length) return null;
+    return tied.length === 1 ? tied[0] : randChoice(tied);
   }
 
-  function boardSignature(){
-    return board.map((row) => row.join(",")).join("|");
-  }
-
-  function stabilizeBoardAfterGravity(maxPasses=6){
-    const seen = new Set();
-    for(let pass=0; pass<maxPasses; pass++){
-      const signature = boardSignature();
-      if(seen.has(signature)) break;
-      seen.add(signature);
-      if(!applyHerdNudges()) break;
-      applyGravity();
+  function buildClearConversions(clears){
+    const blocked = new Set();
+    for(const group of clears){
+      for(const [x,y] of group.cells) blocked.add(keyForCell(x, y));
     }
+
+    const cache = new Map();
+    const conversions = new Map();
+    for(const group of clears){
+      for(const [x,y] of group.cells){
+        const animal = choosePerimeterConversionAnimal(x, y, blocked, cache);
+        if(animal) conversions.set(keyForCell(x, y), animal);
+      }
+    }
+    return { blocked, conversions };
   }
 
   function settleBoardNow(){
     applyGravity();
-    stabilizeBoardAfterGravity();
   }
 
   function resolveBoard(){
@@ -2110,6 +2124,7 @@
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
       cascadeDepth++;
+      const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
 
       for(const group of clears){
         const { animal, cells } = group;
@@ -2128,7 +2143,6 @@
         }
         if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
         if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
-        if(cascadeDepth > 1) gain += Math.floor(gain * 0.2 * (cascadeDepth - 1));
         if(!bestHerd || cells.length > bestHerd.count || (cells.length === bestHerd.count && gain > bestHerd.gain)){
           bestHerd = { animal, count: cells.length, gain };
         }
@@ -2151,18 +2165,12 @@
         groupsCleared++;
         syncPassiveMissionProgress();
 
-        for(const [x,y] of cells){
-          board[y][x] = TILE.EMPTY;
-          overlay[y][x] = POWER.NONE;
-          rewardMap[y][x] = false;
-          productMap[y][x] = 0;
-        }
-
         herdsCleared++;
         bumpMission("animal", { animal, amount: cells.length });
         bumpMission("clears", 1);
         if(gameOver) break;
-        banner.text = `${cascadeDepth > 1 ? `Cascade ${cascadeDepth}! ` : ""}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
+        const chainTag = cascadeDepth > 1 ? `Chain ${fmtChain(cascadeDepth)}! ` : "";
+        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -2170,8 +2178,28 @@
         haptic(12);
       }
 
+      for(const key of clearedKeys){
+        const [xStr, yStr] = key.split(",");
+        const x = Number(xStr);
+        const y = Number(yStr);
+        board[y][x] = conversions.get(key) || TILE.EMPTY;
+        overlay[y][x] = POWER.NONE;
+        rewardMap[y][x] = false;
+        productMap[y][x] = 0;
+      }
+
       settleBoardNow();
     }
+    const chainBonus = chainBonusForDepth(cascadeDepth);
+    if(chainBonus > 0){
+      score += chainBonus;
+      totalGain += chainBonus;
+      if(!rewardEarned){
+        banner.text = `Chain ${fmtChain(cascadeDepth)} paid out +${chainBonus} bonus coins.`;
+        banner.t = performance.now();
+      }
+    }
+    syncPassiveMissionProgress();
     if(rewardEarned && mission && mission.ready && !mission.done){
       mission.done = true;
       banner.text = `Reward group cleared. Mission earned: +${mission.cashBonus} coins.`;
@@ -2182,7 +2210,7 @@
       rememberShareSnapshot();
     }
     updateHUD();
-    return { groupsCleared, totalGain, rewardEarned };
+    return { groupsCleared, totalGain, rewardEarned, chainDepth: cascadeDepth, chainBonus };
   }
 
   function applyChainResult(summary){
@@ -2191,10 +2219,11 @@
       updateHUD();
       return;
     }
-    currentCombo += summary.groupsCleared;
+    currentCombo = summary.chainDepth || 1;
     bestCombo = Math.max(bestCombo, currentCombo);
     bumpMission("combo", currentCombo);
-    showToast(`🪙 x${summary.totalGain}`, 1850);
+    const chainText = summary.chainDepth > 1 ? ` · ${fmtChain(summary.chainDepth)} +${summary.chainBonus}` : "";
+    showToast(`🪙 x${summary.totalGain}${chainText}`, 1850);
     updateHUD();
   }
 
