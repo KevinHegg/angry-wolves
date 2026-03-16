@@ -27,7 +27,7 @@
       </div>
       <div class="right">
         <div class="score"><span id="score">0</span> <span class="coinInline" aria-hidden="true"></span></div>
-        <div class="meta">Pace <span id="level">1</span> · Herds <span id="clears">0</span> · Chain <span id="combo">x0</span></div>
+        <div class="meta">Pace <span id="level">1</span> · Groups <span id="clears">0</span> · Chain <span id="combo">x0</span></div>
       </div>
       <div id="nextCard" class="planCard">
         <span class="planLabel">Next</span>
@@ -88,7 +88,7 @@
         <div id="comboCard" class="planCard">
           <span class="planLabel">Best Chain</span>
           <span id="comboBest" class="planValue">x0</span>
-          <span class="planHint">Counts herd clears before a settle clears nothing</span>
+          <span class="planHint">Counts group clears before a settle clears nothing</span>
         </div>
       </aside>
     </section>
@@ -138,7 +138,7 @@
           <span id="finalLevel" class="statValue">1</span>
         </div>
         <div class="gameOverStat">
-          <span class="statLabel">Herds</span>
+          <span class="statLabel">Groups</span>
           <span id="finalClears" class="statValue">0</span>
         </div>
         <div class="gameOverStat">
@@ -146,7 +146,7 @@
           <span id="finalCombo" class="statValue">x0</span>
         </div>
         <div class="gameOverStat gameOverStatWide">
-          <span class="statLabel">Largest herd made</span>
+          <span class="statLabel">Largest group made</span>
           <span id="finalBest" class="statValue">-</span>
         </div>
       </div>
@@ -193,11 +193,11 @@
           <div class="gameOverStats">
             <div class="gameOverStat">
               <span class="statLabel">Mission</span>
-              <span class="statValue">Hit the goal, then clear the reward herd</span>
+              <span class="statValue">Hit the goal, then clear the reward group</span>
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Chain</span>
-              <span class="statValue">Every herd clear adds to the chain until a settle clears nothing</span>
+              <span class="statValue">Every group clear adds to the chain until a settle clears nothing</span>
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Touch</span>
