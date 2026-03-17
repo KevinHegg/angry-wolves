@@ -436,7 +436,7 @@ canvas{
   text-shadow: 0 0 10px rgba(255, 209, 102, 0.28);
 }
 .toastLive{
-  animation: toastPop 1.55s cubic-bezier(.2,.8,.2,1) both;
+  animation: toastPop 1.85s cubic-bezier(.2,.8,.2,1) both;
 }
 .toastLive::after{
   content:"";
@@ -449,7 +449,7 @@ canvas{
     radial-gradient(circle at 30% 80%, rgba(125,211,252,0.3) 0 3px, transparent 4px),
     radial-gradient(circle at 82% 72%, rgba(255,243,193,0.38) 0 3px, transparent 4px);
   opacity:0;
-  animation: toastSparkle 1.55s ease-out both;
+  animation: toastSparkle 1.85s ease-out both;
   pointer-events:none;
 }
 .toastLive::before{
@@ -459,7 +459,7 @@ canvas{
   border-radius:14px;
   border:1px solid rgba(255,209,102,0.24);
   opacity:0;
-  animation: toastGlow 1.55s ease-out both;
+  animation: toastGlow 1.85s ease-out both;
   pointer-events:none;
 }
 .hidden{ display:none; }
@@ -873,6 +873,8 @@ canvas{
     gap:4px 10px;
     padding: 8px 0 2px;
     min-height:auto;
+    margin-left:6px;
+    margin-right:auto;
   }
 
   #hud .left{
@@ -951,11 +953,11 @@ canvas{
   }
 
   #stage{
-    width:calc(100vw - 6px);
-    margin-left:auto;
+    width:calc(100vw - 16px);
+    margin-left:6px;
     margin-right:auto;
     min-height: clamp(808px, 90svh, 1080px);
-    justify-content:flex-start;
+    justify-content:center;
     box-sizing:border-box;
     padding-top:56px;
     padding-bottom:2px;

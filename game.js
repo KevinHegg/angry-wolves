@@ -30,9 +30,11 @@
   const ROTATE_ANGLE_MAX = 30;
   const ROTATE_INTENT_ANGLE = 42;
   const ROTATE_SIDE_MIN = 4;
-  const BOARD_CLEAR_ANIM_MS = 250;
-  const BOARD_CONVERT_ANIM_MS = 320;
-  const BOARD_FALL_ANIM_MS = 300;
+  const BOARD_CLEAR_ANIM_MS = 330;
+  const BOARD_CONVERT_ANIM_MS = 420;
+  const BOARD_FALL_ANIM_MS = 360;
+  const SHARE_GRID_COLS = 6;
+  const SHARE_GRID_ROWS = 6;
 
   // special spawn weights
   const WEIGHT_NORMAL = 0.88;
@@ -313,6 +315,7 @@
   let boardAnimations = [];
   let banner = { text:"", t:0, ttl: 900 };
   let toastTimer = 0;
+  let pendingGameOverRevealTimer = 0;
   let shareSnapshot = null;
   let lastMissionMeterAudio = null;
   let pendingTap = null;
@@ -1728,6 +1731,10 @@
   }
 
   function gameOverNow(opts={}){
+    if(pendingGameOverRevealTimer){
+      clearTimeout(pendingGameOverRevealTimer);
+      pendingGameOverRevealTimer = 0;
+    }
     runEndTitle = opts.title ?? "Run Over";
     runEndNote = opts.note ?? (
       mission && mission.ready && !mission.done
@@ -1737,12 +1744,24 @@
     gameOver = true;
     rewardCountdown = null;
     pendingTap = null;
-    boardAnimations = [];
     nextSpawnAt = 0;
     if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
-    setOverlayOpen(gameOverBackdrop, true);
+    const boardWaitMs = opts.waitForBoard === false ? 0 : Math.max(0, boardAnimationEndsAt() - performance.now());
+    const revealDelay = opts.delayMs ?? (boardWaitMs > 0 ? boardWaitMs + 120 : 0);
+    const reveal = () => {
+      pendingGameOverRevealTimer = 0;
+      updateGameOverStats();
+      setOverlayOpen(gameOverBackdrop, true);
+      draw();
+    };
+    if(revealDelay > 0){
+      pendingGameOverRevealTimer = window.setTimeout(reveal, revealDelay);
+    } else {
+      reveal();
+      return;
+    }
     draw();
   }
 
@@ -1753,6 +1772,10 @@
 
   function openGameOverPanel(){
     if(!gameOver) return;
+    if(pendingGameOverRevealTimer){
+      clearTimeout(pendingGameOverRevealTimer);
+      pendingGameOverRevealTimer = 0;
+    }
     updateGameOverStats();
     setOverlayOpen(gameOverBackdrop, true);
     draw();
@@ -2231,6 +2254,18 @@
     return fib(depth + 3);
   }
 
+  function herdSizeBonus(count){
+    if(count < CLEAR_THRESHOLD) return 0;
+    const step = count - CLEAR_THRESHOLD;
+    if(step <= 7) return fib(step + 3);
+
+    let bonus = 55;
+    for(let extra = 1; extra <= step - 7; extra++){
+      bonus += 5 * (extra + 1);
+    }
+    return bonus;
+  }
+
   // ===== Cluster clearing =====
   function findAnimalGroupsToClear(){
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
@@ -2400,9 +2435,9 @@
         const { animal, cells } = group;
         let gain = cells.length;
 
-        if(cells.length >= 11){
-          const bonusIndex = cells.length - 8; // 11->3 => fib(3)=2
-          gain += fib(bonusIndex);
+        const herdBonus = herdSizeBonus(cells.length);
+        if(herdBonus > 0){
+          gain += herdBonus;
           bumpMission("big_group", 1);
         }
 
@@ -2487,7 +2522,7 @@
           fromY: move.fromY,
           toY: move.toY,
           tile: move.tile,
-          duration: BOARD_FALL_ANIM_MS + Math.max(0, move.toY - move.fromY) * 26
+          duration: BOARD_FALL_ANIM_MS + Math.max(0, move.toY - move.fromY) * 32
         });
       }
       if(resolveFx.length){
@@ -2535,7 +2570,7 @@
     bestCombo = Math.max(bestCombo, currentCombo);
     bumpMission("combo", currentCombo);
     const chainText = summary.chainDepth > 1 ? ` · ${fmtChain(summary.chainDepth)} +${summary.chainBonus}` : "";
-    showToast(`🪙 x${summary.totalGain}${chainText}`, 1850);
+    showToast(`🪙 x${summary.totalGain}${chainText}`, 2150);
     updateHUD();
   }
 
@@ -3447,16 +3482,54 @@
     targetCtx.fillText(TILE_LABEL[tile] || "?", gx + tileSize/2, gy + tileSize/2 + 1);
   }
 
-  function drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, aboveTiles=false){
-    targetCtx.save();
+  function computeShareViewport(snapshot, cols=SHARE_GRID_COLS, rows=SHARE_GRID_ROWS){
+    const viewport = { left:0, top:0, cols:Math.min(cols, COLS), rows:Math.min(rows, ROWS) };
+    let minX = COLS;
+    let minY = ROWS;
+    let maxX = -1;
+    let maxY = -1;
+
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
+        if(
+          snapshot.board[y][x] !== TILE.EMPTY ||
+          snapshot.overlay[y][x] !== POWER.NONE ||
+          snapshot.rewardMap[y][x] ||
+          snapshot.productMap[y][x]
+        ){
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+
+    if(maxX < 0 || maxY < 0){
+      viewport.left = Math.max(0, Math.floor((COLS - viewport.cols) / 2));
+      viewport.top = Math.max(0, Math.floor((ROWS - viewport.rows) / 2));
+      return viewport;
+    }
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    viewport.left = clamp(Math.round(centerX - (viewport.cols - 1) / 2), 0, Math.max(0, COLS - viewport.cols));
+    viewport.top = clamp(Math.round(centerY - (viewport.rows - 1) / 2), 0, Math.max(0, ROWS - viewport.rows));
+    return viewport;
+  }
+
+  function drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, aboveTiles=false, viewport={ left:0, top:0, cols:COLS, rows:ROWS }){
+    targetCtx.save();
+    for(let vy=0;vy<viewport.rows;vy++){
+      for(let vx=0;vx<viewport.cols;vx++){
+        const x = viewport.left + vx;
+        const y = viewport.top + vy;
         const power = snapshot.overlay[y][x];
         if(power === POWER.NONE) continue;
         const hasTile = snapshot.board[y][x] !== TILE.EMPTY;
         if(aboveTiles !== hasTile) continue;
-        const gx = bx + x * tileSize;
-        const gy = by + y * tileSize;
+        const gx = bx + vx * tileSize;
+        const gy = by + vy * tileSize;
         const accent = power === POWER.EGG ? "#ffd84d" : "#ff6a5b";
         if(!aboveTiles){
           const bg = power === POWER.EGG ? TILE_COLOR[TILE.SEEDER_EGG] : TILE_COLOR[TILE.SEEDER_TURD];
@@ -3495,13 +3568,15 @@
     targetCtx.restore();
   }
 
-  function drawShareRewardMarkers(targetCtx, snapshot, bx, by, tileSize){
+  function drawShareRewardMarkers(targetCtx, snapshot, bx, by, tileSize, viewport={ left:0, top:0, cols:COLS, rows:ROWS }){
     targetCtx.save();
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
+    for(let vy=0;vy<viewport.rows;vy++){
+      for(let vx=0;vx<viewport.cols;vx++){
+        const x = viewport.left + vx;
+        const y = viewport.top + vy;
         if(!snapshot.rewardMap[y][x]) continue;
-        const gx = bx + x * tileSize;
-        const gy = by + y * tileSize;
+        const gx = bx + vx * tileSize;
+        const gy = by + vy * tileSize;
         targetCtx.globalAlpha = 0.35;
         targetCtx.fillStyle = "#ffd86f";
         targetCtx.beginPath();
@@ -3516,16 +3591,18 @@
     targetCtx.restore();
   }
 
-  function drawShareProductTags(targetCtx, snapshot, bx, by, tileSize){
+  function drawShareProductTags(targetCtx, snapshot, bx, by, tileSize, viewport={ left:0, top:0, cols:COLS, rows:ROWS }){
     targetCtx.save();
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
+    for(let vy=0;vy<viewport.rows;vy++){
+      for(let vx=0;vx<viewport.cols;vx++){
+        const x = viewport.left + vx;
+        const y = viewport.top + vy;
         const token = snapshot.productMap[y][x];
         if(!token) continue;
         const info = snapshot.productTokenInfo.get(token);
         if(!info) continue;
-        const gx = bx + x * tileSize;
-        const gy = by + y * tileSize;
+        const gx = bx + vx * tileSize;
+        const gy = by + vy * tileSize;
         const badgeW = Math.max(20, tileSize * 0.34);
         const badgeH = Math.max(16, tileSize * 0.24);
         roundRectFillFor(targetCtx, gx + 4, gy + 4, badgeW, badgeH, 7, "rgba(255, 209, 102, 0.98)");
@@ -3539,34 +3616,36 @@
     targetCtx.restore();
   }
 
-  function drawShareBoard(targetCtx, snapshot, bx, by, tileSize){
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
-        const gx = bx + x * tileSize;
-        const gy = by + y * tileSize;
+  function drawShareBoard(targetCtx, snapshot, bx, by, tileSize, viewport={ left:0, top:0, cols:COLS, rows:ROWS }){
+    for(let vy=0;vy<viewport.rows;vy++){
+      for(let vx=0;vx<viewport.cols;vx++){
+        const gx = bx + vx * tileSize;
+        const gy = by + vy * tileSize;
         targetCtx.globalAlpha = 0.26;
         targetCtx.fillStyle = "#f5f7fb";
         targetCtx.fillRect(gx+2, gy+2, tileSize-4, tileSize-4);
         targetCtx.globalAlpha = 1;
       }
     }
-    drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, false);
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
+    drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, false, viewport);
+    for(let vy=0;vy<viewport.rows;vy++){
+      for(let vx=0;vx<viewport.cols;vx++){
+        const x = viewport.left + vx;
+        const y = viewport.top + vy;
         const tile = snapshot.board[y][x];
-        if(tile !== TILE.EMPTY) drawShareTile(targetCtx, bx + x * tileSize, by + y * tileSize, tileSize, tile);
+        if(tile !== TILE.EMPTY) drawShareTile(targetCtx, bx + vx * tileSize, by + vy * tileSize, tileSize, tile);
       }
     }
-    drawShareRewardMarkers(targetCtx, snapshot, bx, by, tileSize);
-    drawShareProductTags(targetCtx, snapshot, bx, by, tileSize);
-    drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, true);
+    drawShareRewardMarkers(targetCtx, snapshot, bx, by, tileSize, viewport);
+    drawShareProductTags(targetCtx, snapshot, bx, by, tileSize, viewport);
+    drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, true, viewport);
   }
 
   async function buildShareImageBlob(){
     const snapshot = shareSnapshot || captureShareSnapshot();
     const card = document.createElement("canvas");
-    card.width = 1200;
-    card.height = 1600;
+    card.width = 1080;
+    card.height = 1240;
     const targetCtx = card.getContext("2d");
 
     const bg = targetCtx.createLinearGradient(0, 0, 0, card.height);
@@ -3576,57 +3655,58 @@
     targetCtx.fillStyle = bg;
     targetCtx.fillRect(0, 0, card.width, card.height);
 
-    const outerPad = 64;
-    roundRectFillFor(targetCtx, outerPad, 48, card.width - outerPad*2, card.height - 96, 30, "rgba(9, 9, 14, 0.92)");
-    roundRectStrokeFor(targetCtx, outerPad, 48, card.width - outerPad*2, card.height - 96, 30, "rgba(255,255,255,0.07)", 2);
+    const outerPad = 56;
+    roundRectFillFor(targetCtx, outerPad, 40, card.width - outerPad*2, card.height - 80, 28, "rgba(9, 9, 14, 0.92)");
+    roundRectStrokeFor(targetCtx, outerPad, 40, card.width - outerPad*2, card.height - 80, 28, "rgba(255,255,255,0.07)", 2);
 
     const missionBonus = mission && mission.done ? mission.cashBonus : 0;
     const groupScore = Math.max(0, score|0);
     const totalScore = groupScore + missionBonus;
+    const shareViewport = computeShareViewport(snapshot);
 
     targetCtx.fillStyle = "#f2ede2";
-    targetCtx.font = "900 62px system-ui, -apple-system, sans-serif";
+    targetCtx.font = "900 54px system-ui, -apple-system, sans-serif";
     targetCtx.textAlign = "left";
-    targetCtx.fillText("Angry Wolves", 108, 132);
+    targetCtx.fillText("Angry Wolves", 94, 118);
 
     targetCtx.fillStyle = "#ffd166";
-    targetCtx.font = "900 46px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(runEndTitle || "Run Over", 108, 190);
-
-    targetCtx.fillStyle = "#7dd3fc";
-    targetCtx.font = "700 27px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(shareBragLine(), 108, 232);
-
-    targetCtx.fillStyle = "#f2ede2";
-    targetCtx.font = "700 34px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", 108, 286);
-
-    targetCtx.fillStyle = "#ffd166";
-    targetCtx.font = "900 38px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, 108, 342);
-
-    targetCtx.fillStyle = "#b9af9f";
-    targetCtx.font = "600 25px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, 108, 384);
-    targetCtx.fillText(bestGroupPlain(bestHerd), 108, 420);
-
-    const boardWrapX = 92;
-    const boardWrapY = 474;
-    const boardWrapW = card.width - boardWrapX * 2;
-    const boardWrapH = card.height - boardWrapY - 190;
-    roundRectFillFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "#050507");
-    roundRectStrokeFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "rgba(255,255,255,0.06)", 2);
-    const boardCell = Math.floor(Math.min((boardWrapW - 44) / COLS, (boardWrapH - 44) / ROWS));
-    const boardPixelW = boardCell * COLS;
-    const boardPixelH = boardCell * ROWS;
-    const boardX = Math.floor(boardWrapX + (boardWrapW - boardPixelW) / 2);
-    const boardY = Math.floor(boardWrapY + (boardWrapH - boardPixelH) / 2);
-    drawShareBoard(targetCtx, snapshot, boardX, boardY, boardCell);
+    targetCtx.font = "900 40px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(runEndTitle || "Run Over", 94, 168);
 
     targetCtx.fillStyle = "#7dd3fc";
     targetCtx.font = "700 24px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(shareBragLine(), 94, 206);
+
+    targetCtx.fillStyle = "#f2ede2";
+    targetCtx.font = "700 30px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", 94, 252);
+
+    targetCtx.fillStyle = "#ffd166";
+    targetCtx.font = "900 34px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, 94, 302);
+
+    targetCtx.fillStyle = "#b9af9f";
+    targetCtx.font = "600 22px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, 94, 344);
+    targetCtx.fillText(bestGroupPlain(bestHerd), 94, 378);
+
+    const boardWrapX = 80;
+    const boardWrapY = 428;
+    const boardWrapW = card.width - boardWrapX * 2;
+    const boardWrapH = card.height - boardWrapY - 156;
+    roundRectFillFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "#050507");
+    roundRectStrokeFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "rgba(255,255,255,0.06)", 2);
+    const boardCell = Math.floor(Math.min((boardWrapW - 40) / shareViewport.cols, (boardWrapH - 40) / shareViewport.rows));
+    const boardPixelW = boardCell * shareViewport.cols;
+    const boardPixelH = boardCell * shareViewport.rows;
+    const boardX = Math.floor(boardWrapX + (boardWrapW - boardPixelW) / 2);
+    const boardY = Math.floor(boardWrapY + (boardWrapH - boardPixelH) / 2);
+    drawShareBoard(targetCtx, snapshot, boardX, boardY, boardCell, shareViewport);
+
+    targetCtx.fillStyle = "#7dd3fc";
+    targetCtx.font = "700 22px system-ui, -apple-system, sans-serif";
     targetCtx.textAlign = "center";
-    targetCtx.fillText(`Play it here: ${shareUrl()}`, card.width / 2, card.height - 74);
+    targetCtx.fillText(`Play it here: ${shareUrl()}`, card.width / 2, card.height - 62);
 
     return await new Promise((resolve, reject) => {
       card.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not build share image.")), "image/png");
@@ -4019,7 +4099,12 @@
     lastFrameTime = now;
     flushPendingTap(now);
     stepBoardAnimations(now);
-    if(paused || gameOver) return;
+    if(paused || gameOver){
+      if(particles.length || boardAnimations.length || (mission && mission.ready && !mission.done && hasRewardCoinOnBoard()) || pendingGameOverRevealTimer){
+        draw();
+      }
+      return;
+    }
 
     if(!current && nextSpawnAt && now >= nextSpawnAt){
       nextSpawnAt = 0;
@@ -4055,6 +4140,10 @@
 
   // ===== Restart =====
   function restart(){
+    if(pendingGameOverRevealTimer){
+      clearTimeout(pendingGameOverRevealTimer);
+      pendingGameOverRevealTimer = 0;
+    }
     clearHoldTouchTimer();
     gesture = null;
     board = makeBoard();
@@ -4117,6 +4206,7 @@
     pendingTap = null;
     boardAnimations = [];
     nextSpawnAt = 0;
+    pendingGameOverRevealTimer = 0;
 
     next = newPiece();
     spawnNext();
