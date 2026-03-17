@@ -68,9 +68,76 @@ html,body{
 #gear:active,
 #helpButton:active{ transform: translateY(1px); }
 
-.title .h1{ font-weight:900; letter-spacing:0.3px; font-size:18px; }
+.title .h1{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-weight:900;
+  letter-spacing:0.3px;
+  font-size:18px;
+}
+.title .h1 .titleText{
+  background: linear-gradient(180deg, #fff8ef 0%, #f2ede2 58%, #d8c8ac 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  text-shadow: 0 0 16px rgba(255, 209, 102, 0.08);
+}
+.wolfBadge{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:1.08em;
+  height:1.08em;
+  border-radius:999px;
+  background: radial-gradient(circle at 32% 26%, #ffdca8 0 12%, #c29c69 18%, #6b7486 60%, #232731 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.12),
+    0 0 0 1px rgba(0,0,0,0.42),
+    0 6px 14px rgba(0,0,0,0.32);
+  overflow:hidden;
+  transform-origin:center;
+  animation:wolfSnarl 2.8s ease-in-out infinite;
+}
+.wolfBadge::before,
+.wolfBadge::after{
+  content:"";
+  position:absolute;
+  top:0.28em;
+  width:0.34em;
+  height:0.08em;
+  border-radius:999px;
+  background:rgba(24, 17, 15, 0.92);
+  z-index:2;
+}
+.wolfBadge::before{
+  left:0.18em;
+  transform:rotate(26deg);
+}
+.wolfBadge::after{
+  right:0.18em;
+  transform:rotate(-26deg);
+}
+.wolfBadgeEmoji{
+  position:relative;
+  z-index:1;
+  font-size:0.78em;
+  line-height:1;
+  transform:translateY(0.03em);
+  filter:saturate(1.08) contrast(1.06);
+}
 .title{ padding-top:0; }
 .title .sub{ margin-top:3px; font-size:12px; color: var(--muted); max-width: 30ch; }
+
+@keyframes wolfSnarl{
+  0%, 100%{
+    transform:translateY(0) rotate(-6deg) scale(1);
+  }
+  50%{
+    transform:translateY(-1px) rotate(4deg) scale(1.04);
+  }
+}
 
 #hud .right{ text-align:right; min-width: 160px; font-variant-numeric: tabular-nums; }
 .score{ font-weight:900; color: var(--accent); font-size:18px; }

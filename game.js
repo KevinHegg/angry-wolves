@@ -33,6 +33,7 @@
   const BOARD_CLEAR_ANIM_MS = 330;
   const BOARD_CONVERT_ANIM_MS = 420;
   const BOARD_FALL_ANIM_MS = 360;
+  const RUN_END_REVEAL_MIN_MS = 2600;
   const SHARE_GRID_COLS = 6;
   const SHARE_GRID_ROWS = 6;
 
@@ -295,7 +296,7 @@
   let bestHerd = null;
   let holdUsed = false;
   let mission = null;
-  let runEndTitle = "Run Over";
+  let runEndTitle = "Run Over 🐺";
   let runEndNote = "The barn got crowded.";
   let missionSpecialCharge = 0;
   let missionSpecialPending = false;
@@ -1783,12 +1784,30 @@
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
   }
 
+  function defaultRunEndTitle(){
+    if(mission && mission.done) return "Mission Succeeded! 🐺";
+    if(mission && mission.ready && !mission.done) return "Mission Failed 💥";
+    return "Run Over 🐺";
+  }
+
+  function defaultRunEndNote(){
+    return mission && mission.ready && !mission.done
+      ? `You had +${mission.cashBonus} coins on the line, but the barn buried the coin before you could earn them.`
+      : "The barn got crowded.";
+  }
+
+  function runEndPulseLine(){
+    if(mission && mission.done) return "Coins banked. Let the barn settle.";
+    if(mission && mission.ready && !mission.done) return "No bonus this time. Let the barn settle.";
+    return "Let the barn settle...";
+  }
+
   function finishMissionEarned(){
     rewardCountdown = null;
     updateHUD();
     gameOverNow({
-      title: "Mission Earned",
-      note: `${mission.title} earned +${mission.cashBonus} coins after the reward group cleared.`,
+      title: "Mission Succeeded! 🐺",
+      note: `${mission.title} paid out +${mission.cashBonus} coins after the reward group cleared.`,
       playSound: false
     });
   }
@@ -1798,12 +1817,8 @@
       clearTimeout(pendingGameOverRevealTimer);
       pendingGameOverRevealTimer = 0;
     }
-    runEndTitle = opts.title ?? "Run Over";
-    runEndNote = opts.note ?? (
-      mission && mission.ready && !mission.done
-        ? `You had +${mission.cashBonus} coins on the line, but the barn buried the coin before you could earn them.`
-        : "The barn got crowded."
-    );
+    runEndTitle = opts.title ?? defaultRunEndTitle();
+    runEndNote = opts.note ?? defaultRunEndNote();
     gameOver = true;
     rewardCountdown = null;
     pendingTap = null;
@@ -1812,7 +1827,7 @@
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
     const boardWaitMs = opts.waitForBoard === false ? 0 : Math.max(0, boardAnimationEndsAt() - performance.now());
-    const revealDelay = opts.delayMs ?? Math.max(1000, boardWaitMs + 120);
+    const revealDelay = opts.delayMs ?? Math.max(RUN_END_REVEAL_MIN_MS, boardWaitMs + 220);
     const reveal = () => {
       pendingGameOverRevealTimer = 0;
       updateGameOverStats();
@@ -1958,7 +1973,7 @@
       return false;
     }
     gameOverNow({
-      title: "Reward Clock Expired",
+      title: "Mission Failed 💥",
       note: `The reward coin survived the full ${REWARD_COUNTDOWN_START}-settle clock, so the barn shut the gates before you could cash it in.`
     });
     return true;
@@ -4011,7 +4026,7 @@
       ctx.fillText(runEndTitle || "Game Over", W / 2, panelY + panelH * 0.42);
       ctx.fillStyle = `rgba(125, 211, 252, ${0.8 + 0.2 * pulse})`;
       ctx.font = `700 ${Math.floor(13 * dpr)}px system-ui, -apple-system, sans-serif`;
-      ctx.fillText("Settling the barn...", W / 2, panelY + panelH * 0.72);
+      ctx.fillText(runEndPulseLine(), W / 2, panelY + panelH * 0.72);
       ctx.restore();
     }
 
@@ -4364,7 +4379,7 @@
     queuedMissionSpecial = null;
     cashoutCharge = 0;
     rewardCountdown = null;
-    runEndTitle = "Run Over";
+    runEndTitle = "Run Over 🐺";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
     bestHerd = null;
