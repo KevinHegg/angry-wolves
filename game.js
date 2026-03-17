@@ -1812,7 +1812,7 @@
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
     const boardWaitMs = opts.waitForBoard === false ? 0 : Math.max(0, boardAnimationEndsAt() - performance.now());
-    const revealDelay = opts.delayMs ?? (boardWaitMs > 0 ? boardWaitMs + 120 : 0);
+    const revealDelay = opts.delayMs ?? Math.max(1000, boardWaitMs + 120);
     const reveal = () => {
       pendingGameOverRevealTimer = 0;
       updateGameOverStats();
@@ -3883,7 +3883,7 @@
     targetCtx.fillText(`Play it here: ${shareUrl()}`, card.width / 2, card.height - 62);
 
     return await new Promise((resolve, reject) => {
-      card.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not build share image.")), "image/png");
+      card.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not build share image.")), "image/jpeg", 0.9);
     });
   }
 
@@ -3913,16 +3913,28 @@
     if(shareButton) shareButton.disabled = true;
     try{
       if(navigator.share){
+        let file = null;
         try{
           const blob = await buildShareImageBlob();
-          const file = new File([blob], "angry-wolves-result.png", { type: "image/png" });
-          if(navigator.canShare?.({ files: [file] })){
-            await navigator.share({ title, text, files: [file] });
-            return;
-          }
+          file = new File([blob], "angry-wolves-result.jpg", { type: blob.type || "image/jpeg" });
         }catch{}
-        await navigator.share({ title, text, url: shareUrl() });
-        return;
+
+        const shareAttempts = [];
+        if(file && (!navigator.canShare || navigator.canShare({ files: [file] }))){
+          shareAttempts.push(() => navigator.share({ title, text, files: [file] }));
+          shareAttempts.push(() => navigator.share({ title, files: [file] }));
+        }
+        shareAttempts.push(() => navigator.share({ title, text }));
+        shareAttempts.push(() => navigator.share({ title, text, url: shareUrl() }));
+
+        for(const attempt of shareAttempts){
+          try{
+            await attempt();
+            return;
+          }catch(err){
+            if(err && err.name === "AbortError") return;
+          }
+        }
       }
       await copyShareText(text);
       showToast("Share text copied.", 1450);
