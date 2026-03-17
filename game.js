@@ -1135,10 +1135,7 @@
     el.innerHTML = entries.map((entry, idx) => `
       <div class="helpSpecialCard">
         <div id="${entry.id}-${idx}" class="previewGrid helpSpecialPreview"></div>
-        <div class="helpSpecialCopy">
-          <div class="helpSpecialName">${entry.name}</div>
-          <div class="helpSpecialText">${entry.text}</div>
-        </div>
+        <p class="helpText"><b>${entry.name}</b> ${entry.text}</p>
       </div>
     `).join("");
     entries.forEach((entry, idx) => {
@@ -1151,13 +1148,13 @@
       {
         id: "help-wolf",
         name: "Wolf Pack",
-        text: "These are real trouble. When they settle, they blast nearby settled tiles. If they whiff completely, they still leave one rude 💩 behind.",
+        text: "2x2 trouble piece. When it settles, it blasts nearby settled tiles. If it whiffs completely, it still leaves one rude 💩 behind.",
         piece: helpPieceFromSpec(SPECIAL.WOLVES_2, "WOLVES")
       },
       {
         id: "help-blacksheep",
         name: "Black Sheep",
-        text: "These are wild cards, not trouble. They convert into the neighboring animal they fit best. If they land isolated, they leave an egg behind before joining at random.",
+        text: "2x2 wild card. It joins the neighboring animal it fits best. If it lands isolated, it leaves a 🥚 behind before joining at random.",
         piece: helpPieceFromSpec(SPECIAL.BLACKSHEEP_2, "BLACKSHEEP")
       }
     ]);
@@ -1166,49 +1163,49 @@
       {
         id: "help-bomb",
         name: "Barn Buster",
-        text: "Mission-only square tetrad with the shared gold mission frame. It blows up nearby settled tiles when it lands.",
+        text: "2x2 gold-frame square. It blows up nearby settled tiles when it lands.",
         piece: helpPieceFromSpec(SPECIAL.BOMB_T, "MISSION_BOMB")
       },
       {
         id: "help-reaper",
         name: "Cull Comb",
-        text: "Mission-only tetrad with the shared gold mission frame. It removes the biggest group currently on the board, then turns into the touching animal so you can place it usefully.",
+        text: "Gold-frame line. It removes the biggest group on the board, then turns into the touched animal so you can place it usefully.",
         piece: helpPieceFromSpec(SPECIAL.REAPER_I, "MISSION_REAPER")
       },
       {
         id: "help-morph",
         name: "Mystery Crate",
-        text: "Mission-only tetrad with the shared gold mission frame. It turns into the first nearby animal it matches.",
+        text: "Gold-frame L. It turns into the first nearby animal it matches.",
         piece: helpPieceFromSpec(SPECIAL.MORPH_L, "MISSION_MORPH")
       },
       {
         id: "help-seeder",
         name: "Nest Bomber",
-        text: "Mission-only tetrad with the shared gold mission frame. It spawns with a random egg-and-turd mix, then scatters that same mix around its landing zone.",
+        text: "Gold-frame zigzag. It spawns with a random mix of 🥚 and 💩, then scatters that same mix around its landing zone.",
         piece: createSeederPreviewPiece()
       },
       {
         id: "help-brand",
         name: "Branding Iron",
-        text: "Mission-only tetrad with the shared gold mission frame. It becomes the touched animal and converts nearby animals to match, helping build groups.",
+        text: "Gold-frame T. It becomes the touched animal and converts nearby animals to match.",
         piece: helpPieceFromSpec(SPECIAL.BRAND_T, "MISSION_BRAND")
       },
       {
         id: "help-feed",
         name: "Feed Wagon",
-        text: "Mission-only tetrad with the shared gold mission frame. It becomes the touched animal and scatters only eggs around itself.",
+        text: "Gold-frame L. It becomes the touched animal and scatters only 🥚 around itself.",
         piece: helpPieceFromSpec(SPECIAL.FEED_L, "MISSION_FEED")
       },
       {
         id: "help-produce",
         name: "Barn Goods",
-        text: "Mission-only tetrad with the shared gold mission frame. Its icon changes by mission: wool, cheese, eggs, milk, or footballs. Land it on the matching producer to tag that group and leave an egg; miss and it leaves a turd before joining whatever it touched.",
+        text: "Gold-frame mission crate. Its icon changes by mission. Land it on the right producer to tag that group and leave a 🥚; miss and it leaves a 💩 before joining whatever it touched.",
         piece: createProducePreviewPiece(TILE.COW)
       },
       {
         id: "help-cashout",
         name: "Reward Coin",
-        text: "Mission-only reward piece with the shared gold mission frame. Once it lands, you get 10 settles to clear its pulsing group or the run ends.",
+        text: "Gold-frame reward piece. Once it lands, the mission meter becomes a 10-settle countdown. Clear its pulsing herd before 0 or the run ends.",
         piece: helpPieceFromSpec(SPECIAL.CASHOUT_1, "MISSION_CASHOUT")
       }
     ]);
@@ -3923,7 +3920,7 @@
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
     if(!helpPrimary) return;
-    helpPrimary.innerHTML = "<b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ on left/right half = rotate · double tap or press and hold = swap";
+    helpPrimary.innerHTML = "<b>Touch:</b> tap side = ←/→ · drag = move · drag ↓ = drop · swipe ↑ left/right = ↺/↻ · double tap or hold = swap with Next";
   }
 
   // ===== Settings toggle (simple) =====

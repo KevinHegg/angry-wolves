@@ -101,16 +101,16 @@
 
     <footer id="help">
       <div>
-        <b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ on left/right half = rotate · double tap or press and hold = swap
+        <b>Touch:</b> tap side = ←/→ · drag = move · drag ↓ = drop · swipe ↑ left/right = ↺/↻ · double tap or hold = swap with Next
       </div>
-      <div class="legend">🥚 double · <span class="danger">💩 half</span> · Space = slam</div>
+      <div class="legend">🥚 x2 · <span class="danger">💩 ÷2</span> · Space/F = slam</div>
     </footer>
   </div>
 
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings (v0.1)</h2>
+      <h2>Settings (v0.2)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -195,38 +195,57 @@
     <div class="modal helpModal">
       <h2>How To Play</h2>
       <div class="helpScroll">
-        <div class="note gameOverNote">
-          Build groups of 10 or more matching animals to clear them and earn coins.
-        </div>
-        <div class="helpSection">
-          <div class="helpSectionTitle">Core Rules</div>
-          <div class="gameOverStats">
-            <div class="gameOverStat">
-              <span class="statLabel">Mission</span>
-              <span class="statValue">Hit the goal, then clear the reward group before the 10-settle clock expires</span>
-            </div>
-            <div class="gameOverStat">
-              <span class="statLabel">Chain</span>
-              <span class="statValue">Clears flip touching tiles, then straight gravity can trigger more clears. x2 = +5, x3 = +8, x4 = +13, then it keeps climbing in Fibonacci style.</span>
-            </div>
-            <div class="gameOverStat">
-              <span class="statLabel">Touch</span>
-              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe straight up on the left or right half to rotate · double tap or press and hold to swap with Next</span>
-            </div>
-            <div class="gameOverStat">
-              <span class="statLabel">Mission Pace</span>
-              <span class="statValue">Mission tetrads show up randomly, the bonus grows until the reward coin lands, then the 10-settle reward clock starts</span>
-            </div>
+        <p class="helpText">
+          Match <b>10+</b> of one animal to clear that herd, earn coins, and let gravity start chains.
+        </p>
+        <p class="helpText">
+          Gold-frame mission tetrads can show up in <b>Next</b>. Hit the mission goal, then clear the pulsing reward-coin herd within <b>10 settles</b> or the run ends.
+        </p>
+
+        <details class="helpFold" open>
+          <summary>Touchscreen Controls</summary>
+          <div class="helpFoldBody">
+            <p class="helpText">← or → tap the left or right side to nudge one column.</p>
+            <p class="helpText">↔ drag sideways to steer while the tetrad falls.</p>
+            <p class="helpText">↓ drag down to speed the drop.</p>
+            <p class="helpText">↺ swipe up on the left half to rotate counterclockwise. ↻ swipe up on the right half to rotate clockwise.</p>
+            <p class="helpText">⇄ double tap or press and hold to swap the falling tetrad with <b>Next</b>. You get one swap per settle.</p>
           </div>
-        </div>
-        <div class="helpSection">
-          <div class="helpSectionTitle">Barn Wildcards</div>
-          <div id="helpGeneralSpecials" class="helpSpecialList"></div>
-        </div>
-        <div class="helpSection">
-          <div class="helpSectionTitle">Mission Tetrads</div>
-          <div id="helpMissionSpecials" class="helpSpecialList"></div>
-        </div>
+        </details>
+
+        <details class="helpFold">
+          <summary>Laptop Controls</summary>
+          <div class="helpFoldBody">
+            <p class="helpText">←/→ or A/D = move. ↓ or S = soft drop. Space or F = slam.</p>
+            <p class="helpText">↑, W, X, or E = ↻. Q or Z = ↺.</p>
+            <p class="helpText">C = swap with <b>Next</b>. P = pause. R = restart.</p>
+          </div>
+        </details>
+
+        <details class="helpFold" open>
+          <summary>Scoring And Multipliers</summary>
+          <div class="helpFoldBody">
+            <p class="helpText">Big herds pay more, and chain clears add extra combo coins after each settle cascade.</p>
+            <p class="helpText">🥚 doubles that herd once per egg. 2 eggs = x4. 3 eggs = x8.</p>
+            <p class="helpText">💩 halves that herd once per turd. 2 turds = ÷4. Eggs and turds stack together.</p>
+          </div>
+        </details>
+
+        <details class="helpFold">
+          <summary>Barn Wildcards</summary>
+          <div class="helpFoldBody">
+            <p class="helpText">These are regular special tetrads, not mission-only pieces.</p>
+            <div id="helpGeneralSpecials" class="helpSpecialList"></div>
+          </div>
+        </details>
+
+        <details class="helpFold">
+          <summary>Mission Tetrads</summary>
+          <div class="helpFoldBody">
+            <p class="helpText">Mission tetrads have a shared gold frame, can appear in <b>Next</b>, and usually leave a 💩 behind if they settle without touching the pile.</p>
+            <div id="helpMissionSpecials" class="helpSpecialList"></div>
+          </div>
+        </details>
       </div>
       <button id="closeHelp" class="closeBtn">Back To Barn</button>
     </div>

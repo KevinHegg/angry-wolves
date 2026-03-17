@@ -597,21 +597,55 @@ canvas{
 .helpScroll{
   overflow:auto;
   max-height:min(64svh, 560px);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
   padding-right:4px;
   touch-action:pan-y;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
-.helpSection{
-  margin-top:12px;
+.helpText{
+  margin:0;
+  font-size:12px;
+  line-height:1.42;
+  color:var(--txt);
 }
-.helpSectionTitle{
-  margin-bottom:8px;
+.helpText b{
+  color:var(--accent);
+}
+.helpFold{
+  border-radius:12px;
+  background: rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.06);
+  overflow:hidden;
+}
+.helpFold summary{
+  list-style:none;
+  cursor:pointer;
+  padding:11px 12px;
   font-size:12px;
   font-weight:900;
   letter-spacing:0.08em;
   text-transform:uppercase;
   color:var(--muted);
+}
+.helpFold summary::-webkit-details-marker{
+  display:none;
+}
+.helpFold summary::after{
+  content:"+";
+  float:right;
+  color:var(--accent);
+}
+.helpFold[open] summary::after{
+  content:"-";
+}
+.helpFoldBody{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:0 12px 12px;
 }
 .helpSpecialList{
   display:grid;
@@ -622,14 +656,16 @@ canvas{
   grid-template-columns:auto 1fr;
   gap:10px;
   align-items:start;
-  padding:10px;
-  border-radius:12px;
-  background: rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.06);
+  padding:8px 0;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+.helpSpecialCard:first-child{
+  padding-top:0;
+  border-top:0;
 }
 .helpSpecialPreview{
-  width:64px;
-  min-width:64px;
+  width:56px;
+  min-width:56px;
   gap:2px;
 }
 .helpSpecialPreview .previewCell{
@@ -638,22 +674,6 @@ canvas{
 }
 .helpSpecialPreview .previewCell.filled{
   font-size:10px;
-}
-.helpSpecialCopy{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  min-width:0;
-}
-.helpSpecialName{
-  font-size:13px;
-  font-weight:900;
-  color:var(--txt);
-}
-.helpSpecialText{
-  font-size:11px;
-  line-height:1.3;
-  color:var(--muted);
 }
 .hidden { display: none !important; }
 
@@ -1133,8 +1153,8 @@ canvas{
   }
 
   .helpSpecialPreview{
-    width:58px;
-    min-width:58px;
+    width:52px;
+    min-width:52px;
   }
 }
 
@@ -1190,21 +1210,20 @@ canvas{
     max-width:140px;
   }
 
-  .helpSectionTitle{
+  .helpFold summary{
     font-size:11px;
   }
 
   .helpSpecialCard{
     gap:8px;
-    padding:8px;
   }
 
   .helpSpecialPreview{
-    width:54px;
-    min-width:54px;
+    width:48px;
+    min-width:48px;
   }
 
-  .helpSpecialText{
-    font-size:10px;
+  .helpText{
+    font-size:11px;
   }
 }
