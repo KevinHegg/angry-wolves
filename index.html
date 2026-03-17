@@ -38,9 +38,9 @@
     <section id="gameShell">
       <aside id="leftRail" class="rail">
         <button id="holdButton" class="planCard actionCard">
-          <span class="planLabel">Hold</span>
-          <span class="planValue">Swap current piece</span>
-          <span class="planHint">Tap or press C</span>
+          <span class="planLabel">Swap</span>
+          <span class="planValue">Swap with Next</span>
+          <span class="planHint">Double tap or press C</span>
         </button>
         <div id="missionCard" class="planCard">
           <span class="planLabel">Barn Mission</span>
@@ -63,7 +63,7 @@
           <span class="planHint">Move: A / D or arrows</span>
           <span class="planHint">Rotate: W / X / Up / E / Q / Z</span>
           <span class="planHint">Drop: S / Down · slam: Space</span>
-          <span class="planHint">Hold: C · pause: P · restart: R</span>
+          <span class="planHint">Swap: C · pause: P · restart: R</span>
         </div>
       </aside>
 
@@ -88,7 +88,7 @@
 
       <aside id="rightRail" class="rail">
         <div id="holdSlotCard" class="planCard">
-          <span class="planLabel">Hold Slot</span>
+          <span class="planLabel">Swap Slot</span>
           <div id="holdPreview" class="previewGrid"></div>
         </div>
         <div id="comboCard" class="planCard">
@@ -101,7 +101,7 @@
 
     <footer id="help">
       <div>
-        <b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑↖/↑↗ rotate · double tap or press and hold = hold
+        <b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ on left/right half = rotate · double tap or press and hold = swap
       </div>
       <div class="legend">🥚 double · <span class="danger">💩 half</span> · Space = slam</div>
     </footer>
@@ -211,7 +211,7 @@
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Touch</span>
-              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe up-left / up-right within 30° to rotate · double tap or press and hold to hold</span>
+              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe straight up on the left or right half to rotate · double tap or press and hold to swap with Next</span>
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Mission Pace</span>

@@ -30,9 +30,9 @@
   const ROTATE_ANGLE_MAX = 30;
   const ROTATE_INTENT_ANGLE = 42;
   const ROTATE_SIDE_MIN = 4;
-  const BOARD_CLEAR_ANIM_MS = 180;
-  const BOARD_CONVERT_ANIM_MS = 220;
-  const BOARD_FALL_ANIM_MS = 210;
+  const BOARD_CLEAR_ANIM_MS = 250;
+  const BOARD_CONVERT_ANIM_MS = 320;
+  const BOARD_FALL_ANIM_MS = 300;
 
   // special spawn weights
   const WEIGHT_NORMAL = 0.88;
@@ -213,6 +213,7 @@
   const clearsEl = document.getElementById("clears");
   const comboEl = document.getElementById("combo");
   const comboBestEl = document.getElementById("comboBest");
+  const nextCardEl = document.getElementById("nextCard");
   const nextPreviewEl = document.getElementById("nextPreview");
   const holdPreviewEl = document.getElementById("holdPreview");
   const holdButton = document.getElementById("holdButton");
@@ -275,6 +276,7 @@
   let current = null;
   let next = null;
   let held = null;
+  let nextSpawnAt = 0;
 
   let score = 0;
   let level = 1;
@@ -1040,9 +1042,6 @@
     if(mission && mission.ready && !mission.done && !hasRewardCoinOnBoard() && cashoutCharge >= missionCashoutEvery()){
       return createCashoutPiece();
     }
-    if(missionSpecialPending && mission && !mission.done && !mission.ready){
-      return ensureQueuedMissionSpecial();
-    }
     return next;
   }
 
@@ -1403,7 +1402,7 @@
     if(stageMissionMeterFillEl) stageMissionMeterFillEl.style.width = progressWidth;
     syncMissionMeterAudio();
     const specialRule = missionSpecialRule();
-    const specialQueued = missionSpecialPending;
+    const specialQueued = missionSpecialPending || isMissionSpecialPiece(next);
     const specialWarmth = Math.round(missionSpecialWarmth() * 100);
     const objectiveLabel = missionObjectiveLabel();
 
@@ -1632,7 +1631,8 @@
       current = preparePiece(createCashoutPiece());
       cashoutCharge = 0;
     } else if(missionSpecialPending && mission && !mission.done && !mission.ready){
-      current = preparePiece(ensureQueuedMissionSpecial());
+      current = preparePiece(next ?? newPiece());
+      next = ensureQueuedMissionSpecial();
       missionSpecialPending = false;
       queuedMissionSpecial = null;
     } else {
@@ -1741,6 +1741,7 @@
     rewardCountdown = null;
     pendingTap = null;
     boardAnimations = [];
+    nextSpawnAt = 0;
     if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
@@ -1887,12 +1888,22 @@
       return true;
     }
     if(advanceRewardCountdown()) return true;
-    if(!gameOver) spawnNext();
     if(opts.settleAnimal && ANIMALS.includes(opts.settleAnimal)){
       playBarnyard(opts.settleAnimal, 4, "settle");
     }
     if(opts.playLockTick !== false) playLockTick();
     if(opts.hapticMs) haptic(opts.hapticMs);
+    if(!gameOver){
+      const waitMs = Math.max(0, summary?.animationWaitMs || 0);
+      if(waitMs > 0){
+        current = null;
+        nextSpawnAt = performance.now() + waitMs;
+        updateHUD();
+        draw();
+      } else {
+        spawnNext();
+      }
+    }
     return false;
   }
 
@@ -2376,6 +2387,7 @@
     let totalGain = 0;
     let groupsCleared = 0;
     let rewardEarned = false;
+    let animationEndsAt = performance.now();
     while(true){
       if(gameOver) break;
       const clears = findAnimalGroupsToClear();
@@ -2481,7 +2493,10 @@
           duration: BOARD_FALL_ANIM_MS + Math.max(0, move.toY - move.fromY) * 26
         });
       }
-      if(resolveFx.length) queueBoardAnimations(resolveFx);
+      if(resolveFx.length){
+        const batchEndsAt = queueBoardAnimations(resolveFx);
+        animationEndsAt = Math.max(animationEndsAt, batchEndsAt || animationEndsAt);
+      }
     }
     const chainBonus = chainBonusForDepth(cascadeDepth);
     if(chainBonus > 0){
@@ -2503,7 +2518,14 @@
       rememberShareSnapshot();
     }
     updateHUD();
-    return { groupsCleared, totalGain, rewardEarned, chainDepth: cascadeDepth, chainBonus };
+    return {
+      groupsCleared,
+      totalGain,
+      rewardEarned,
+      chainDepth: cascadeDepth,
+      chainBonus,
+      animationWaitMs: Math.max(0, animationEndsAt - performance.now())
+    };
   }
 
   function applyChainResult(summary){
@@ -2654,20 +2676,17 @@
   }
 
   function holdCurrent(){
-    if(paused || gameOver || !current || holdUsed) return;
-    const outgoing = preparePiece(current);
-    if(held){
-      current = preparePiece(held);
-      held = outgoing;
-      if(collides(current,0,0)) return gameOverNow();
-    } else {
-      held = outgoing;
-      spawnNext();
-    }
+    if(paused || gameOver || !current || holdUsed || !next) return;
+    const outgoing = clonePiece(current);
+    const incoming = preparePiece(next);
+    next = outgoing;
+    current = incoming;
+    if(collides(current,0,0)) return gameOverNow();
+    held = null;
     holdUsed = true;
     rotateSlowUses = 4;
     rotateSlowUntil = 0;
-    banner.text = held ? "Pocketed that chaos for later." : "Hold slot ready. Strategy hat on.";
+    banner.text = "Swapped the current tetrad with the queued one.";
     banner.t = performance.now();
     playHoldJingle();
     updateHUD();
@@ -2775,12 +2794,21 @@
     return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
   }
 
+  function boardAnimationEndsAt(){
+    let end = 0;
+    for(const entry of boardAnimations){
+      end = Math.max(end, entry.start + entry.duration);
+    }
+    return end;
+  }
+
   function queueBoardAnimations(entries){
     if(!entries?.length) return;
-    const start = performance.now();
+    const start = Math.max(performance.now(), boardAnimationEndsAt());
     for(const entry of entries){
       boardAnimations.push({ ...entry, start });
     }
+    return start + Math.max(...entries.map((entry) => entry.duration));
   }
 
   function stepBoardAnimations(now=performance.now()){
@@ -3740,8 +3768,8 @@
 
   // ===== Tap/Swipe behavior =====
   // Tap: move only (left/right half)
-  // Double tap or press and hold: hold/swap current piece
-  // Swipe up-left / up-right within a narrow cone: rotate only
+  // Double tap or press and hold: swap current piece with next
+  // Swipe straight-ish up on left/right half: rotate only
   function onPointerDown(e){
     e.preventDefault();
     unlockAudioSilently();
@@ -3789,8 +3817,10 @@
       while(gesture.movedY >=  STEP_Y){ dropOne(); gesture.movedY -= STEP_Y; }
     }
 
-    if(!gesture.rotated && upDist >= SWIPE_UP_MIN && rotateAngle <= ROTATE_ANGLE_MAX && Math.abs(totalDx) >= ROTATE_SIDE_MIN){
-      const rotated = rotate(totalDx > 0);
+    if(!gesture.rotated && upDist >= SWIPE_UP_MIN && rotateAngle <= ROTATE_ANGLE_MAX){
+      const rect = canvas.getBoundingClientRect();
+      const rotateCWFromHalf = gesture.startX >= rect.left + rect.width / 2;
+      const rotated = rotate(rotateCWFromHalf);
       if(rotated) triggerTouchRotateSlowdown();
       gesture.rotated = true;
       gesture.movedX = 0;
@@ -3893,7 +3923,7 @@
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
     if(!helpPrimary) return;
-    helpPrimary.innerHTML = "<b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑↖/↑↗ rotate · double tap or press and hold = hold";
+    helpPrimary.innerHTML = "<b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ on left/right half = rotate · double tap or press and hold = swap";
   }
 
   // ===== Settings toggle (simple) =====
@@ -3961,6 +3991,9 @@
   if(holdButton){
     holdButton.addEventListener("click", holdCurrent);
   }
+  if(nextCardEl){
+    nextCardEl.addEventListener("click", holdCurrent);
+  }
   if(soundToggle){
     const onTap = (e) => {
       e.preventDefault();
@@ -3990,6 +4023,19 @@
     flushPendingTap(now);
     stepBoardAnimations(now);
     if(paused || gameOver) return;
+
+    if(!current && nextSpawnAt && now >= nextSpawnAt){
+      nextSpawnAt = 0;
+      spawnNext();
+      draw();
+      return;
+    }
+    if(!current){
+      if(particles.length || boardAnimations.length || (mission && mission.ready && !mission.done && hasRewardCoinOnBoard())){
+        draw();
+      }
+      return;
+    }
 
     fallTimer += dt;
     ambienceClock += dt;
@@ -4031,6 +4077,7 @@
     held=null; currentCombo=0; bestCombo=0; holdUsed=false;
     fallInterval = BASE_FALL_MS;
     fallTimer = 0;
+    nextSpawnAt = 0;
     rotateSlowUntil = 0;
     rotateSlowUses = 4;
     ambienceClock = 0;
@@ -4072,6 +4119,7 @@
     lastMissionMeterAudio = null;
     pendingTap = null;
     boardAnimations = [];
+    nextSpawnAt = 0;
 
     next = newPiece();
     spawnNext();
