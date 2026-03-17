@@ -192,6 +192,40 @@ html,body{
   transition: width 160ms ease-out;
 }
 
+.missionMeterLabel{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 120ms ease-out;
+}
+
+.missionMeter.countdownMode{
+  height:26px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+}
+
+.missionMeter.countdownMode .missionMeterFill{
+  opacity:0;
+}
+
+.missionMeter.countdownMode .missionMeterLabel{
+  opacity:1;
+}
+
+.stageMissionMeter .missionMeterLabel{
+  font-size:11px;
+}
+
 .missionSpecialStrip{
   display:flex;
   align-items:center;
@@ -667,56 +701,74 @@ canvas{
   }
 
   #hud{
-    width:min(860px, calc(100% - 56px));
+    display:grid;
+    grid-template-columns:auto minmax(0, 1fr) 108px;
+    grid-template-rows:min-content min-content;
+    grid-template-areas:
+      "buttons title next"
+      "right right next";
+    align-items:start;
+    gap:8px 14px;
+    width:min(980px, calc(100% - 40px));
+    padding: 10px 0 4px;
   }
 
   #gameShell{
-    width:min(860px, calc(100% - 56px));
-    grid-template-rows:auto auto;
-    align-content:start;
-    gap:12px;
-    padding: 0 0 18px;
+    display:block;
+    width:min(980px, calc(100% - 40px));
+    margin:0 auto;
+    padding: 0 0 16px;
   }
 
-  #missionCard{
-    display:none;
-  }
-
-  .rail{
+  #hud .left{
     display:contents;
   }
 
-  #holdButton{
-    grid-column:1;
-    grid-row:2;
-    min-height:96px;
+  #hud .right{
+    grid-area:right;
+    width:auto;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    padding-top:0;
+    justify-self:start;
+    min-width:0;
   }
 
-  #keysCard{
-    grid-column:2;
-    grid-row:2;
-    min-height:96px;
+  .hudButtons{
+    grid-area:buttons;
+    align-self:start;
   }
 
-  #holdSlotCard{
-    grid-column:3;
-    grid-row:2;
-    min-height:96px;
+  .title{
+    grid-area:title;
+    min-width:0;
+    padding-top:0;
+    align-self:start;
   }
 
-  #comboCard{
-    grid-column:4;
-    grid-row:2;
-    min-height:96px;
+  .title .h1{
+    font-size:19px;
+    line-height:1.05;
+    white-space:nowrap;
+  }
+
+  .title .sub{
+    display:none;
   }
 
   #nextCard{
-    flex:0 0 auto;
+    grid-area:next;
+    position:static;
     align-self:start;
-    width:98px;
-    min-height:98px;
-    padding:6px;
+    justify-self:end;
+    width:108px;
+    min-height:108px;
+    padding:5px;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
+    border-radius:16px;
   }
 
   #nextCard .planLabel{
@@ -724,36 +776,68 @@ canvas{
   }
 
   #nextPreview{
-    max-width:84px;
+    max-width:92px;
     gap:3px;
   }
 
   #nextPreview .previewCell{
-    border-radius:6px;
-    font-size:11px;
+    border-radius:5px;
+    font-size:10px;
   }
 
   #nextPreview .previewCell.filled{
-    font-size:17px;
+    font-size:18px;
   }
 
+  #leftRail,
+  #rightRail,
+  #missionCard,
+  #holdButton,
+  #keysCard,
+  #holdSlotCard,
+  #comboCard,
   #help{
     display:none;
   }
 
   #stage{
-    width:min(620px, 100%);
-    min-height:430px;
-    height:min(520px, calc(100svh - 260px));
-    max-height:520px;
-    align-self:start;
-    padding-top:56px;
+    width:min(900px, calc(100vw - 32px));
+    min-height: clamp(760px, 84svh, 1180px);
+    height:auto;
+    max-height:none;
+    padding-top:62px;
     margin:0 auto;
   }
 
   .stageMissionBar{
-    left:0;
-    right:0;
+    top:10px;
+    left:6px;
+    right:6px;
+    padding:7px 10px;
+    border-radius:12px;
+  }
+
+  .stageMissionMeta{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:4px 10px;
+    margin-bottom:4px;
+  }
+
+  .stageMissionTitle{
+    font-size:11px;
+    line-height:1.05;
+  }
+
+  .stageMissionProgressText{
+    font-size:11px;
+    line-height:1.05;
+    text-align:right;
+    justify-self:end;
+  }
+
+  .stageMissionMeter{
+    height:7px;
   }
 }
 

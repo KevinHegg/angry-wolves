@@ -25,6 +25,14 @@
   const UP_DOMINANCE = 1.08;
   const HOLD_TOUCH_MS = 320;
   const HOLD_MOVE_CANCEL = 12;
+  const DOUBLE_TAP_MS = 260;
+  const DOUBLE_TAP_SLOP = 28;
+  const ROTATE_ANGLE_MAX = 30;
+  const ROTATE_INTENT_ANGLE = 42;
+  const ROTATE_SIDE_MIN = 4;
+  const BOARD_CLEAR_ANIM_MS = 180;
+  const BOARD_CONVERT_ANIM_MS = 220;
+  const BOARD_FALL_ANIM_MS = 210;
 
   // special spawn weights
   const WEIGHT_NORMAL = 0.88;
@@ -33,7 +41,8 @@
 
   // background overlay counts (sparse + more eggs than poop)
   const EGGS_COUNT  = 8;
-  const TURDS_COUNT = 3;
+  const TURDS_COUNT = 5;
+  const REWARD_COUNTDOWN_START = 10;
 
   // ===== Tiles =====
   const TILE = {
@@ -182,7 +191,7 @@
   const SPECIAL = {
     WOLVES_2:     { matrix:[[1,1],[1,1]], tile:TILE.WOLF,       rotates:false },
     BLACKSHEEP_2: { matrix:[[1,1],[1,1]], tile:TILE.BLACK_SHEEP, rotates:false },
-    BOMB_T:       { matrix:[[1,1,1],[0,1,0],[0,0,0]], tile:TILE.BOMB, rotates:true },
+    BOMB_T:       { matrix:[[1,1],[1,1]], tile:TILE.BOMB, rotates:false },
     REAPER_I:     { matrix:[[1,1,1,1]], tile:TILE.REAPER, rotates:true },
     MORPH_L:      { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.MORPH, rotates:true },
     SEEDER_S:     { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.SEEDER, rotates:true },
@@ -209,10 +218,14 @@
   const holdButton = document.getElementById("holdButton");
   const missionTitleEl = document.getElementById("missionTitle");
   const missionProgressEl = document.getElementById("missionProgress");
+  const missionMeterEl = document.getElementById("missionMeter");
   const missionMeterFillEl = document.getElementById("missionMeterFill");
+  const missionMeterLabelEl = document.getElementById("missionMeterLabel");
   const stageMissionTitleEl = document.getElementById("stageMissionTitle");
   const stageMissionProgressTextEl = document.getElementById("stageMissionProgressText");
+  const stageMissionMeterEl = document.querySelector(".stageMissionMeter");
   const stageMissionMeterFillEl = document.getElementById("stageMissionMeterFill");
+  const stageMissionMeterLabelEl = document.getElementById("stageMissionMeterLabel");
   const missionSpecialNameEl = document.getElementById("missionSpecialName");
   const missionSpecialInfoEl = document.getElementById("missionSpecialInfo");
   const missionSpecialPreviewEl = document.getElementById("missionSpecialPreview");
@@ -278,6 +291,7 @@
   let missionSpecialPending = false;
   let queuedMissionSpecial = null;
   let cashoutCharge = 0;
+  let rewardCountdown = null;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -294,9 +308,12 @@
 
   // particles
   let particles = [];
+  let boardAnimations = [];
   let banner = { text:"", t:0, ttl: 900 };
   let toastTimer = 0;
   let shareSnapshot = null;
+  let lastMissionMeterAudio = null;
+  let pendingTap = null;
 
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
@@ -588,6 +605,48 @@
     playJingle([523, 659, 784, 988], { step:0.07, type:"triangle", gain:0.08 });
   }
 
+  function playMissionMeterPulse(ratio, delta=1){
+    const urgency = clamp(ratio, 0, 1);
+    const notes = [];
+    const count = delta >= 2 || urgency > 0.72 ? 2 : 1;
+    const base = 260 + urgency * 360;
+    const step = 0.08 - urgency * 0.03;
+    const noteType = urgency > 0.78 ? "square" : "triangle";
+    for(let i=0;i<count;i++){
+      notes.push({
+        f: base + i * (40 + urgency * 55),
+        d: 0.065 - urgency * 0.018,
+        g: 0.04 + urgency * 0.022,
+        type: noteType
+      });
+    }
+    playJingle(notes, { step, type: noteType, gain: 0.05 });
+  }
+
+  function playRewardCountdownStart(){
+    playJingle([
+      { f: 620, d: 0.07, g: 0.05, type: "triangle" },
+      { f: 520, d: 0.08, g: 0.055, type: "square" }
+    ], { step: 0.065, type: "square", gain: 0.055 });
+  }
+
+  function playRewardCountdownPulse(remaining){
+    const urgency = 1 - clamp(remaining / REWARD_COUNTDOWN_START, 0, 1);
+    const notes = [];
+    const count = remaining <= 3 ? 3 : remaining <= 6 ? 2 : 1;
+    const base = 360 + urgency * 360;
+    const step = 0.095 - urgency * 0.04;
+    for(let i=0;i<count;i++){
+      notes.push({
+        f: base + i * (24 + urgency * 30),
+        d: 0.06 - urgency * 0.012,
+        g: 0.042 + urgency * 0.026,
+        type: "square"
+      });
+    }
+    playJingle(notes, { step, type: "square", gain: 0.06 });
+  }
+
   function playHoldJingle(){
     playJingle([
       { f: 440, d: 0.06, g: 0.05, type: "triangle" },
@@ -734,7 +793,7 @@
     if(!mission) return "Start dropping";
     if(mission.done) return `+${mission.cashBonus} earned`;
     if(mission.ready){
-      if(hasRewardCoinOnBoard()) return "Clear the reward group";
+      if(hasRewardCoinOnBoard()) return rewardCountdownLabel();
       return `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
     }
     if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
@@ -756,6 +815,22 @@
   function clearRewardMap(){
     rewardMap = makeRewardMap();
   }
+  function rewardCountdownValue(){
+    return Number.isFinite(rewardCountdown) ? rewardCountdown : REWARD_COUNTDOWN_START;
+  }
+  function rewardCountdownLabel(){
+    const value = rewardCountdownValue();
+    return `${value} settle${value === 1 ? "" : "s"} left`;
+  }
+  function syncMissionMeterCountdownUI(active){
+    if(missionMeterEl) missionMeterEl.classList.toggle("countdownMode", active);
+    if(stageMissionMeterEl) stageMissionMeterEl.classList.toggle("countdownMode", active);
+    if(missionMeterLabelEl) missionMeterLabelEl.textContent = active ? rewardCountdownLabel() : "";
+    if(stageMissionMeterLabelEl) stageMissionMeterLabelEl.textContent = active ? rewardCountdownLabel() : "";
+  }
+  function missionCashoutObjectiveCopy(){
+    return `After that, a reward coin barges in every ${missionCashoutEvery()} settles until one lands. Once it lands, you get ${REWARD_COUNTDOWN_START} settles to clear its pulsing group or the run ends.`;
+  }
   function missionCurrentProgress(){
     if(!mission) return 0;
     if(mission.type === "score") return score;
@@ -768,8 +843,57 @@
   }
   function missionProgressRatio(){
     if(!mission) return 0;
-    if(mission.done || mission.ready) return 1;
+    if(mission.done) return 1;
+    if(mission.ready && hasRewardCoinOnBoard()){
+      return clamp(rewardCountdownValue() / REWARD_COUNTDOWN_START, 0, 1);
+    }
+    if(mission.ready) return 1;
     return clamp(missionCurrentProgress() / Math.max(1, mission.target), 0, 1);
+  }
+  function missionMeterAudioState(){
+    if(!mission) return { key:"idle", mode:"idle", step:0, ratio:0 };
+    if(mission.done) return { key:"done", mode:"done", step:0, ratio:1 };
+    if(mission.ready && hasRewardCoinOnBoard()){
+      const remaining = rewardCountdownValue();
+      return {
+        key:`countdown:${remaining}`,
+        mode:"countdown",
+        step: remaining,
+        ratio: clamp(remaining / REWARD_COUNTDOWN_START, 0, 1)
+      };
+    }
+    if(mission.ready){
+      return { key:`ready:${cashoutCharge}`, mode:"ready", step:cashoutCharge, ratio:1 };
+    }
+    const progress = Math.min(missionCurrentProgress(), mission.target);
+    return {
+      key:`progress:${progress}`,
+      mode:"progress",
+      step: progress,
+      ratio: clamp(progress / Math.max(1, mission.target), 0, 1)
+    };
+  }
+  function syncMissionMeterAudio(){
+    const nextState = missionMeterAudioState();
+    if(!lastMissionMeterAudio){
+      lastMissionMeterAudio = nextState;
+      return;
+    }
+    const prevState = lastMissionMeterAudio;
+    if(nextState.key === prevState.key) return;
+    lastMissionMeterAudio = nextState;
+    if(gameOver) return;
+    if(nextState.mode === "progress" && prevState.mode === "progress" && nextState.step > prevState.step){
+      playMissionMeterPulse(nextState.ratio, nextState.step - prevState.step);
+      return;
+    }
+    if(nextState.mode === "countdown" && prevState.mode === "countdown" && nextState.step < prevState.step){
+      playRewardCountdownPulse(nextState.step);
+      return;
+    }
+    if(nextState.mode === "countdown" && prevState.mode !== "countdown"){
+      playRewardCountdownStart();
+    }
   }
   function showToast(text, ms=1050){
     if(!toastEl) return;
@@ -865,7 +989,7 @@
     const { forSpawn = false } = opts;
     if(!mission) return null;
     if(mission.special === "bomb"){
-      return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BOMB_T), rotates:true };
+      return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BOMB_T), rotates:SPECIAL.BOMB_T.rotates };
     }
     if(mission.special === "reaper"){
       return { kind:"MISSION_REAPER", x: Math.floor(COLS/2)-2, y:0, matrix: materializeSpecMatrix(SPECIAL.REAPER_I), rotates:true };
@@ -1043,7 +1167,7 @@
       {
         id: "help-bomb",
         name: "Barn Buster",
-        text: "Mission-only tetrad with the shared gold mission frame. It blows up nearby settled tiles when it lands.",
+        text: "Mission-only square tetrad with the shared gold mission frame. It blows up nearby settled tiles when it lands.",
         piece: helpPieceFromSpec(SPECIAL.BOMB_T, "MISSION_BOMB")
       },
       {
@@ -1085,7 +1209,7 @@
       {
         id: "help-cashout",
         name: "Reward Coin",
-        text: "Mission-only reward piece with the shared gold mission frame. It becomes part of a group, and that group must be cleared to earn the mission bonus.",
+        text: "Mission-only reward piece with the shared gold mission frame. Once it lands, you get 10 settles to clear its pulsing group or the run ends.",
         piece: helpPieceFromSpec(SPECIAL.CASHOUT_1, "MISSION_CASHOUT")
       }
     ]);
@@ -1201,21 +1325,21 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.`;
-    if(mission.type === "clears") return `Clear enough big groups of ${BIG_GROUP_THRESHOLD} or more animals to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.`;
-    if(mission.type === "combo") return "Build your chain by clearing a group, letting the perimeter flip into nearby animals, and then letting straight gravity trigger another clear. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    if(mission.type === "wolf") return "Trigger enough wolf blasts to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    if(mission.type === "score") return "Rack up coins fast. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    if(mission.type === "level") return "Stay alive long enough to reach the target pace. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    if(mission.type === "big_group") return "Build oversized clusters and clear them to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
+    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "clears") return `Clear enough big groups of ${BIG_GROUP_THRESHOLD} or more animals to hit the goal. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "combo") return `Build your chain by clearing a group, letting the perimeter flip into nearby animals, and then letting straight gravity trigger another clear. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "wolf") return `Trigger enough wolf blasts to hit the goal. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "score") return `Rack up coins fast. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "level") return `Stay alive long enough to reach the target pace. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "big_group") return `Build oversized clusters and clear them to hit the goal. ${missionCashoutObjectiveCopy()}`;
     if(mission.type === "product"){
       const product = productInfoForAnimal(mission.animal);
-      return `Drop the ${product.noun} tetrad onto ${animalWord(mission.animal)}. A clean hit turns it into ${animalWord(mission.animal)}, leaves an egg behind, and tags that group. Clear that tagged group to cash in one ${product.noun}. Miss and it drops a turd before joining whatever it touched. Hit the goal, then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.`;
+      return `Drop the ${product.noun} tetrad onto ${animalWord(mission.animal)}. A clean hit turns it into ${animalWord(mission.animal)}, leaves an egg behind, and tags that group. Clear that tagged group to cash in one ${product.noun}. Miss and it drops a turd before joining whatever it touched. Hit the goal, then ${missionCashoutObjectiveCopy().charAt(0).toLowerCase()}${missionCashoutObjectiveCopy().slice(1)}`;
     }
-    if(mission.type === "build_group") return "Build a live group up to the target size without clearing it too soon. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    if(mission.type === "special_use") return "Use your mission special on purpose to hit the goal. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    if(mission.type === "locks") return "Complete the required settles. Then the reward coin will become part of a group, and that group must be cleared to end the game with the mission bonus.";
-    return "The barn demands something weird from you today. Finish the objective, then clear the reward group before the run ends.";
+    if(mission.type === "build_group") return `Build a live group up to the target size without clearing it too soon. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "special_use") return `Use your mission special on purpose to hit the goal. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "locks") return `Complete the required settles. ${missionCashoutObjectiveCopy()}`;
+    return `The barn demands something weird from you today. Finish the objective, then ${missionCashoutObjectiveCopy().charAt(0).toLowerCase()}${missionCashoutObjectiveCopy().slice(1)}`;
   }
 
   function openMissionBriefing(){
@@ -1225,7 +1349,7 @@
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
     if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Earn at least +${mission?.bonus ?? 0} coins`;
     if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
-    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? specialRule.desc : "No special tetrad assigned.";
+    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? `${specialRule.desc} Lone drops leave a turd.` : "No special tetrad assigned.";
     renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
     setOverlayOpen(missionBriefBackdrop, true);
   }
@@ -1253,9 +1377,13 @@
 
   function updateMissionUI(){
     syncStageRunActions();
-    if(gameOver) return;
+    if(gameOver){
+      syncMissionMeterCountdownUI(false);
+      return;
+    }
     if(!missionTitleEl || !missionProgressEl || !missionSpecialNameEl || !missionSpecialInfoEl) return;
     if(!mission){
+      syncMissionMeterCountdownUI(false);
       missionTitleEl.textContent = "Warm up the barn";
       missionProgressEl.textContent = "Start dropping pieces";
       if(missionMeterFillEl) missionMeterFillEl.style.width = "0%";
@@ -1269,8 +1397,11 @@
     }
     const progressRatio = missionProgressRatio();
     const progressWidth = `${Math.round(progressRatio * 100)}%`;
+    const countdownMode = !!(mission.ready && !mission.done && hasRewardCoinOnBoard());
+    syncMissionMeterCountdownUI(countdownMode);
     if(missionMeterFillEl) missionMeterFillEl.style.width = progressWidth;
     if(stageMissionMeterFillEl) stageMissionMeterFillEl.style.width = progressWidth;
+    syncMissionMeterAudio();
     const specialRule = missionSpecialRule();
     const specialQueued = missionSpecialPending;
     const specialWarmth = Math.round(missionSpecialWarmth() * 100);
@@ -1287,14 +1418,14 @@
       missionTitleEl.textContent = `${mission.title} ready`;
       if(stageMissionTitleEl) stageMissionTitleEl.textContent = mission.title;
       if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = compactMissionProgress();
-      missionSpecialNameEl.textContent = "Reward coin incoming";
+      missionSpecialNameEl.textContent = hasRewardCoinOnBoard() ? "Reward clock live" : "Reward coin incoming";
       missionSpecialInfoEl.textContent = isCompactUI()
         ? hasRewardCoinOnBoard()
-          ? `Clear the pulsing reward group for +${mission.cashBonus}.`
+          ? `Clear the pulsing reward group for +${mission.cashBonus}. ${rewardCountdownLabel()}.`
           : `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles, then clear it in a group.`
         : hasRewardCoinOnBoard()
-          ? `The reward coin has landed and turned into an animal. Clear the pulsing reward group before the game ends to earn +${mission.cashBonus}.`
-          : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a reward coin appears every ${missionCashoutEvery()} settles until one lands. Then you still have to clear it inside a group.`;
+          ? `The reward coin has landed and turned into an animal. Clear the pulsing reward group within ${rewardCountdownLabel()} to earn +${mission.cashBonus}, or the run ends.`
+          : `Objective met. Keep playing if you dare: the barn speeds up, your bonus grows every settle, and a reward coin appears every ${missionCashoutEvery()} settles until one lands. Once it lands, the ${REWARD_COUNTDOWN_START}-settle reward clock starts.`;
       renderPreview(missionSpecialPreviewEl, createCashoutPiece());
     } else {
       missionTitleEl.textContent = mission.title;
@@ -1306,7 +1437,7 @@
           ? specialQueued
             ? "Mission tetrad is primed."
             : `${specialJoinRateLabel(specialRule)} · ${specialWarmth}% primed`
-          : `${specialRule.desc} ${specialQueued ? "That mission tetrad is primed and can drop at any moment." : `Its odds are warming up (${specialWarmth}%).`}`
+          : `${specialRule.desc} Lone drops leave a turd. ${specialQueued ? "That mission tetrad is primed and can drop at any moment." : `Its odds are warming up (${specialWarmth}%).`}`
         : "No special tetrad assigned.";
       renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
     }
@@ -1316,7 +1447,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Goal met. Clear the pulsing reward group to earn +${mission.cashBonus}.`
+            ? `Goal met. Clear the pulsing reward group in ${rewardCountdownLabel()} to earn +${mission.cashBonus}.`
             : `Goal met. Keep clearing ${animalWord(mission.animal)} while the reward coin charges.`
           : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} cleared`;
       return;
@@ -1327,7 +1458,7 @@
         ? `Crowd goes feral: +${mission.cashBonus}`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Combo landed. Clear the pulsing reward group to earn the mission.`
+            ? `Combo landed. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Combo landed. The bonus keeps fattening until the reward coin lands.`
           : `Best cascade this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
       return;
@@ -1338,7 +1469,7 @@
         ? `The barn insurance rates exploded. +${mission.cashBonus}`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Wolf mission complete. Clear the pulsing reward group.`
+            ? `Wolf mission complete. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Wolf mission complete. Survive until the reward coin lands.`
           : `${missionProgressText(mission.progress, mission.target)} wolf tantrums`;
       return;
@@ -1349,7 +1480,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Target score hit. Clear the pulsing reward group to lock it in.`
+            ? `Target score hit. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Target score hit. The reward coin still has to land and clear.`
           : `${missionProgressText(score, mission.target)} coins scored`;
       return;
@@ -1360,7 +1491,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `You reached the target pace. Clear the pulsing reward group.`
+            ? `You reached the target pace. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `You reached the target pace. Wait for the reward coin to land.`
           : `Current pace ${level} (${missionProgressText(level, mission.target)})`;
       return;
@@ -1371,7 +1502,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Jumbo group goal complete. Clear the pulsing reward group now.`
+            ? `Jumbo group goal complete. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Jumbo group goal complete. Extra settles grow the bonus until the reward coin lands.`
           : `${missionProgressText(mission.progress, mission.target)} jumbo groups cleared`;
       return;
@@ -1383,7 +1514,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Goods loaded. Clear the pulsing reward group to earn +${mission.cashBonus}.`
+            ? `Goods loaded. Clear the pulsing reward group in ${rewardCountdownLabel()} to earn +${mission.cashBonus}.`
             : `Goods loaded. Wait for the reward coin to land, then clear its group.`
           : `${missionProgressText(mission.progress, mission.target)} ${product.plural} cashed in`;
       return;
@@ -1394,7 +1525,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Live group goal reached. Clear the pulsing reward group now.`
+            ? `Live group goal reached. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Live group goal reached. Wait for the reward coin to land.`
           : `${missionCurrentProgress()} / ${mission.target} live in the biggest group`;
       return;
@@ -1405,7 +1536,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `Special requirement met. Clear the pulsing reward group.`
+            ? `Special requirement met. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Special requirement met. The reward coin is on its way.`
           : `${missionProgressText(mission.progress, mission.target)} mission specials used`;
       return;
@@ -1416,7 +1547,7 @@
         ? `Bonus earned: +${mission.cashBonus} coins`
         : mission.ready
           ? hasRewardCoinOnBoard()
-            ? `You completed the required settles. Now clear the pulsing reward group.`
+            ? `You completed the required settles. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `You completed the required settles. Stay alive until the reward coin lands.`
           : `${missionProgressText(locks, mission.target)} settles completed`;
       return;
@@ -1426,7 +1557,7 @@
       ? `Bonus earned: +${mission.cashBonus} coins`
       : mission.ready
         ? hasRewardCoinOnBoard()
-          ? `Clear goal done. Clear the pulsing reward group to earn the mission.`
+          ? `Clear goal done. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
           : `Clear goal done. The bonus grows until the reward coin lands.`
         : `${missionProgressText(mission.progress, mission.target)} clears`;
   }
@@ -1439,7 +1570,8 @@
     queuedMissionSpecial = null;
     missionSpecialCharge = 0;
     cashoutCharge = 0;
-    banner.text = `Objective met! Push your luck until the reward coin lands, then clear it in a group. Bonus at risk: +${mission.cashBonus}`;
+    rewardCountdown = null;
+    banner.text = `Objective met! Survive until the reward coin lands. Once it does, you get ${REWARD_COUNTDOWN_START} settles to clear it for +${mission.cashBonus}.`;
     banner.t = performance.now();
     playMissionJingle();
     updateMissionUI();
@@ -1589,6 +1721,7 @@
   }
 
   function finishMissionEarned(){
+    rewardCountdown = null;
     updateHUD();
     gameOverNow({
       title: "Mission Earned",
@@ -1605,6 +1738,9 @@
         : "The barn got crowded."
     );
     gameOver = true;
+    rewardCountdown = null;
+    pendingTap = null;
+    boardAnimations = [];
     if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
     updateGameOverStats();
@@ -1705,6 +1841,59 @@
       }
     }
     return cells;
+  }
+
+  function pieceTouchesSettledTiles(piece){
+    for(const [x,y] of footprintCells(piece)){
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx = x + dx;
+        const ny = y + dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        if(board[ny][nx] !== TILE.EMPTY) return true;
+      }
+    }
+    return false;
+  }
+
+  function maybeDropLonelyMissionTurd(piece, landedLonely){
+    if(!landedLonely) return false;
+    return markOneFootprintOverlay(piece, POWER.TURD);
+  }
+
+  function startRewardCountdown(){
+    rewardCountdown = REWARD_COUNTDOWN_START;
+  }
+
+  function advanceRewardCountdown(){
+    if(!mission || mission.done || !mission.ready || !hasRewardCoinOnBoard() || !Number.isFinite(rewardCountdown)) return false;
+    rewardCountdown = Math.max(0, rewardCountdown - 1);
+    if(rewardCountdown > 0){
+      banner.text = `Reward clock: ${rewardCountdownLabel()}. Clear the pulsing group before it expires.`;
+      banner.t = performance.now();
+      updateHUD();
+      return false;
+    }
+    gameOverNow({
+      title: "Reward Clock Expired",
+      note: `The reward coin survived the full ${REWARD_COUNTDOWN_START}-settle clock, so the barn shut the gates before you could cash it in.`
+    });
+    return true;
+  }
+
+  function finishLockResolution(summary, opts={}){
+    applyChainResult(summary);
+    if(summary.rewardEarned){
+      finishMissionEarned();
+      return true;
+    }
+    if(advanceRewardCountdown()) return true;
+    if(!gameOver) spawnNext();
+    if(opts.settleAnimal && ANIMALS.includes(opts.settleAnimal)){
+      playBarnyard(opts.settleAnimal, 4, "settle");
+    }
+    if(opts.playLockTick !== false) playLockTick();
+    if(opts.hapticMs) haptic(opts.hapticMs);
+    return false;
   }
 
   function wolvesExplode(piece){
@@ -2076,12 +2265,14 @@
   }
 
   function applyGravity(){
+    const moves = [];
     for(let x=0;x<COLS;x++){
       let write = ROWS-1;
       for(let y=ROWS-1;y>=0;y--){
         const t = board[y][x];
         if(t !== TILE.EMPTY){
           if(write !== y){
+            moves.push({ x, fromY: y, toY: write, tile: t });
             board[write][x] = t;
             rewardMap[write][x] = rewardMap[y][x];
             productMap[write][x] = productMap[y][x];
@@ -2093,6 +2284,7 @@
         }
       }
     }
+    return moves;
   }
 
   function keyForCell(x, y){
@@ -2175,7 +2367,7 @@
   }
 
   function settleBoardNow(){
-    applyGravity();
+    return applyGravity();
   }
 
   function resolveBoard(){
@@ -2190,6 +2382,10 @@
       if(clears.length === 0) break;
       cascadeDepth++;
       const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
+      const clearedTileLookup = new Map();
+      for(const group of clears){
+        for(const [x,y] of group.cells) clearedTileLookup.set(keyForCell(x, y), group.animal);
+      }
 
       for(const group of clears){
         const { animal, cells } = group;
@@ -2243,17 +2439,49 @@
         haptic(12);
       }
 
+      const resolveFx = [];
       for(const key of clearedKeys){
         const [xStr, yStr] = key.split(",");
         const x = Number(xStr);
         const y = Number(yStr);
-        board[y][x] = conversions.get(key) || TILE.EMPTY;
+        const originalTile = clearedTileLookup.get(key) || TILE.EMPTY;
+        const convertedTile = conversions.get(key) || TILE.EMPTY;
+        if(convertedTile){
+          resolveFx.push({
+            type: "convert",
+            x,
+            y,
+            fromTile: originalTile,
+            toTile: convertedTile,
+            duration: BOARD_CONVERT_ANIM_MS
+          });
+        } else if(originalTile !== TILE.EMPTY){
+          resolveFx.push({
+            type: "clear",
+            x,
+            y,
+            tile: originalTile,
+            duration: BOARD_CLEAR_ANIM_MS
+          });
+        }
+        board[y][x] = convertedTile;
         overlay[y][x] = POWER.NONE;
         rewardMap[y][x] = false;
         productMap[y][x] = 0;
       }
 
-      settleBoardNow();
+      const gravityMoves = settleBoardNow();
+      for(const move of gravityMoves){
+        resolveFx.push({
+          type: "fall",
+          x: move.x,
+          fromY: move.fromY,
+          toY: move.toY,
+          tile: move.tile,
+          duration: BOARD_FALL_ANIM_MS + Math.max(0, move.toY - move.fromY) * 26
+        });
+      }
+      if(resolveFx.length) queueBoardAnimations(resolveFx);
     }
     const chainBonus = chainBonusForDepth(cascadeDepth);
     if(chainBonus > 0){
@@ -2299,9 +2527,7 @@
       settleBoardNow();
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
+      finishLockResolution(summary, { playLockTick:false });
       return;
     }
 
@@ -2311,71 +2537,63 @@
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
     if(current.kind === "MISSION_REAPER"){
+      const landedLonely = !pieceTouchesSettledTiles(current);
       missionReapLargestGroup(current);
+      if(maybeDropLonelyMissionTurd(current, landedLonely)) banner.text += " It landed alone and left a rude 💩.";
       settleBoardNow();
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
     if(current.kind === "MISSION_MORPH"){
+      const landedLonely = !pieceTouchesSettledTiles(current);
       missionMorphPiece(current);
+      if(maybeDropLonelyMissionTurd(current, landedLonely)) banner.text += " It landed alone and left a rude 💩.";
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
     if(current.kind === "MISSION_SEEDER"){
+      const landedLonely = !pieceTouchesSettledTiles(current);
       missionSeedOverlay(current);
+      if(maybeDropLonelyMissionTurd(current, landedLonely)) banner.text += " It landed alone and left a rude 💩.";
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
     if(current.kind === "MISSION_BRAND"){
+      const landedLonely = !pieceTouchesSettledTiles(current);
       missionBrandPiece(current);
+      if(maybeDropLonelyMissionTurd(current, landedLonely)) banner.text += " It landed alone and left a rude 💩.";
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
     if(current.kind === "MISSION_FEED"){
+      const landedLonely = !pieceTouchesSettledTiles(current);
       missionFeedPiece(current);
+      if(maybeDropLonelyMissionTurd(current, landedLonely)) banner.text += " It landed alone and left a rude 💩.";
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
@@ -2384,10 +2602,7 @@
       bumpMission("special_use", 1);
       registerLockCycle();
       const summary = resolveBoard();
-      applyChainResult(summary);
-      if(summary.rewardEarned) return finishMissionEarned();
-      if(!gameOver) spawnNext();
-      playLockTick();
+      finishLockResolution(summary);
       return;
     }
 
@@ -2397,8 +2612,9 @@
         board[y][x] = rewardAnimal;
         rewardMap[y][x] = true;
       }
+      startRewardCountdown();
       registerLockCycle({ skipCashout: true, skipMissionCharge: true });
-      banner.text = `Reward coin settled as ${TILE_LABEL[rewardAnimal]}. Clear that pulsing group for +${mission.cashBonus}.`;
+      banner.text = `Reward coin settled as ${TILE_LABEL[rewardAnimal]}. Clear that pulsing group within ${REWARD_COUNTDOWN_START} settles for +${mission.cashBonus}.`;
       banner.t = performance.now();
       playTone({type:"triangle", f1:720, f2:360, dur:0.16, gain:0.08});
       updateHUD();
@@ -2434,12 +2650,7 @@
 
     registerLockCycle();
     const summary = resolveBoard();
-    applyChainResult(summary);
-    if(summary.rewardEarned) return finishMissionEarned();
-    if(!gameOver) spawnNext();
-    if(settleAnimal && ANIMALS.includes(settleAnimal)) playBarnyard(settleAnimal, 4, "settle");
-    playLockTick();
-    haptic(10);
+    finishLockResolution(summary, { settleAnimal, hapticMs:10 });
   }
 
   function holdCurrent(){
@@ -2558,6 +2769,23 @@
       p.life -= 1;
     }
     particles = particles.filter(p => p.life > 0);
+  }
+
+  function easeOutCubic(t){
+    return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  }
+
+  function queueBoardAnimations(entries){
+    if(!entries?.length) return;
+    const start = performance.now();
+    for(const entry of entries){
+      boardAnimations.push({ ...entry, start });
+    }
+  }
+
+  function stepBoardAnimations(now=performance.now()){
+    if(!boardAnimations.length) return;
+    boardAnimations = boardAnimations.filter((entry) => (now - entry.start) < entry.duration);
   }
 
   // ===== Viewport CSS + iPhone fit =====
@@ -2733,6 +2961,115 @@
     ctx.beginPath();
     ctx.arc(cx - s * 0.12, cy - s * 0.08, s * 0.12, Math.PI * 1.1, Math.PI * 1.88);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFloatingTile(gx, gy, tile, opts={}){
+    const {
+      alpha = 1,
+      scale = 1
+    } = opts;
+    const specialMeta = SPECIAL_TILE_META[tile];
+    const missionTile = MISSION_TILES.has(tile);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(gx + cell/2, gy + cell/2);
+    ctx.scale(scale, scale);
+    const ox = -cell/2;
+    const oy = -cell/2;
+
+    roundRectFill(ox+1, oy+1, cell-2, cell-2, 10, TILE_COLOR[tile] || "#ddd");
+
+    if(specialMeta){
+      ctx.save();
+      ctx.globalAlpha *= 0.18;
+      roundRectFill(ox+3, oy+3, cell-6, cell-6, 10, specialMeta.accent);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha *= 0.28;
+    ctx.strokeStyle = specialMeta ? specialMeta.accent : "#ffffff";
+    ctx.lineWidth = Math.max(1, Math.floor(cell * 0.06));
+    roundRectStroke(ox+2, oy+2, cell-4, cell-4, 9);
+    ctx.restore();
+
+    if(missionTile){
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 209, 102, 0.9)";
+      ctx.lineWidth = Math.max(1.5, Math.floor(cell * 0.06));
+      roundRectStroke(ox+4, oy+4, cell-8, cell-8, 8);
+      ctx.restore();
+    }
+
+    if(tile === TILE.CASHOUT){
+      drawCashoutCoin(ox, oy);
+      ctx.restore();
+      return;
+    }
+
+    if(tile === TILE.SEEDER_TURD){
+      drawTurdGlyph(0, 1, cell * 0.66);
+      ctx.restore();
+      return;
+    }
+
+    ctx.font = `${Math.floor(cell*0.66)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.globalAlpha *= 0.22;
+    ctx.fillStyle = "#000";
+    ctx.fillText(TILE_LABEL[tile] || "?", 1, 2);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = tile === TILE.CASHOUT ? "#6f4300" : "#fff";
+    ctx.fillText(TILE_LABEL[tile] || "?", 0, 1);
+    ctx.restore();
+  }
+
+  function drawBoardAnimations(px, now=performance.now()){
+    if(!boardAnimations.length) return;
+    ctx.save();
+    for(const fx of boardAnimations){
+      const t = clamp((now - fx.start) / fx.duration, 0, 1);
+      if(fx.type === "clear"){
+        const scale = 1 - t * 0.72;
+        const alpha = 0.85 - t * 0.85;
+        const gy = px + fx.y * cell - t * cell * 0.08;
+        drawFloatingTile(px + fx.x * cell, gy, fx.tile, { alpha, scale });
+        continue;
+      }
+      if(fx.type === "convert"){
+        const gx = px + fx.x * cell;
+        const gy = px + fx.y * cell;
+        if(t < 0.45){
+          drawFloatingTile(gx, gy, fx.fromTile, { alpha: 0.7 - t * 0.9, scale: 1 - t * 0.22 });
+        } else {
+          const reveal = (t - 0.45) / 0.55;
+          drawFloatingTile(gx, gy, fx.toTile, { alpha: 0.35 + reveal * 0.65, scale: 0.84 + reveal * 0.2 });
+        }
+        continue;
+      }
+      if(fx.type === "fall"){
+        const progress = easeOutCubic(t);
+        const gx = px + fx.x * cell;
+        const fromGy = px + fx.fromY * cell;
+        const toGy = px + fx.toY * cell;
+        const gy = fromGy + (toGy - fromGy) * progress;
+
+        ctx.save();
+        ctx.globalAlpha = 0.14 * (1 - t);
+        ctx.strokeStyle = TILE_COLOR[fx.tile] || "#fff";
+        ctx.lineWidth = Math.max(3, Math.floor(cell * 0.12));
+        ctx.beginPath();
+        ctx.moveTo(gx + cell/2, fromGy + cell/2);
+        ctx.lineTo(gx + cell/2, toGy + cell/2);
+        ctx.stroke();
+        ctx.restore();
+
+        drawFloatingTile(gx, gy, fx.tile, { alpha: 0.28 + (1 - t) * 0.26, scale: 0.96 });
+      }
+    }
     ctx.restore();
   }
 
@@ -3354,6 +3691,7 @@
     drawProductTags(px);
 
     drawOverlay(px, true);
+    drawBoardAnimations(px);
 
     if(current && !paused){
       const gy = getGhostY(current);
@@ -3372,9 +3710,23 @@
     holdTouchTimer = null;
   }
 
+  function executeTapMove(clientX){
+    const rect = canvas.getBoundingClientRect();
+    const mid = rect.left + rect.width/2;
+    move(clientX < mid ? -1 : 1);
+  }
+
+  function flushPendingTap(now=performance.now()){
+    if(!pendingTap || gesture) return;
+    if(now - pendingTap.t < DOUBLE_TAP_MS) return;
+    const tap = pendingTap;
+    pendingTap = null;
+    executeTapMove(tap.x);
+  }
+
   function armHoldTouchGesture(){
     clearHoldTouchTimer();
-    if(!IS_TOUCH || paused || gameOver || holdUsed || !current) return;
+    if(!gesture?.touchLike || paused || gameOver || holdUsed || !current) return;
     holdTouchTimer = setTimeout(() => {
       if(!gesture) return;
       const drift = Math.hypot(gesture.lastX - gesture.startX, gesture.lastY - gesture.startY);
@@ -3388,11 +3740,16 @@
 
   // ===== Tap/Swipe behavior =====
   // Tap: move only (left/right half)
-  // Press and hold: hold/swap current piece
-  // Swipe up: rotate only
+  // Double tap or press and hold: hold/swap current piece
+  // Swipe up-left / up-right within a narrow cone: rotate only
   function onPointerDown(e){
     e.preventDefault();
     unlockAudioSilently();
+    const now = performance.now();
+    const touchLike = e.pointerType === "touch" || e.pointerType === "pen" || (!e.pointerType && IS_TOUCH);
+    flushPendingTap(now);
+    const priorTap = touchLike && pendingTap && (now - pendingTap.t) < DOUBLE_TAP_MS ? pendingTap : null;
+    if(priorTap) pendingTap = null;
     gesture = {
       startX: e.clientX,
       startY: e.clientY,
@@ -3400,14 +3757,16 @@
       lastY:  e.clientY,
       movedX: 0,
       movedY: 0,
-      t0: performance.now(),
-      rotated: false
+      t0: now,
+      rotated: false,
+      priorTap,
+      touchLike
     };
     armHoldTouchGesture();
   }
 
   function onPointerMove(e){
-    if(!IS_TOUCH || !gesture) return;
+    if(!gesture?.touchLike) return;
 
     const nx = e.clientX, ny = e.clientY;
     const dx = nx - gesture.lastX;
@@ -3417,21 +3776,27 @@
     gesture.movedX += dx;
     gesture.movedY += dy;
 
-    while(gesture.movedX <= -STEP_X){ move(-1); gesture.movedX += STEP_X; }
-    while(gesture.movedX >=  STEP_X){ move( 1); gesture.movedX -= STEP_X; }
-    while(gesture.movedY >=  STEP_Y){ dropOne(); gesture.movedY -= STEP_Y; }
-
     const totalDx = nx - gesture.startX;
     const totalDy = ny - gesture.startY;
     const upDist  = -totalDy;
+    const rotateAngle = upDist > 0 ? (Math.atan2(Math.abs(totalDx), upDist) * 180 / Math.PI) : 90;
+    const rotateIntent = upDist >= 8 && rotateAngle <= ROTATE_INTENT_ANGLE;
     if(Math.hypot(totalDx, totalDy) > HOLD_MOVE_CANCEL) clearHoldTouchTimer();
 
-    // Rotate ONLY on a clear upward swipe (dominantly vertical), once per gesture
-    if(!gesture.rotated && upDist >= SWIPE_UP_MIN && upDist >= Math.abs(totalDx) * UP_DOMINANCE){
-      const rotated = rotate(totalDx < 0 ? false : true); // up-left CCW, up-right/straight CW
+    if(!rotateIntent){
+      while(gesture.movedX <= -STEP_X){ move(-1); gesture.movedX += STEP_X; }
+      while(gesture.movedX >=  STEP_X){ move( 1); gesture.movedX -= STEP_X; }
+      while(gesture.movedY >=  STEP_Y){ dropOne(); gesture.movedY -= STEP_Y; }
+    }
+
+    if(!gesture.rotated && upDist >= SWIPE_UP_MIN && rotateAngle <= ROTATE_ANGLE_MAX && Math.abs(totalDx) >= ROTATE_SIDE_MIN){
+      const rotated = rotate(totalDx > 0);
       if(rotated) triggerTouchRotateSlowdown();
       gesture.rotated = true;
+      gesture.movedX = 0;
+      gesture.movedY = 0;
       clearHoldTouchTimer();
+      return;
     }
   }
 
@@ -3442,13 +3807,25 @@
 
     const dt   = performance.now() - gesture.t0;
     const dist = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY);
+    const priorTap = gesture.priorTap;
+    const rotated = gesture.rotated;
+    const touchLike = gesture.touchLike;
 
-    // TAP: move one tile based on which half of screen was tapped
-    // (Never rotate on tap)
-    if(dt < 260 && dist < 10){
-      const rect = canvas.getBoundingClientRect();
-      const mid = rect.left + rect.width/2;
-      move(e.clientX < mid ? -1 : 1);
+    if(!touchLike){
+      if(dt < 260 && dist < 10 && !rotated) executeTapMove(e.clientX);
+      gesture = null;
+      return;
+    }
+
+    if(dt < 260 && dist < 10 && !rotated){
+      if(priorTap && Math.hypot(e.clientX - priorTap.x, e.clientY - priorTap.y) <= DOUBLE_TAP_SLOP){
+        holdCurrent();
+      } else {
+        pendingTap = { x: e.clientX, y: e.clientY, t: performance.now() };
+      }
+    } else if(priorTap){
+      pendingTap = priorTap;
+      flushPendingTap(performance.now());
     }
 
     gesture = null;
@@ -3457,7 +3834,14 @@
   canvas.addEventListener("pointerdown", onPointerDown, {passive:false});
   canvas.addEventListener("pointermove", onPointerMove, {passive:true});
   canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
-  canvas.addEventListener("pointercancel", () => { clearHoldTouchTimer(); gesture = null; });
+  canvas.addEventListener("pointercancel", () => {
+    clearHoldTouchTimer();
+    if(gesture?.priorTap){
+      pendingTap = gesture.priorTap;
+      flushPendingTap(performance.now());
+    }
+    gesture = null;
+  });
   window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
   window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
   window.addEventListener("click", unlockAudioSilently, {passive:true});
@@ -3509,7 +3893,7 @@
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
     if(!helpPrimary) return;
-    helpPrimary.innerHTML = "<b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ rotate · press and hold = hold";
+    helpPrimary.innerHTML = "<b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑↖/↑↗ rotate · double tap or press and hold = hold";
   }
 
   // ===== Settings toggle (simple) =====
@@ -3603,6 +3987,8 @@
     if(!lastFrameTime) lastFrameTime = now;
     const dt = Math.min(50, now - lastFrameTime);
     lastFrameTime = now;
+    flushPendingTap(now);
+    stepBoardAnimations(now);
     if(paused || gameOver) return;
 
     fallTimer += dt;
@@ -3619,7 +4005,7 @@
       if(!collides(current,0,1)) current.y += 1;
       else lockPiece();
       draw();
-    } else if(particles.length){
+    } else if(particles.length || boardAnimations.length || (mission && mission.ready && !mission.done && hasRewardCoinOnBoard())){
       draw();
     }
   }
@@ -3637,6 +4023,7 @@
     missionSpecialPending = false;
     queuedMissionSpecial = null;
     cashoutCharge = 0;
+    rewardCountdown = null;
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
@@ -3649,7 +4036,9 @@
     ambienceClock = 0;
     paused=false; gameOver=false;
     current=null; next=null;
-    particles=[]; banner={text:"",t:0,ttl:900};
+    particles=[]; boardAnimations=[]; banner={text:"",t:0,ttl:900};
+    pendingTap = null;
+    lastMissionMeterAudio = null;
     setOverlayOpen(modalBackdrop, false);
     setOverlayOpen(gameOverBackdrop, false);
     setOverlayOpen(missionBriefBackdrop, false);
@@ -3678,7 +4067,11 @@
     missionSpecialPending = false;
     queuedMissionSpecial = null;
     cashoutCharge = 0;
+    rewardCountdown = null;
     bestHerd = null;
+    lastMissionMeterAudio = null;
+    pendingTap = null;
+    boardAnimations = [];
 
     next = newPiece();
     spawnNext();

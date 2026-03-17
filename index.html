@@ -48,6 +48,7 @@
           <span id="missionProgress" class="planHint">Start dropping pieces</span>
           <div id="missionMeter" class="missionMeter" aria-hidden="true">
             <span id="missionMeterFill" class="missionMeterFill"></span>
+            <span id="missionMeterLabel" class="missionMeterLabel"></span>
           </div>
           <div class="missionSpecialStrip">
             <div class="missionSpecialCopyBlock">
@@ -74,6 +75,7 @@
           </div>
           <div class="missionMeter stageMissionMeter">
             <span id="stageMissionMeterFill" class="missionMeterFill"></span>
+            <span id="stageMissionMeterLabel" class="missionMeterLabel"></span>
           </div>
           <div id="stageRunActions" class="stageRunActions hidden" aria-label="Run actions">
             <button id="stageResultsButton" class="stageRunIcon" aria-label="Show endgame results">📊</button>
@@ -99,7 +101,7 @@
 
     <footer id="help">
       <div>
-        <b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ rotate · press and hold = hold
+        <b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑↖/↑↗ rotate · double tap or press and hold = hold
       </div>
       <div class="legend">🥚 double · <span class="danger">💩 half</span> · Space = slam</div>
     </footer>
@@ -108,7 +110,7 @@
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings</h2>
+      <h2>Settings (v0.1)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -201,7 +203,7 @@
           <div class="gameOverStats">
             <div class="gameOverStat">
               <span class="statLabel">Mission</span>
-              <span class="statValue">Hit the goal, then clear the reward group</span>
+              <span class="statValue">Hit the goal, then clear the reward group before the 10-settle clock expires</span>
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Chain</span>
@@ -209,11 +211,11 @@
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Touch</span>
-              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe up rotate · press and hold to hold</span>
+              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe up-left / up-right within 30° to rotate · double tap or press and hold to hold</span>
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Mission Pace</span>
-              <span class="statValue">Mission tetrads show up randomly, the barn speeds up slowly after the goal, and the bonus grows with each extra settle</span>
+              <span class="statValue">Mission tetrads show up randomly, the bonus grows until the reward coin lands, then the 10-settle reward clock starts</span>
             </div>
           </div>
         </div>
