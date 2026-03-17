@@ -33,7 +33,7 @@
   const BOARD_CLEAR_ANIM_MS = 330;
   const BOARD_CONVERT_ANIM_MS = 420;
   const BOARD_FALL_ANIM_MS = 360;
-  const RUN_END_REVEAL_MIN_MS = 2600;
+  const RUN_END_REVEAL_MIN_MS = 3600;
   const SHARE_GRID_COLS = 6;
   const SHARE_GRID_ROWS = 6;
 
@@ -1800,6 +1800,12 @@
     if(mission && mission.done) return "Coins banked. Let the barn settle.";
     if(mission && mission.ready && !mission.done) return "No bonus this time. Let the barn settle.";
     return "Let the barn settle...";
+  }
+
+  function shareMissionStatus(){
+    if(mission && mission.done) return "Mission Succeeded! 🐺";
+    if(mission) return "Mission Failed 💥";
+    return runEndTitle || "Run Over 🐺";
   }
 
   function finishMissionEarned(){
@@ -3830,11 +3836,53 @@
     drawShareOverlay(targetCtx, snapshot, bx, by, tileSize, true, viewport);
   }
 
+  function drawShareWolfBadge(targetCtx, cx, cy, size){
+    const radius = size / 2;
+    const gradient = targetCtx.createRadialGradient(cx - size * 0.18, cy - size * 0.22, size * 0.08, cx, cy, radius);
+    gradient.addColorStop(0, "#ffddad");
+    gradient.addColorStop(0.18, "#c39b68");
+    gradient.addColorStop(0.62, "#6a7384");
+    gradient.addColorStop(1, "#232731");
+
+    targetCtx.save();
+    targetCtx.shadowColor = "rgba(0,0,0,0.32)";
+    targetCtx.shadowBlur = size * 0.2;
+    targetCtx.shadowOffsetY = size * 0.08;
+    targetCtx.beginPath();
+    targetCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+    targetCtx.fillStyle = gradient;
+    targetCtx.fill();
+    targetCtx.restore();
+
+    targetCtx.save();
+    targetCtx.strokeStyle = "rgba(255,255,255,0.14)";
+    targetCtx.lineWidth = Math.max(2, size * 0.05);
+    targetCtx.beginPath();
+    targetCtx.arc(cx, cy, radius - 1, 0, Math.PI * 2);
+    targetCtx.stroke();
+
+    targetCtx.font = `900 ${Math.floor(size * 0.72)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    targetCtx.textAlign = "center";
+    targetCtx.textBaseline = "middle";
+    targetCtx.fillText("🐺", cx, cy + size * 0.04);
+
+    targetCtx.strokeStyle = "rgba(24,17,15,0.94)";
+    targetCtx.lineWidth = Math.max(3, size * 0.07);
+    targetCtx.lineCap = "round";
+    targetCtx.beginPath();
+    targetCtx.moveTo(cx - size * 0.24, cy - size * 0.2);
+    targetCtx.lineTo(cx - size * 0.04, cy - size * 0.11);
+    targetCtx.moveTo(cx + size * 0.24, cy - size * 0.2);
+    targetCtx.lineTo(cx + size * 0.04, cy - size * 0.11);
+    targetCtx.stroke();
+    targetCtx.restore();
+  }
+
   async function buildShareImageBlob(){
     const snapshot = shareSnapshot || captureShareSnapshot();
     const card = document.createElement("canvas");
     card.width = 1080;
-    card.height = 1240;
+    card.height = 1110;
     const targetCtx = card.getContext("2d");
 
     const bg = targetCtx.createLinearGradient(0, 0, 0, card.height);
@@ -3844,58 +3892,59 @@
     targetCtx.fillStyle = bg;
     targetCtx.fillRect(0, 0, card.width, card.height);
 
-    const outerPad = 56;
-    roundRectFillFor(targetCtx, outerPad, 40, card.width - outerPad*2, card.height - 80, 28, "rgba(9, 9, 14, 0.92)");
-    roundRectStrokeFor(targetCtx, outerPad, 40, card.width - outerPad*2, card.height - 80, 28, "rgba(255,255,255,0.07)", 2);
+    const outerPad = 40;
+    roundRectFillFor(targetCtx, outerPad, outerPad, card.width - outerPad*2, card.height - outerPad*2, 28, "rgba(9, 9, 14, 0.92)");
+    roundRectStrokeFor(targetCtx, outerPad, outerPad, card.width - outerPad*2, card.height - outerPad*2, 28, "rgba(255,255,255,0.07)", 2);
 
     const missionBonus = mission && mission.done ? mission.cashBonus : 0;
     const groupScore = Math.max(0, score|0);
     const totalScore = groupScore + missionBonus;
     const shareViewport = computeShareViewport(snapshot);
-
-    targetCtx.fillStyle = "#f2ede2";
-    targetCtx.font = "900 54px system-ui, -apple-system, sans-serif";
-    targetCtx.textAlign = "left";
-    targetCtx.fillText("Angry Wolves", 94, 118);
-
-    targetCtx.fillStyle = "#ffd166";
-    targetCtx.font = "900 40px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(runEndTitle || "Run Over", 94, 168);
-
-    targetCtx.fillStyle = "#7dd3fc";
-    targetCtx.font = "700 24px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(shareBragLine(), 94, 206);
-
-    targetCtx.fillStyle = "#f2ede2";
-    targetCtx.font = "700 30px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", 94, 252);
-
-    targetCtx.fillStyle = "#ffd166";
-    targetCtx.font = "900 34px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, 94, 302);
-
-    targetCtx.fillStyle = "#b9af9f";
-    targetCtx.font = "600 22px system-ui, -apple-system, sans-serif";
-    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, 94, 344);
-    targetCtx.fillText(bestGroupPlain(bestHerd), 94, 378);
-
-    const boardWrapX = 80;
-    const boardWrapY = 428;
+    const boardWrapX = outerPad;
+    const boardWrapY = 350;
     const boardWrapW = card.width - boardWrapX * 2;
-    const boardWrapH = card.height - boardWrapY - 156;
-    roundRectFillFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "#050507");
-    roundRectStrokeFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "rgba(255,255,255,0.06)", 2);
-    const boardCell = Math.floor(Math.min((boardWrapW - 40) / shareViewport.cols, (boardWrapH - 40) / shareViewport.rows));
+    const boardWrapH = card.height - boardWrapY - 96;
+    const boardCell = Math.floor(Math.min((boardWrapW - 32) / shareViewport.cols, (boardWrapH - 32) / shareViewport.rows));
     const boardPixelW = boardCell * shareViewport.cols;
     const boardPixelH = boardCell * shareViewport.rows;
     const boardX = Math.floor(boardWrapX + (boardWrapW - boardPixelW) / 2);
     const boardY = Math.floor(boardWrapY + (boardWrapH - boardPixelH) / 2);
+    const contentX = boardX;
+    const badgeSize = 64;
+    const titleY = 116;
+
+    drawShareWolfBadge(targetCtx, contentX + badgeSize / 2, titleY - 8, badgeSize);
+
+    targetCtx.fillStyle = "#f2ede2";
+    targetCtx.font = "900 54px system-ui, -apple-system, sans-serif";
+    targetCtx.textAlign = "left";
+    targetCtx.fillText("Angry Wolves", contentX + badgeSize + 18, titleY);
+
+    targetCtx.fillStyle = "#ffd166";
+    targetCtx.font = "900 38px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(shareMissionStatus(), contentX, 178);
+
+    targetCtx.fillStyle = "#f2ede2";
+    targetCtx.font = "700 30px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(mission?.title ?? snapshot.missionTitle ?? "Barn Trouble", contentX, 226);
+
+    targetCtx.fillStyle = "#ffd166";
+    targetCtx.font = "900 34px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(`${groupScore} group + ${missionBonus} bonus = ${totalScore}`, contentX, 274);
+
+    targetCtx.fillStyle = "#b9af9f";
+    targetCtx.font = "600 22px system-ui, -apple-system, sans-serif";
+    targetCtx.fillText(`Pace ${level} · Groups ${herdsCleared} · Best chain ${fmtChain(bestCombo)}`, contentX, 314);
+    targetCtx.fillText(bestGroupPlain(bestHerd), contentX, 344);
+
+    roundRectFillFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "#050507");
+    roundRectStrokeFor(targetCtx, boardWrapX, boardWrapY, boardWrapW, boardWrapH, 24, "rgba(255,255,255,0.06)", 2);
     drawShareBoard(targetCtx, snapshot, boardX, boardY, boardCell, shareViewport);
 
     targetCtx.fillStyle = "#7dd3fc";
     targetCtx.font = "700 22px system-ui, -apple-system, sans-serif";
     targetCtx.textAlign = "center";
-    targetCtx.fillText(`Play it here: ${shareUrl()}`, card.width / 2, card.height - 62);
+    targetCtx.fillText(`Play it here: ${shareUrl()}`, card.width / 2, card.height - 42);
 
     return await new Promise((resolve, reject) => {
       card.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not build share image.")), "image/jpeg", 0.9);
@@ -3923,7 +3972,7 @@
     const groupScore = Math.max(0, score|0);
     const totalScore = groupScore + missionBonus;
     const title = `Angry Wolves · ${mission?.title ?? "Barn Trouble"}`;
-    const text = `${shareBragLine()}\nMission: ${mission?.title ?? "Barn Trouble"}\n${groupScore} group score + ${missionBonus} bonus = ${totalScore}\nPlay here: ${shareUrl()}`;
+    const text = `${shareBragLine()}\nMission: ${mission?.title ?? "Barn Trouble"}`;
 
     if(shareButton) shareButton.disabled = true;
     try{

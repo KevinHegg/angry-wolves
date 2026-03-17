@@ -88,8 +88,9 @@ html,body{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:1.08em;
-  height:1.08em;
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
   border-radius:999px;
   background: radial-gradient(circle at 32% 26%, #ffdca8 0 12%, #c29c69 18%, #6b7486 60%, #232731 100%);
   box-shadow:
@@ -99,6 +100,7 @@ html,body{
   overflow:hidden;
   transform-origin:center;
   animation:wolfSnarl 2.8s ease-in-out infinite;
+  font-size:24px;
 }
 .wolfBadge::before,
 .wolfBadge::after{
@@ -566,6 +568,7 @@ canvas{
   max-height:min(84svh, 760px);
   display:flex;
   flex-direction:column;
+  overflow:hidden;
 }
 .missionBriefModal{
   width: min(560px, 100%);
@@ -664,10 +667,13 @@ canvas{
 .helpScroll{
   overflow:auto;
   max-height:min(64svh, 560px);
+  flex:1 1 auto;
+  min-height:0;
   display:flex;
   flex-direction:column;
   gap:10px;
   padding-right:4px;
+  padding-bottom:12px;
   touch-action:pan-y;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
@@ -983,6 +989,13 @@ canvas{
     white-space:nowrap;
   }
 
+  .wolfBadge{
+    width:34px;
+    height:34px;
+    flex-basis:34px;
+    font-size:20px;
+  }
+
   .title .sub{
     display:none;
   }
@@ -1217,10 +1230,11 @@ canvas{
 
   .helpModal{
     width:min(94vw, 520px);
+    max-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
   }
 
   .helpScroll{
-    max-height:min(66svh, 540px);
+    max-height:none;
   }
 
   .helpSpecialPreview{
@@ -1248,6 +1262,13 @@ canvas{
 
   .title .h1{
     font-size:15px;
+  }
+
+  .wolfBadge{
+    width:34px;
+    height:34px;
+    flex-basis:34px;
+    font-size:20px;
   }
 
   .score{
