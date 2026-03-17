@@ -871,9 +871,10 @@ canvas{
       "right right next";
     align-items:start;
     gap:4px 10px;
-    padding: 8px 0 2px;
+    width:calc(100% - 24px);
+    padding: 8px 6px 2px 2px;
     min-height:auto;
-    margin-left:10px;
+    margin-left:14px;
     margin-right:auto;
   }
 
@@ -890,6 +891,7 @@ canvas{
     gap:12px;
     flex-wrap:wrap;
     padding-top:0;
+    padding-left:4px;
     justify-self:start;
     min-width:0;
   }
@@ -953,8 +955,8 @@ canvas{
   }
 
   #stage{
-    width:calc(100vw - 20px);
-    margin-left:10px;
+    width:calc(100vw - 28px);
+    margin-left:14px;
     margin-right:auto;
     min-height: clamp(808px, 90svh, 1080px);
     justify-content:center;
@@ -965,7 +967,7 @@ canvas{
 
   .stageMissionBar{
     top:8px;
-    left:4px;
+    left:8px;
     right:4px;
     transform:none;
     padding:5px 8px 5px 8px;
