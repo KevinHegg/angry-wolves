@@ -1365,8 +1365,12 @@
       : `${Math.max(0, score|0)} herding`;
   }
 
+  function awaitingRunEndReveal(){
+    return !!(gameOver && (pendingGameOverRevealTimer || boardAnimations.length || particles.length));
+  }
+
   function syncStageRunActions(){
-    const runEnded = !!gameOver;
+    const runEnded = !!gameOver && !awaitingRunEndReveal();
     if(stageMissionBarEl) stageMissionBarEl.classList.toggle("runEnded", runEnded);
     if(stageRunActionsEl) stageRunActionsEl.classList.toggle("hidden", !runEnded);
     if(!runEnded) return;
@@ -3806,6 +3810,28 @@
 
     stepParticles();
     drawParticles();
+
+    if(awaitingRunEndReveal()){
+      const pulse = 0.72 + 0.28 * (0.5 + 0.5 * Math.sin(performance.now() / 240));
+      const panelW = Math.min(W * 0.72, 420 * dpr);
+      const panelH = 86 * dpr;
+      const panelX = Math.floor((W - panelW) / 2);
+      const panelY = Math.floor((H - panelH) / 2);
+      ctx.save();
+      ctx.globalAlpha = 0.76;
+      roundRectFill(panelX, panelY, panelW, panelH, 16 * dpr, "rgba(5,5,10,0.88)");
+      ctx.globalAlpha = pulse;
+      roundRectStroke(panelX, panelY, panelW, panelH, 16 * dpr, "rgba(255, 209, 102, 0.92)", Math.max(2, Math.floor(3 * dpr)));
+      ctx.fillStyle = "#f2ede2";
+      ctx.font = `900 ${Math.floor(26 * dpr)}px system-ui, -apple-system, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(runEndTitle || "Game Over", W / 2, panelY + panelH * 0.42);
+      ctx.fillStyle = `rgba(125, 211, 252, ${0.8 + 0.2 * pulse})`;
+      ctx.font = `700 ${Math.floor(13 * dpr)}px system-ui, -apple-system, sans-serif`;
+      ctx.fillText("Settling the barn...", W / 2, panelY + panelH * 0.72);
+      ctx.restore();
+    }
 
   }
 
