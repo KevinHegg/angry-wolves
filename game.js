@@ -70,6 +70,7 @@
     PRODUCE_EGG: 19,
     MILK: 20,
     FOOTBALL: 21,
+    BUNKER: 22,
   };
 
   const POWER = { NONE:0, EGG:1, TURD:2 };
@@ -97,6 +98,7 @@
     [TILE.PRODUCE_EGG]: "🥚",
     [TILE.MILK]: "🥛",
     [TILE.FOOTBALL]: "🏈",
+    [TILE.BUNKER]: "🧨",
   };
 
   const TILE_COLOR = {
@@ -121,6 +123,7 @@
     [TILE.PRODUCE_EGG]: "#fff0a6",
     [TILE.MILK]: "#d8efff",
     [TILE.FOOTBALL]: "#d39a66",
+    [TILE.BUNKER]: "#ff6b66",
   };
 
   const SPECIAL_TILE_META = {
@@ -134,7 +137,8 @@
     [TILE.SEEDER_EGG]: { accent: "#fff0a6", badge: "+" },
     [TILE.SEEDER_TURD]: { accent: "#fff0a6", badge: "+" },
     [TILE.BRAND]: { accent: "#d3bcff", badge: "↔" },
-    [TILE.FEED]: { accent: "#b8f2a8", badge: "✦" }
+    [TILE.FEED]: { accent: "#b8f2a8", badge: "✦" },
+    [TILE.BUNKER]: { accent: "#ffcf9f", badge: "✹" }
   };
 
   const GROUP_NAME = {
@@ -176,6 +180,7 @@
     TILE.PRODUCE_EGG,
     TILE.MILK,
     TILE.FOOTBALL,
+    TILE.BUNKER,
   ]);
 
   // ===== Shapes =====
@@ -199,6 +204,7 @@
     SEEDER_S:     { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.SEEDER, rotates:true },
     BRAND_T:      { matrix:[[1,1,1],[0,1,0],[0,0,0]], tile:TILE.BRAND, rotates:true },
     FEED_L:       { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.FEED, rotates:true },
+    BUNKER_O:     { matrix:[[1,1],[1,1]], tile:TILE.BUNKER, rotates:false },
     PRODUCE_O:    { matrix:[[1,1],[1,1]], rotates:false },
     CASHOUT_1:    { matrix:[[1]], tile:TILE.CASHOUT, rotates:false }
   };
@@ -376,6 +382,13 @@
       every: 5,
       tile: TILE.FEED
     },
+    bunker: {
+      title: "Bunker Buster",
+      desc: "On average, a bunker-buster square barges in about every 5 settles. It starts with a close-range blast, then chains through every block touching the wreckage. If it fails to destroy anything, it leaves four rude turds behind, three of them in the lower barn.",
+      short: "Surprise bunker-buster square, about every 5 settles on average.",
+      every: 5,
+      tile: TILE.BUNKER
+    },
     produce: {
       title: "Barn Goods",
       desc: "On average, a product tetrad barges in about every 5 settles. Land it on the right producer to tag that group and leave an egg behind. Miss and it leaves a turd before joining whatever it touched.",
@@ -393,15 +406,15 @@
     { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:150, special:"bomb", title:"Hog Panic" },
     { id:"clear_four", type:"clears", target:4, bonus:180, special:"bomb", title:"Quad Clear" },
     { id:"combo_three", type:"combo", target:4, bonus:215, special:"morph", title:"Chain Fever" },
-    { id:"wolf_twice", type:"wolf", target:2, bonus:240, special:"bomb", title:"Wolf Rampage" },
+    { id:"huff_puff", type:"destroy", animal:TILE.PIG, target:15, bonus:195, special:"bunker", title:"Huff and Puff" },
     { id:"score_320", type:"score", target:380, bonus:210, special:"reaper", title:"Sunrise Scramble" },
     { id:"build_ten", type:"build_group", target:12, bonus:210, special:"brand", title:"Barn Weave" },
     { id:"feed_three", type:"clears", target:4, bonus:175, special:"feed", title:"Feed Rush" },
-    { id:"wool_patrol", type:"product", animal:TILE.SHEEP, target:2, bonus:175, special:"produce", title:"Wool Patrol" },
-    { id:"cheese_chase", type:"product", animal:TILE.GOAT, target:2, bonus:175, special:"produce", title:"Cheese Chase" },
-    { id:"egg_run", type:"product", animal:TILE.CHICKEN, target:2, bonus:170, special:"produce", title:"Egg Run" },
-    { id:"milk_run", type:"product", animal:TILE.COW, target:2, bonus:180, special:"produce", title:"Milk Run" },
-    { id:"pigskin_parade", type:"product", animal:TILE.PIG, target:2, bonus:175, special:"produce", title:"Pigskin Parade" }
+    { id:"wool_patrol", type:"product", animal:TILE.SHEEP, target:2, bonus:175, special:"produce", title:"Wool Patrol", weight:1.5 },
+    { id:"cheese_chase", type:"product", animal:TILE.GOAT, target:2, bonus:175, special:"produce", title:"Cheese Chase", weight:1.5 },
+    { id:"egg_run", type:"product", animal:TILE.CHICKEN, target:2, bonus:170, special:"produce", title:"Egg Run", weight:1.5 },
+    { id:"milk_run", type:"product", animal:TILE.COW, target:2, bonus:180, special:"produce", title:"Milk Run", weight:1.5 },
+    { id:"pigskin_parade", type:"product", animal:TILE.PIG, target:2, bonus:175, special:"produce", title:"Pigskin Parade", weight:1.5 }
   ];
 
   // ===== Audio (silent unlock, no popups) =====
@@ -698,6 +711,8 @@
     const animal = pieceLeadAnimal(piece);
     if(piece?.kind === "MISSION_BOMB"){
       playJingle([330, 247], { step:0.08, type:"sawtooth", gain:0.05 });
+    } else if(piece?.kind === "MISSION_BUNKER"){
+      playJingle([294, 220, 165], { step:0.065, type:"sawtooth", gain:0.055 });
     } else if(piece?.kind === "MISSION_REAPER"){
       playJingle([659, 523], { step:0.06, type:"triangle", gain:0.045 });
     } else if(piece?.kind === "MISSION_MORPH"){
@@ -740,6 +755,20 @@
   function makeRewardMap(){ return Array.from({length: ROWS}, () => Array(COLS).fill(false)); }
   function makeProductMap(){ return Array.from({length: ROWS}, () => Array(COLS).fill(0)); }
   function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function weightedChoice(arr, weightFn=(entry) => entry?.weight ?? 1){
+    if(!arr?.length) return null;
+    let total = 0;
+    for(const entry of arr){
+      total += Math.max(0, Number(weightFn(entry)) || 0);
+    }
+    if(total <= 0) return arr[0];
+    let roll = Math.random() * total;
+    for(const entry of arr){
+      roll -= Math.max(0, Number(weightFn(entry)) || 0);
+      if(roll <= 0) return entry;
+    }
+    return arr[arr.length - 1];
+  }
   function clone2(m){ return m.map(r => r.slice()); }
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function fmtChain(v){ return `x${Math.max(0, v|0)}`; }
@@ -802,6 +831,7 @@
       return `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
     }
     if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
+    if(mission.type === "destroy") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} wrecked`;
     if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} clears`;
     if(mission.type === "combo") return `${fmtChain(bestCombo)} best`;
     if(mission.type === "wolf") return `${missionProgressText(mission.progress, mission.target)} wolves`;
@@ -917,6 +947,7 @@
   function isMissionSpecialPiece(piece){
     return !!piece && [
       "MISSION_BOMB",
+      "MISSION_BUNKER",
       "MISSION_REAPER",
       "MISSION_MORPH",
       "MISSION_SEEDER",
@@ -995,6 +1026,9 @@
     if(!mission) return null;
     if(mission.special === "bomb"){
       return { kind:"MISSION_BOMB", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BOMB_T), rotates:SPECIAL.BOMB_T.rotates };
+    }
+    if(mission.special === "bunker"){
+      return { kind:"MISSION_BUNKER", x: Math.floor(COLS/2)-1, y:0, matrix: materializeSpecMatrix(SPECIAL.BUNKER_O), rotates:SPECIAL.BUNKER_O.rotates };
     }
     if(mission.special === "reaper"){
       return { kind:"MISSION_REAPER", x: Math.floor(COLS/2)-2, y:0, matrix: materializeSpecMatrix(SPECIAL.REAPER_I), rotates:true };
@@ -1170,6 +1204,12 @@
         piece: helpPieceFromSpec(SPECIAL.BOMB_T, "MISSION_BOMB")
       },
       {
+        id: "help-bunker",
+        name: "Bunker Buster",
+        text: "2x2 gold-frame square. It starts with a close blast, then chains through every touching block. Whiffs leave four 💩, three of them in the lower barn.",
+        piece: helpPieceFromSpec(SPECIAL.BUNKER_O, "MISSION_BUNKER")
+      },
+      {
         id: "help-reaper",
         name: "Cull Comb",
         text: "Gold-frame line. It removes the biggest group on the board, then turns into the touched animal so you can place it usefully.",
@@ -1215,7 +1255,7 @@
   }
 
   function newMission(){
-    const def = randChoice(MISSION_DEFS);
+    const def = weightedChoice(MISSION_DEFS, (entry) => entry?.weight ?? 1);
     const tunedBonus = Math.max(80, Math.round(def.bonus * 0.6));
     return {
       ...def,
@@ -1310,6 +1350,7 @@
   function missionObjectiveLabel(){
     if(!mission) return "Warm up the barn";
     if(mission.type === "animal") return `Clear ${mission.target} ${animalWord(mission.animal)}`;
+    if(mission.type === "destroy") return `Destroy ${mission.target} ${animalWord(mission.animal)}`;
     if(mission.type === "clears") return `Clear ${mission.target} big groups (${BIG_GROUP_THRESHOLD}+)`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `Trigger ${mission.target} wolf tantrum${mission.target === 1 ? "" : "s"}`;
@@ -1325,8 +1366,9 @@
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
     if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "destroy") return `Destroy enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} with clears, blasts, or chain fallout to hit the goal. ${missionCashoutObjectiveCopy()}`;
     if(mission.type === "clears") return `Clear enough big groups of ${BIG_GROUP_THRESHOLD} or more animals to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "combo") return `Build your chain by clearing a group, letting the perimeter flip into nearby animals, and then letting straight gravity trigger another clear. ${missionCashoutObjectiveCopy()}`;
+    if(mission.type === "combo") return `A chain happens when one herd clear causes another in the same settle. First the touching perimeter flips, then gravity drops the stack, then any new 10+ herd clears. Reach ${fmtChain(mission.target)} in one full cascade. ${missionCashoutObjectiveCopy()}`;
     if(mission.type === "wolf") return `Trigger enough wolf blasts to hit the goal. ${missionCashoutObjectiveCopy()}`;
     if(mission.type === "score") return `Rack up coins fast. ${missionCashoutObjectiveCopy()}`;
     if(mission.type === "level") return `Stay alive long enough to reach the target pace. ${missionCashoutObjectiveCopy()}`;
@@ -1341,6 +1383,10 @@
     return `The barn demands something weird from you today. Finish the objective, then ${missionCashoutObjectiveCopy().charAt(0).toLowerCase()}${missionCashoutObjectiveCopy().slice(1)}`;
   }
 
+  function missionSpecialExtraNote(){
+    return mission?.special === "bunker" ? "" : " Lone drops leave a turd.";
+  }
+
   function openMissionBriefing(){
     const specialRule = missionSpecialRule();
     if(missionBriefTitleEl) missionBriefTitleEl.textContent = mission?.title ?? "Mission Briefing";
@@ -1348,7 +1394,7 @@
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
     if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Earn at least +${mission?.bonus ?? 0} coins`;
     if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = specialRule ? specialRule.title : "No special";
-    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? `${specialRule.desc} Lone drops leave a turd.` : "No special tetrad assigned.";
+    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? `${specialRule.desc}${missionSpecialExtraNote()}` : "No special tetrad assigned.";
     renderPreview(missionBriefPreviewEl, createMissionSpecialPiece());
     setOverlayOpen(missionBriefBackdrop, true);
   }
@@ -1440,7 +1486,7 @@
           ? specialQueued
             ? "Mission tetrad is primed."
             : `${specialJoinRateLabel(specialRule)} · ${specialWarmth}% primed`
-          : `${specialRule.desc} Lone drops leave a turd. ${specialQueued ? "That mission tetrad is primed and can drop at any moment." : `Its odds are warming up (${specialWarmth}%).`}`
+          : `${specialRule.desc}${missionSpecialExtraNote()} ${specialQueued ? "That mission tetrad is primed and can drop at any moment." : `Its odds are warming up (${specialWarmth}%).`}`
         : "No special tetrad assigned.";
       renderPreview(missionSpecialPreviewEl, createMissionSpecialPiece());
     }
@@ -1456,6 +1502,17 @@
       return;
     }
 
+    if(mission.type === "destroy"){
+      missionProgressEl.textContent = mission.done
+        ? `Bonus earned: +${mission.cashBonus} coins`
+        : mission.ready
+          ? hasRewardCoinOnBoard()
+            ? `Barn wrecking complete. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
+            : `Barn wrecking complete. Wait for the reward coin to land.`
+          : `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} destroyed`;
+      return;
+    }
+
     if(mission.type === "combo"){
       missionProgressEl.textContent = mission.done
         ? `Crowd goes feral: +${mission.cashBonus}`
@@ -1463,7 +1520,7 @@
           ? hasRewardCoinOnBoard()
             ? `Combo landed. Clear the pulsing reward group in ${rewardCountdownLabel()}.`
             : `Combo landed. The bonus keeps fattening until the reward coin lands.`
-          : `Best cascade this run: ${fmtChain(bestCombo)} (${missionProgressText(mission.progress, mission.target)})`;
+          : `Best full cascade this run: ${fmtChain(bestCombo)}. One clear must cause the next (${missionProgressText(mission.progress, mission.target)}).`;
       return;
     }
 
@@ -1584,6 +1641,8 @@
   function bumpMission(event, value){
     if(!mission || mission.done || mission.ready) return;
     if(event === "animal" && mission.type === "animal" && mission.animal === value.animal){
+      mission.progress += value.amount;
+    } else if(event === "destroy" && mission.type === "destroy" && mission.animal === value.animal){
       mission.progress += value.amount;
     } else if(event === "clears" && mission.type === "clears"){
       mission.progress += value;
@@ -1957,6 +2016,7 @@
     }
 
     if(popped.length){
+      bumpDestroyedAnimals(popped);
       spawnPopParticles(popped);
       banner.text = `🐺 BOOM (${popped.length} tiles). The coop lawyers have concerns.`;
       banner.t = performance.now();
@@ -2055,6 +2115,40 @@
     return placed;
   }
 
+  function scatterLowerHalfOverlays(power, count=1, excludedKeys=new Set()){
+    const candidates = [];
+    const startRow = Math.floor(ROWS / 2);
+    for(let y=startRow; y<ROWS; y++){
+      for(let x=0; x<COLS; x++){
+        const key = keyForCell(x, y);
+        if(excludedKeys.has(key)) continue;
+        candidates.push([x,y]);
+      }
+    }
+    if(!candidates.length) return 0;
+    shuffleInPlace(candidates);
+    let placed = 0;
+    for(const [x,y] of candidates){
+      overlay[y][x] = power;
+      placed++;
+      if(placed >= count) break;
+    }
+    return placed;
+  }
+
+  function bumpDestroyedAnimals(entries){
+    if(!entries?.length) return;
+    const tallies = new Map();
+    for(const entry of entries){
+      const tile = Array.isArray(entry) ? entry[2] : entry?.tile;
+      if(!ANIMALS.includes(tile)) continue;
+      tallies.set(tile, (tallies.get(tile) || 0) + 1);
+    }
+    for(const [animal, amount] of tallies){
+      bumpMission("destroy", { animal, amount });
+    }
+  }
+
   function clearProductMarks(){
     productMap = makeProductMap();
     productTokenInfo = new Map();
@@ -2102,6 +2196,7 @@
       productMap[y][x] = 0;
     }
     if(popped.length){
+      bumpDestroyedAnimals(popped);
       spawnPopParticles(popped);
       banner.text = `Barn Buster popped ${popped.length} tiles.`;
       banner.t = performance.now();
@@ -2113,9 +2208,73 @@
     }
   }
 
+  function missionBunkerBlast(piece){
+    const queued = [];
+    const destroyed = new Set();
+    for(const [x,y] of footprintCells(piece)){
+      for(let dy=-1; dy<=1; dy++){
+        for(let dx=-1; dx<=1; dx++){
+          const nx = x + dx;
+          const ny = y + dy;
+          if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+          if(board[ny][nx] === TILE.EMPTY) continue;
+          const key = ny * COLS + nx;
+          if(destroyed.has(key)) continue;
+          destroyed.add(key);
+          queued.push([nx, ny]);
+        }
+      }
+    }
+
+    for(let i=0; i<queued.length; i++){
+      const [x,y] = queued[i];
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx = x + dx;
+        const ny = y + dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        if(board[ny][nx] === TILE.EMPTY) continue;
+        const key = ny * COLS + nx;
+        if(destroyed.has(key)) continue;
+        destroyed.add(key);
+        queued.push([nx, ny]);
+      }
+    }
+
+    const popped = [];
+    for(const key of destroyed){
+      const x = key % COLS;
+      const y = Math.floor(key / COLS);
+      if(board[y][x] !== TILE.EMPTY){
+        popped.push([x,y,board[y][x]]);
+        board[y][x] = TILE.EMPTY;
+      }
+      overlay[y][x] = POWER.NONE;
+      rewardMap[y][x] = false;
+      productMap[y][x] = 0;
+    }
+
+    if(popped.length){
+      bumpDestroyedAnimals(popped);
+      spawnPopParticles(popped);
+      banner.text = `Bunker Buster chain-blasted ${popped.length} tiles.`;
+      banner.t = performance.now();
+      playTone({type:"sawtooth", f1:150, f2:46, dur:0.2, gain:0.2});
+      playTone({type:"square", f1:220, f2:82, dur:0.16, gain:0.11});
+      haptic(20);
+      return;
+    }
+
+    const excluded = new Set(footprintCells(piece).map(([x,y]) => keyForCell(x, y)));
+    const footprintTurds = markOneFootprintOverlay(piece, POWER.TURD) ? 1 : 0;
+    const lowerTurds = scatterLowerHalfOverlays(POWER.TURD, 3, excluded);
+    banner.text = `Bunker Buster whiffed and dropped ${footprintTurds + lowerTurds} rude 💩.`;
+    banner.t = performance.now();
+  }
+
   function missionReapLargestGroup(piece){
     const best = findLargestAnimalGroup();
     if(best){
+      bumpMission("destroy", { animal: best.animal, amount: best.cells.length });
       for(const [x,y] of best.cells){
         board[y][x] = TILE.EMPTY;
         overlay[y][x] = POWER.NONE;
@@ -2476,6 +2635,7 @@
 
         herdsCleared++;
         bumpMission("animal", { animal, amount: cells.length });
+        bumpMission("destroy", { animal, amount: cells.length });
         bumpMission("clears", 1);
         if(gameOver) break;
         const chainTag = cascadeDepth > 1 ? `Chain ${fmtChain(cascadeDepth)}! ` : "";
@@ -2591,6 +2751,16 @@
 
     if(current.kind === "MISSION_BOMB"){
       missionBombBlast(current);
+      settleBoardNow();
+      bumpMission("special_use", 1);
+      registerLockCycle();
+      const summary = resolveBoard();
+      finishLockResolution(summary);
+      return;
+    }
+
+    if(current.kind === "MISSION_BUNKER"){
+      missionBunkerBlast(current);
       settleBoardNow();
       bumpMission("special_use", 1);
       registerLockCycle();
