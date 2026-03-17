@@ -2,7 +2,8 @@
   // =========================
   // Angry Wolves — game.js
   // Tap left/right halves = move
-  // Swipe up = rotate only
+  // Swipe up = rotate
+  // Press and hold = hold
   // =========================
 
   // ===== Config =====
@@ -20,8 +21,10 @@
   const STEP_Y = 22;
 
   // rotate gesture
-  const SWIPE_UP_MIN = 34;         // higher to prevent accidental rotation
-  const UP_DOMINANCE = 1.25;       // must be this much more vertical than horizontal
+  const SWIPE_UP_MIN = 26;
+  const UP_DOMINANCE = 1.08;
+  const HOLD_TOUCH_MS = 320;
+  const HOLD_MOVE_CANCEL = 12;
 
   // special spawn weights
   const WEIGHT_NORMAL = 0.88;
@@ -244,9 +247,9 @@
   const finalClearsEl = document.getElementById("finalClears");
   const finalBestEl = document.getElementById("finalBest");
   const finalComboEl = document.getElementById("finalCombo");
-  const hudRunActionsEl = document.getElementById("hudRunActions");
-  const hudStartButton = document.getElementById("hudStartButton");
-  const hudResultsButton = document.getElementById("hudResultsButton");
+  const stageRunActionsEl = document.getElementById("stageRunActions");
+  const stageStartButton = document.getElementById("stageStartButton");
+  const stageResultsButton = document.getElementById("stageResultsButton");
 
   // ===== State =====
   let board = makeBoard();
@@ -273,6 +276,7 @@
   let runEndNote = "The barn got crowded.";
   let missionSpecialCharge = 0;
   let missionSpecialPending = false;
+  let queuedMissionSpecial = null;
   let cashoutCharge = 0;
 
   let fallTimer = 0;
@@ -283,9 +287,6 @@
   let gameOver = false;
   let modalOpenCount = 0;
   let lastFrameTime = 0;
-  let lastTapTime = 0;
-  let lastTapX = 0;
-  let lastTapY = 0;
 
   // render metrics
   let W=0, H=0, cell=0;
@@ -300,6 +301,7 @@
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
   let gesture = null;
+  let holdTouchTimer = null;
 
   const CLEAR_QUIPS = {
     [TILE.SHEEP]: ["Wool done.", "That flock got absolutely sheepish.", "The meadow trembles."],
@@ -905,6 +907,21 @@
     return { kind:"MISSION_CASHOUT", x: Math.floor(COLS/2), y:0, matrix: materializeSpecMatrix(SPECIAL.CASHOUT_1), rotates:false };
   }
 
+  function ensureQueuedMissionSpecial(){
+    if(!queuedMissionSpecial) queuedMissionSpecial = createMissionSpecialPiece({ forSpawn: true });
+    return queuedMissionSpecial;
+  }
+
+  function queuedNextPiece(){
+    if(mission && mission.ready && !mission.done && !hasRewardCoinOnBoard() && cashoutCharge >= missionCashoutEvery()){
+      return createCashoutPiece();
+    }
+    if(missionSpecialPending && mission && !mission.done && !mission.ready){
+      return ensureQueuedMissionSpecial();
+    }
+    return next;
+  }
+
   function clonePiece(piece){
     if(!piece) return null;
     return { ...piece, matrix: clone2(piece.matrix) };
@@ -1124,6 +1141,7 @@
 
     missionSpecialPending = true;
     missionSpecialCharge = Math.max(0, missionSpecialCharge - 1);
+    queuedMissionSpecial = createMissionSpecialPiece({ forSpawn: true });
     return true;
   }
 
@@ -1217,7 +1235,25 @@
     draw();
   }
 
+  function stageRunSummary(){
+    const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    return missionBonus > 0
+      ? `${Math.max(0, score|0)} herding + ${missionBonus} bonus`
+      : `${Math.max(0, score|0)} herding`;
+  }
+
+  function syncStageRunActions(){
+    const runEnded = !!gameOver;
+    if(stageMissionBarEl) stageMissionBarEl.classList.toggle("runEnded", runEnded);
+    if(stageRunActionsEl) stageRunActionsEl.classList.toggle("hidden", !runEnded);
+    if(!runEnded) return;
+    if(stageMissionTitleEl) stageMissionTitleEl.textContent = runEndTitle;
+    if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = stageRunSummary();
+  }
+
   function updateMissionUI(){
+    syncStageRunActions();
+    if(gameOver) return;
     if(!missionTitleEl || !missionProgressEl || !missionSpecialNameEl || !missionSpecialInfoEl) return;
     if(!mission){
       missionTitleEl.textContent = "Warm up the barn";
@@ -1400,6 +1436,7 @@
     mission.ready = true;
     mission.cashBonus = mission.bonus;
     missionSpecialPending = false;
+    queuedMissionSpecial = null;
     missionSpecialCharge = 0;
     cashoutCharge = 0;
     banner.text = `Objective met! Push your luck until the reward coin lands, then clear it in a group. Bonus at risk: +${mission.cashBonus}`;
@@ -1463,8 +1500,9 @@
       current = preparePiece(createCashoutPiece());
       cashoutCharge = 0;
     } else if(missionSpecialPending && mission && !mission.done && !mission.ready){
-      current = preparePiece(createMissionSpecialPiece({ forSpawn: true }));
+      current = preparePiece(ensureQueuedMissionSpecial());
       missionSpecialPending = false;
+      queuedMissionSpecial = null;
     } else {
       current = preparePiece(next ?? newPiece());
       next = newPiece();
@@ -1500,11 +1538,9 @@
     if(clearsEl) clearsEl.textContent = herdsCleared;
     if(comboEl) comboEl.textContent = fmtChain(currentCombo);
     if(comboBestEl) comboBestEl.textContent = fmtChain(bestCombo);
-    renderPreview(nextPreviewEl, next);
+    renderPreview(nextPreviewEl, queuedNextPiece());
     renderPreview(holdPreviewEl, held);
     if(holdButton) holdButton.disabled = paused || gameOver || !current || holdUsed;
-    if(hudRunActionsEl) hudRunActionsEl.classList.toggle("hidden", !gameOver);
-    if(nextPreviewEl?.parentElement) nextPreviewEl.parentElement.classList.toggle("resultsMode", !!gameOver);
     updateMissionUI();
   }
 
@@ -3330,8 +3366,29 @@
 
   }
 
-  // ===== Tap/Swipe behavior FIX =====
+  function clearHoldTouchTimer(){
+    if(!holdTouchTimer) return;
+    clearTimeout(holdTouchTimer);
+    holdTouchTimer = null;
+  }
+
+  function armHoldTouchGesture(){
+    clearHoldTouchTimer();
+    if(!IS_TOUCH || paused || gameOver || holdUsed || !current) return;
+    holdTouchTimer = setTimeout(() => {
+      if(!gesture) return;
+      const drift = Math.hypot(gesture.lastX - gesture.startX, gesture.lastY - gesture.startY);
+      if(drift > HOLD_MOVE_CANCEL || gesture.rotated) return;
+      holdCurrent();
+      gesture = null;
+      holdTouchTimer = null;
+      draw();
+    }, HOLD_TOUCH_MS);
+  }
+
+  // ===== Tap/Swipe behavior =====
   // Tap: move only (left/right half)
+  // Press and hold: hold/swap current piece
   // Swipe up: rotate only
   function onPointerDown(e){
     e.preventDefault();
@@ -3346,6 +3403,7 @@
       t0: performance.now(),
       rotated: false
     };
+    armHoldTouchGesture();
   }
 
   function onPointerMove(e){
@@ -3366,17 +3424,20 @@
     const totalDx = nx - gesture.startX;
     const totalDy = ny - gesture.startY;
     const upDist  = -totalDy;
+    if(Math.hypot(totalDx, totalDy) > HOLD_MOVE_CANCEL) clearHoldTouchTimer();
 
     // Rotate ONLY on a clear upward swipe (dominantly vertical), once per gesture
     if(!gesture.rotated && upDist >= SWIPE_UP_MIN && upDist >= Math.abs(totalDx) * UP_DOMINANCE){
       const rotated = rotate(totalDx < 0 ? false : true); // up-left CCW, up-right/straight CW
       if(rotated) triggerTouchRotateSlowdown();
       gesture.rotated = true;
+      clearHoldTouchTimer();
     }
   }
 
   function onPointerUp(e){
     e.preventDefault();
+    clearHoldTouchTimer();
     if(!gesture) return;
 
     const dt   = performance.now() - gesture.t0;
@@ -3385,16 +3446,6 @@
     // TAP: move one tile based on which half of screen was tapped
     // (Never rotate on tap)
     if(dt < 260 && dist < 10){
-      const now = performance.now();
-      const doubleTap = (now - lastTapTime) < 280 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 26;
-      lastTapTime = now;
-      lastTapX = e.clientX;
-      lastTapY = e.clientY;
-      if(doubleTap){
-        holdCurrent();
-        gesture = null;
-        return;
-      }
       const rect = canvas.getBoundingClientRect();
       const mid = rect.left + rect.width/2;
       move(e.clientX < mid ? -1 : 1);
@@ -3406,7 +3457,7 @@
   canvas.addEventListener("pointerdown", onPointerDown, {passive:false});
   canvas.addEventListener("pointermove", onPointerMove, {passive:true});
   canvas.addEventListener("pointerup",   onPointerUp,   {passive:false});
-  canvas.addEventListener("pointercancel", () => { gesture = null; });
+  canvas.addEventListener("pointercancel", () => { clearHoldTouchTimer(); gesture = null; });
   window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
   window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
   window.addEventListener("click", unlockAudioSilently, {passive:true});
@@ -3458,7 +3509,7 @@
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
     if(!helpPrimary) return;
-    helpPrimary.innerHTML = "<b>Touch:</b> swipe ←/→ move · ↓ drop · ↑ rotate/slows briefly · double-tap hold";
+    helpPrimary.innerHTML = "<b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ rotate · press and hold = hold";
   }
 
   // ===== Settings toggle (simple) =====
@@ -3514,11 +3565,11 @@
   if(shareButton){
     shareButton.addEventListener("click", shareResults);
   }
-  if(hudStartButton){
-    hudStartButton.addEventListener("click", restart);
+  if(stageStartButton){
+    stageStartButton.addEventListener("click", restart);
   }
-  if(hudResultsButton){
-    hudResultsButton.addEventListener("click", openGameOverPanel);
+  if(stageResultsButton){
+    stageResultsButton.addEventListener("click", openGameOverPanel);
   }
   if(missionStartButton){
     missionStartButton.addEventListener("click", closeMissionBriefing);
@@ -3575,6 +3626,8 @@
 
   // ===== Restart =====
   function restart(){
+    clearHoldTouchTimer();
+    gesture = null;
     board = makeBoard();
     sprinkleOverlayGeometric();
     clearRewardMap();
@@ -3582,6 +3635,7 @@
     mission = newMission();
     missionSpecialCharge = 0;
     missionSpecialPending = false;
+    queuedMissionSpecial = null;
     cashoutCharge = 0;
     runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
@@ -3592,7 +3646,6 @@
     fallTimer = 0;
     rotateSlowUntil = 0;
     rotateSlowUses = 4;
-    lastTapTime = 0;
     ambienceClock = 0;
     paused=false; gameOver=false;
     current=null; next=null;
@@ -3623,6 +3676,7 @@
     mission = newMission();
     missionSpecialCharge = 0;
     missionSpecialPending = false;
+    queuedMissionSpecial = null;
     cashoutCharge = 0;
     bestHerd = null;
 

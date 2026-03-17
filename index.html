@@ -32,12 +32,6 @@
       <div id="nextCard" class="planCard">
         <span class="planLabel">Next</span>
         <div id="nextPreview" class="previewGrid"></div>
-        <div id="hudRunActions" class="hudRunActions hidden" aria-label="Run actions">
-          <div class="hudRunTop">
-            <button id="hudResultsButton" class="hudRunIcon" aria-label="Show endgame results">📊</button>
-          </div>
-          <button id="hudStartButton" class="hudRunStart" aria-label="Start a new run">Start</button>
-        </div>
       </div>
     </header>
 
@@ -81,6 +75,10 @@
           <div class="missionMeter stageMissionMeter">
             <span id="stageMissionMeterFill" class="missionMeterFill"></span>
           </div>
+          <div id="stageRunActions" class="stageRunActions hidden" aria-label="Run actions">
+            <button id="stageResultsButton" class="stageRunIcon" aria-label="Show endgame results">📊</button>
+            <button id="stageStartButton" class="stageRunStart" aria-label="Start a new run">Start New Run</button>
+          </div>
         </div>
         <canvas id="c"></canvas>
         <div id="toast" class="toast hidden"></div>
@@ -101,7 +99,7 @@
 
     <footer id="help">
       <div>
-        <b>Touch:</b> swipe ←/→ move · ↓ drop · ↑ rotate · tap a side to nudge
+        <b>Touch:</b> tap a side nudge · drag ←/→ move · drag ↓ drop · swipe ↑ rotate · press and hold = hold
       </div>
       <div class="legend">🥚 double · <span class="danger">💩 half</span> · Space = slam</div>
     </footer>
@@ -211,7 +209,7 @@
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Touch</span>
-              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe up rotate</span>
+              <span class="statValue">Tap a side to nudge · drag sideways move · drag down speed up · swipe up rotate · press and hold to hold</span>
             </div>
             <div class="gameOverStat">
               <span class="statLabel">Mission Pace</span>
