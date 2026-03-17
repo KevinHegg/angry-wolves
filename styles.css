@@ -61,7 +61,7 @@ html,body{
   width:40px;height:40px;
   border-radius:12px;
   border:1px solid var(--border);
-  background: var(--panel);
+  background: rgba(245,247,251,0.14);
   color: var(--txt);
   font-size:18px;
 }
@@ -210,6 +210,59 @@ html,body{
   display:grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap:4px;
+}
+
+#nextCard{
+  position:relative;
+  overflow:hidden;
+}
+
+.hudRunActions{
+  position:absolute;
+  inset:6px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:6px;
+  z-index:3;
+}
+
+.hudRunTop{
+  display:flex;
+  justify-content:flex-end;
+}
+
+.hudRunIcon,
+.hudRunStart,
+.modalIconButton{
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.08);
+  color:var(--txt);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
+
+.hudRunIcon,
+.modalIconButton{
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:15px;
+}
+
+.hudRunStart{
+  width:100%;
+  min-height:34px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:900;
+}
+
+#nextCard.resultsMode #nextPreview,
+#nextCard.resultsMode .planLabel{
+  opacity:0.12;
 }
 
 .missionPreview{
@@ -387,6 +440,7 @@ canvas{
   z-index: 50;
 }
 .modal{
+  position:relative;
   width: min(520px, 100%);
   background: var(--panel2);
   border: 1px solid rgba(255,255,255,0.12);
@@ -396,6 +450,11 @@ canvas{
 }
 .modal h2{ margin:0 0 10px 0; font-size: 16px; }
 .gameOverModal h2{ margin-bottom: 14px; }
+.modalIconButton{
+  position:absolute;
+  top:12px;
+  right:12px;
+}
 .gameOverNote{
   margin: -2px 0 12px;
   color: var(--muted);

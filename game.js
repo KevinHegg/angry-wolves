@@ -222,6 +222,7 @@
   const gameOverBackdrop = document.getElementById("gameOverBackdrop");
   const restartButton = document.getElementById("restartButton");
   const shareButton = document.getElementById("shareButton");
+  const closeGameOverButton = document.getElementById("closeGameOverButton");
   const gameOverTitleEl = document.getElementById("gameOverTitle");
   const gameOverNoteEl = document.getElementById("gameOverNote");
   const missionBriefBackdrop = document.getElementById("missionBriefBackdrop");
@@ -243,6 +244,9 @@
   const finalClearsEl = document.getElementById("finalClears");
   const finalBestEl = document.getElementById("finalBest");
   const finalComboEl = document.getElementById("finalCombo");
+  const hudRunActionsEl = document.getElementById("hudRunActions");
+  const hudStartButton = document.getElementById("hudStartButton");
+  const hudResultsButton = document.getElementById("hudResultsButton");
 
   // ===== State =====
   let board = makeBoard();
@@ -1499,6 +1503,8 @@
     renderPreview(nextPreviewEl, next);
     renderPreview(holdPreviewEl, held);
     if(holdButton) holdButton.disabled = paused || gameOver || !current || holdUsed;
+    if(hudRunActionsEl) hudRunActionsEl.classList.toggle("hidden", !gameOver);
+    if(nextPreviewEl?.parentElement) nextPreviewEl.parentElement.classList.toggle("resultsMode", !!gameOver);
     updateMissionUI();
   }
 
@@ -1539,7 +1545,7 @@
     const totalScore = Math.max(0, (score + missionBonus)|0);
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
     if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
-    if(finalScoreEl) finalScoreEl.textContent = `${herdScore} (group score) + ${missionBonus} (bonus) = ${totalScore}`;
+    if(finalScoreEl) finalScoreEl.textContent = `${herdScore} (herding) + ${missionBonus} (bonus) = ${totalScore}`;
     if(finalLevelEl) finalLevelEl.textContent = level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
@@ -1565,6 +1571,18 @@
     gameOver = true;
     if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
+    updateGameOverStats();
+    setOverlayOpen(gameOverBackdrop, true);
+    draw();
+  }
+
+  function closeGameOverPanel(){
+    setOverlayOpen(gameOverBackdrop, false);
+    draw();
+  }
+
+  function openGameOverPanel(){
+    if(!gameOver) return;
     updateGameOverStats();
     setOverlayOpen(gameOverBackdrop, true);
     draw();
@@ -1764,6 +1782,19 @@
     return true;
   }
 
+  function markFootprintOverlays(piece, power, count=1){
+    const cells = footprintCells(piece).slice();
+    if(!cells.length) return 0;
+    shuffleInPlace(cells);
+    let placed = 0;
+    for(const [x,y] of cells){
+      overlay[y][x] = power;
+      placed++;
+      if(placed >= count) break;
+    }
+    return placed;
+  }
+
   function clearProductMarks(){
     productMap = makeProductMap();
     productTokenInfo = new Map();
@@ -1815,6 +1846,10 @@
       banner.text = `Barn Buster popped ${popped.length} tiles.`;
       banner.t = performance.now();
       playTone({type:"sawtooth", f1:180, f2:50, dur:0.16, gain:0.18});
+    } else {
+      const turdsPlaced = markFootprintOverlays(piece, POWER.TURD, 2);
+      banner.text = `Barn Buster whiffed and dropped ${turdsPlaced} rude 💩.`;
+      banner.t = performance.now();
     }
   }
 
@@ -3293,23 +3328,6 @@
     stepParticles();
     drawParticles();
 
-    if(banner.text){
-      const age = performance.now() - banner.t;
-      if(age < banner.ttl){
-        const a = Math.max(0, 1 - age / banner.ttl);
-        ctx.save();
-        ctx.globalAlpha = 0.70 * a;
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0,0,W, Math.floor(cell*1.2));
-        ctx.globalAlpha = 1 * a;
-        ctx.fillStyle = "#fff";
-        ctx.font = `${Math.floor(cell*0.55)}px system-ui`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(banner.text, W/2, Math.floor(cell*0.6));
-        ctx.restore();
-      } else banner.text = "";
-    }
   }
 
   // ===== Tap/Swipe behavior FIX =====
@@ -3485,8 +3503,22 @@
       restart();
     });
   }
+  if(closeGameOverButton){
+    closeGameOverButton.addEventListener("click", closeGameOverPanel);
+  }
+  if(gameOverBackdrop){
+    gameOverBackdrop.addEventListener("click", (e) => {
+      if(e.target === gameOverBackdrop) closeGameOverPanel();
+    });
+  }
   if(shareButton){
     shareButton.addEventListener("click", shareResults);
+  }
+  if(hudStartButton){
+    hudStartButton.addEventListener("click", restart);
+  }
+  if(hudResultsButton){
+    hudResultsButton.addEventListener("click", openGameOverPanel);
   }
   if(missionStartButton){
     missionStartButton.addEventListener("click", closeMissionBriefing);
@@ -3536,7 +3568,7 @@
       if(!collides(current,0,1)) current.y += 1;
       else lockPiece();
       draw();
-    } else if(particles.length || banner.text){
+    } else if(particles.length){
       draw();
     }
   }

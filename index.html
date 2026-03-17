@@ -32,6 +32,12 @@
       <div id="nextCard" class="planCard">
         <span class="planLabel">Next</span>
         <div id="nextPreview" class="previewGrid"></div>
+        <div id="hudRunActions" class="hudRunActions hidden" aria-label="Run actions">
+          <div class="hudRunTop">
+            <button id="hudResultsButton" class="hudRunIcon" aria-label="Show endgame results">📊</button>
+          </div>
+          <button id="hudStartButton" class="hudRunStart" aria-label="Start a new run">Start</button>
+        </div>
       </div>
     </header>
 
@@ -126,6 +132,7 @@
 
   <div id="gameOverBackdrop" class="modalBackdrop hidden">
     <div class="modal gameOverModal">
+      <button id="closeGameOverButton" class="modalIconButton" aria-label="Close endgame panel">✕</button>
       <h2 id="gameOverTitle">Run Over</h2>
       <div id="gameOverNote" class="note gameOverNote">The barn got crowded.</div>
       <div class="gameOverStats">
