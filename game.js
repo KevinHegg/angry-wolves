@@ -807,7 +807,8 @@
       return `I kicked up a ${fmtChain(bestCombo)} chain in Angry Wolves and still hauled in ${totalScore} coins.`;
     }
     if(bestHerd){
-      return `I built a ${bestHerd.count}-${GROUP_NAME[bestHerd.animal] || "group"} in Angry Wolves for ${totalScore} coins.`;
+      const herdBadge = TILE_LABEL[bestHerd.animal] || animalWord(bestHerd.animal);
+      return `I built ${bestHerd.count} ${herdBadge} in Angry Wolves for ${totalScore} coins.`;
     }
     return `I stirred up the barn in Angry Wolves for ${totalScore} coins.`;
   }
@@ -4309,6 +4310,24 @@
       if(!e.cancelable) return;
       if(canTouchScroll(e.target)) return;
       e.preventDefault();
+    }, { passive:false, capture:true });
+
+    let lastTouchEnd = 0;
+    document.addEventListener("touchend", (e) => {
+      if(!e.cancelable) return;
+      const now = performance.now();
+      if((now - lastTouchEnd) < 320){
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive:false, capture:true });
+
+    document.addEventListener("gesturestart", (e) => {
+      if(e.cancelable) e.preventDefault();
+    }, { passive:false, capture:true });
+
+    document.addEventListener("gesturechange", (e) => {
+      if(e.cancelable) e.preventDefault();
     }, { passive:false, capture:true });
   }
   if(restartButton){
