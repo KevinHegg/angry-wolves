@@ -39,7 +39,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.15";
+  const GAME_VERSION = "v0.16";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -682,12 +682,15 @@
     playJingle(notes, { step, type: noteType, gain: 0.05 });
   }
 
-  function playChainReactionCue(depth){
+  function playChainReactionCue(depth, leadAnimal=0, leadSize=0){
     const chainStage = Math.max(2, depth|0);
     const urgency = clamp((chainStage - 2) / 5, 0, 1);
     const base = 372 + (chainStage - 2) * 36;
     const step = 0.05 - urgency * 0.012;
     const noteType = urgency > 0.6 ? "square" : "triangle";
+    if(leadAnimal){
+      playBarnyard(leadAnimal, Math.max(leadSize, CLEAR_THRESHOLD));
+    }
     playJingle([
       { f: base, d: 0.05, g: 0.032 + urgency * 0.012, type: noteType },
       { f: base * 1.12, d: 0.055, g: 0.036 + urgency * 0.014, type: noteType },
@@ -936,7 +939,9 @@
   function leaderboardMetaLine(entry, compact=false){
     const parts = [];
     if(entry.missionTitle) parts.push(entry.missionTitle);
-    if(entry.bestChain > 0 && !compact) parts.push(`Best ${fmtChain(entry.bestChain)}`);
+    if(entry.bestChain > 0){
+      parts.push(compact ? `${entry.bestChain}x 🔗` : `Best ${fmtChain(entry.bestChain)}`);
+    }
     if(entry.biggestHerdCount > 0 && entry.biggestHerdAnimal) parts.push(`${entry.biggestHerdCount} ${entry.biggestHerdAnimal}`);
     return parts.join(" · ");
   }
@@ -3052,7 +3057,7 @@
       if(clears.length === 0) break;
       cascadeDepth++;
       if(cascadeDepth > 1){
-        playChainReactionCue(cascadeDepth);
+        playChainReactionCue(cascadeDepth, clears[0]?.animal || 0, clears[0]?.cells?.length || 0);
       }
       const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
       const clearedTileLookup = new Map();
@@ -3520,7 +3525,7 @@
     pad = compact ? 8 : 14;
 
     const topReserve = compact ? Math.floor(18 * dpr) : 0;
-    const bottomReserve = 0;
+    const bottomReserve = compact ? Math.floor(16 * dpr) : Math.floor(14 * dpr);
 
     const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 10 : 8) * dpr));
     const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
@@ -3568,6 +3573,7 @@
     }
     if(stageCopyrightEl){
       stageCopyrightEl.style.left = `${boardOffset}px`;
+      stageCopyrightEl.style.top = `${stagePadTop + canvasCssH + 1}px`;
       stageCopyrightEl.style.width = `${canvasCssW}px`;
     }
     stageEl.style.setProperty("--cell-size-px", `${Math.max(12, Math.floor(cell / dpr))}px`);
