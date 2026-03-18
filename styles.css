@@ -160,17 +160,38 @@ html,body{
 }
 .wolfBadgeMouth{
   position:absolute;
-  right:0.26em;
-  top:0.52em;
-  width:0.28em;
-  height:0.34em;
-  border-radius:44% 58% 62% 48%;
-  background:rgba(33, 14, 13, 0.96);
+  right:0.25em;
+  top:0.6em;
+  width:0.24em;
+  height:0.08em;
+  border-radius:999px;
+  background:rgba(34, 15, 13, 0.98);
   box-shadow:
-    inset 0 -0.05em 0 rgba(214, 95, 106, 0.34),
-    inset 0 0 0 1px rgba(255,255,255,0.08);
-  transform:rotate(20deg);
+    0 0 0 1px rgba(255,255,255,0.06),
+    inset 0 -0.02em 0 rgba(255,255,255,0.1);
+  transform:rotate(18deg) scale(1);
+  transform-origin:center;
+  transition:
+    top 160ms ease,
+    width 160ms ease,
+    height 160ms ease,
+    border-radius 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
   z-index:2;
+}
+.wolfBadge.isHowling .wolfBadgeMouth{
+  top:0.49em;
+  width:0.31em;
+  height:0.34em;
+  border-radius:48% 52% 58% 42%;
+  background:rgba(28, 10, 11, 0.98);
+  box-shadow:
+    inset 0 -0.08em 0 rgba(214, 95, 106, 0.44),
+    inset 0 0 0 1px rgba(255,255,255,0.1),
+    0 0 0 1px rgba(0,0,0,0.12);
+  transform:rotate(12deg) scale(1.02);
 }
 .wolfBadge.isHowling::before,
 .wolfBadge.isHowling::after{
