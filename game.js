@@ -30,16 +30,17 @@
   const ROTATE_ANGLE_MAX = 30;
   const ROTATE_INTENT_ANGLE = 42;
   const ROTATE_SIDE_MIN = 4;
-  const BOARD_CLEAR_ANIM_MS = 390;
+  const BOARD_CLEAR_ANIM_MS = 430;
   const BOARD_CONVERT_ANIM_MS = 520;
   const BOARD_FALL_ANIM_MS = 430;
-  const BOARD_PHASE_GAP_MS = 56;
+  const BOARD_PHASE_GAP_MS = 72;
+  const CLEAR_AUDIO_STAGGER_MS = 72;
   const RUN_END_REVEAL_MIN_MS = 4600;
   const SHARE_GRID_COLS = 6;
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.19";
+  const GAME_VERSION = "v0.20";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -348,9 +349,11 @@
   // particles
   let particles = [];
   let boardAnimations = [];
+  let boardAudioCues = [];
   let banner = { text:"", t:0, ttl: 900 };
   let toastTimer = 0;
   let pendingGameOverRevealTimer = 0;
+  let runEndPulseActive = false;
   let wolfHowlFxTimer = 0;
   let shareSnapshot = null;
   let lastMissionMeterAudio = null;
@@ -366,6 +369,7 @@
   let leaderboardSubmitTone = "";
   let leaderboardSubmitMessage = "";
   let submittedRunId = "";
+  let submittedLeaderboardRank = 0;
 
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
@@ -447,7 +451,7 @@
     { id:"pig_roundup", type:"animal", animal:TILE.PIG, target:18, bonus:150, special:"bomb", title:"Hog Panic" },
     { id:"clear_four", type:"clears", target:4, bonus:180, special:"bomb", title:"Quad Clear" },
     { id:"combo_three", type:"combo", target:4, bonus:215, special:"morph", title:"Chain Fever" },
-    { id:"huff_puff", type:"destroy", animal:TILE.PIG, target:15, bonus:195, special:"bunker", title:"Huff and Puff" },
+    { id:"huff_puff", type:"destroy", animal:TILE.PIG, target:15, bonus:195, special:"bunker", title:"Huff and Puff", weight:1.5 },
     { id:"score_320", type:"score", target:380, bonus:210, special:"reaper", title:"Sunrise Scramble" },
     { id:"build_ten", type:"build_group", target:12, bonus:210, special:"brand", title:"Barn Weave" },
     { id:"feed_three", type:"clears", target:4, bonus:175, special:"feed", title:"Feed Rush" },
@@ -932,10 +936,25 @@
       bestChain: Math.max(0, Number(entry.bestChain ?? entry.best_chain) || 0),
       biggestHerdCount: Math.max(0, Number(entry.biggestHerdCount ?? entry.biggest_herd_count) || 0),
       biggestHerdAnimal: String(entry.biggestHerdAnimal ?? entry.biggest_herd_animal ?? "").trim().slice(0, 8),
-      gameMode: String(entry.gameMode ?? entry.game_mode ?? GAME_MODE).trim() || GAME_MODE
+      gameMode: String(entry.gameMode ?? entry.game_mode ?? GAME_MODE).trim() || GAME_MODE,
+      sourceNonce: String(entry.sourceNonce ?? entry.source_nonce ?? "").trim()
     };
     if(!normalized.playerName) normalized.playerName = "ANON";
     return normalized;
+  }
+  function leaderboardEntryMatchesSubmission(entry, submission){
+    if(!entry || !submission) return false;
+    if(entry.sourceNonce && submission.nonce && entry.sourceNonce === submission.nonce) return true;
+    return entry.playerName === submission.playerName
+      && entry.score === submission.score
+      && entry.missionTitle === submission.missionTitle
+      && entry.bestChain === submission.bestChain
+      && entry.biggestHerdCount === submission.biggestHerdCount
+      && entry.biggestHerdAnimal === submission.biggestHerdAnimal;
+  }
+  function leaderboardRankForSubmission(submission){
+    const found = leaderboardEntries.find((entry) => leaderboardEntryMatchesSubmission(entry, submission));
+    return found ? found.rank : 0;
   }
   function leaderboardCutoffScore(){
     if(!leaderboardEntries.length) return 0;
@@ -976,6 +995,9 @@
       clientTimestamp: Date.now(),
       version: GAME_VERSION
     };
+  }
+  function shareLeaderboardLine(){
+    return submittedLeaderboardRank > 0 ? `Barn Board: #${submittedLeaderboardRank}` : "";
   }
   function parseJsonSafely(text){
     try{
@@ -1164,14 +1186,18 @@
 
       saveStoredLeaderboardName(playerName);
       submittedRunId = runId;
+      submittedLeaderboardRank = 0;
       if(data.status === "suspect"){
         setSubmitStatus("Saved for review. It will stay off the public board for now.", "");
       } else {
         await refreshLeaderboard({ force: true });
+        submittedLeaderboardRank = leaderboardRankForSubmission(payload);
         setSubmitStatus(
           likelyOffBoard
             ? "Run logged for barn tuning. The public board still shows only the top 20."
-            : "Run logged to the public barn board.",
+            : submittedLeaderboardRank > 0
+              ? `Run logged to the public barn board at #${submittedLeaderboardRank}.`
+              : "Run logged to the public barn board.",
           "success"
         );
       }
@@ -1200,6 +1226,7 @@
     runStartedAtMs = Date.now();
     runId = generateNonce();
     submittedRunId = "";
+    submittedLeaderboardRank = 0;
     leaderboardSubmitPending = false;
     leaderboardSubmitDismissed = false;
     leaderboardSubmitTone = "";
@@ -1224,6 +1251,15 @@
       return `I built ${bestHerd.count} ${herdBadge} in Angry Wolves for ${totalScore} coins.`;
     }
     return `I stirred up the barn in Angry Wolves for ${totalScore} coins.`;
+  }
+  function shareTextBody(){
+    const lines = [
+      shareBragLine(),
+      `Mission: ${mission?.title ?? "Barn Trouble"}`
+    ];
+    const leaderboardLine = shareLeaderboardLine();
+    if(leaderboardLine) lines.push(leaderboardLine);
+    return lines.join("\n");
   }
   function captureShareSnapshot(){
     return {
@@ -1833,6 +1869,9 @@
   function runEndVisualsSettled(now=performance.now()){
     return !boardAnimations.length && !particles.length && boardAnimationEndsAt() <= (now + 20);
   }
+  function shouldDrawRunEndPulse(){
+    return !!(gameOver && runEndPulseActive);
+  }
 
   function syncStageRunActions(){
     const runEnded = !!gameOver && !awaitingRunEndReveal();
@@ -2244,6 +2283,7 @@
       clearTimeout(pendingGameOverRevealTimer);
       pendingGameOverRevealTimer = 0;
     }
+    runEndPulseActive = false;
     runEndTitle = opts.title ?? defaultRunEndTitle();
     runEndNote = opts.note ?? defaultRunEndNote();
     gameOver = true;
@@ -2256,27 +2296,32 @@
     if(opts.howl) playWolfHowl("victory");
     updateGameOverStats();
     refreshLeaderboard({ force: !leaderboardEntries.length });
-    const boardWaitMs = opts.waitForBoard === false ? 0 : Math.max(0, boardAnimationEndsAt() - performance.now());
-    const revealDelay = opts.delayMs ?? Math.max(RUN_END_REVEAL_MIN_MS, boardWaitMs + 220);
+    const pulseDelay = opts.delayMs ?? RUN_END_REVEAL_MIN_MS;
     const reveal = () => {
-      const now = performance.now();
-      if(opts.waitForBoard !== false && !runEndVisualsSettled(now)){
-        const extraWait = Math.max(120, Math.min(240, Math.max(0, boardAnimationEndsAt() - now) + 80));
-        pendingGameOverRevealTimer = window.setTimeout(reveal, extraWait);
-        draw();
-        return;
-      }
       pendingGameOverRevealTimer = 0;
+      runEndPulseActive = false;
       updateGameOverStats();
       setOverlayOpen(gameOverBackdrop, true);
       draw();
     };
-    if(revealDelay > 0){
-      pendingGameOverRevealTimer = window.setTimeout(reveal, revealDelay);
-    } else {
-      reveal();
-      return;
-    }
+    const settleThenPulse = () => {
+      const now = performance.now();
+      if(opts.waitForBoard !== false && !runEndVisualsSettled(now)){
+        const extraWait = Math.max(120, Math.min(240, Math.max(0, boardAnimationEndsAt() - now) + 80));
+        pendingGameOverRevealTimer = window.setTimeout(settleThenPulse, extraWait);
+        draw();
+        return;
+      }
+      runEndPulseActive = true;
+      if(pulseDelay > 0){
+        pendingGameOverRevealTimer = window.setTimeout(reveal, pulseDelay);
+      } else {
+        reveal();
+        return;
+      }
+      draw();
+    };
+    settleThenPulse();
     draw();
   }
 
@@ -2291,6 +2336,7 @@
       clearTimeout(pendingGameOverRevealTimer);
       pendingGameOverRevealTimer = 0;
     }
+    runEndPulseActive = false;
     updateGameOverStats();
     refreshLeaderboard({ force: !leaderboardEntries.length });
     setOverlayOpen(gameOverBackdrop, true);
@@ -3043,6 +3089,7 @@
       cascadeDepth++;
       const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
       const clearedTileLookup = new Map();
+      const clearSoundCues = [];
       for(const group of clears){
         for(const [x,y] of group.cells) clearedTileLookup.set(keyForCell(x, y), group.animal);
       }
@@ -3096,7 +3143,7 @@
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
-        playBarnyard(animal, cells.length);
+        clearSoundCues.push({ animal, size: cells.length });
         haptic(12);
       }
 
@@ -3145,11 +3192,23 @@
         });
       }
       let phaseCursor = animationEndsAt;
-      const queuePhase = (entries) => {
-        if(!entries.length) return;
+      const phaseStartFor = (entries) => {
+        if(!entries.length) return null;
         const needsGap = phaseCursor > (performance.now() + 16);
-        phaseCursor = queueBoardAnimations(entries, phaseCursor + (needsGap ? BOARD_PHASE_GAP_MS : 0)) || phaseCursor;
+        return phaseCursor + (needsGap ? BOARD_PHASE_GAP_MS : 0);
       };
+      const queuePhase = (entries, onStart) => {
+        if(!entries.length) return;
+        const phaseStart = phaseStartFor(entries);
+        if(onStart) onStart(phaseStart);
+        phaseCursor = queueBoardAnimations(entries, phaseStart) || phaseCursor;
+      };
+      const herdSoundPhaseStart = phaseStartFor(clearFx) ?? phaseStartFor(convertFx) ?? phaseStartFor(fallFx);
+      if(herdSoundPhaseStart != null){
+        clearSoundCues.forEach((cue, index) => {
+          queueBoardAudioCue(herdSoundPhaseStart + index * CLEAR_AUDIO_STAGGER_MS, () => playBarnyard(cue.animal, cue.size));
+        });
+      }
       queuePhase(clearFx);
       queuePhase(convertFx);
       queuePhase(fallFx);
@@ -3476,6 +3535,27 @@
       boardAnimations.push({ ...entry, start });
     }
     return start + Math.max(...entries.map((entry) => entry.duration));
+  }
+
+  function queueBoardAudioCue(startAt, fn){
+    if(typeof fn !== "function") return;
+    boardAudioCues.push({
+      start: Math.max(performance.now(), startAt ?? performance.now()),
+      fn
+    });
+  }
+
+  function stepBoardAudioCues(now=performance.now()){
+    if(!boardAudioCues.length) return;
+    const remaining = [];
+    for(const cue of boardAudioCues){
+      if(now >= cue.start){
+        try{ cue.fn(); }catch{}
+      } else {
+        remaining.push(cue);
+      }
+    }
+    boardAudioCues = remaining;
   }
 
   function stepBoardAnimations(now=performance.now()){
@@ -4417,7 +4497,7 @@
     const groupScore = Math.max(0, score|0);
     const totalScore = groupScore + missionBonus;
     const title = `Angry Wolves · ${mission?.title ?? "Barn Trouble"}`;
-    const text = `${shareBragLine()}\nMission: ${mission?.title ?? "Barn Trouble"}`;
+    const text = shareTextBody();
 
     if(shareButton) shareButton.disabled = true;
     try{
@@ -4502,7 +4582,7 @@
     stepParticles();
     drawParticles();
 
-    if(awaitingRunEndReveal()){
+    if(shouldDrawRunEndPulse()){
       const pulse = 0.72 + 0.28 * (0.5 + 0.5 * Math.sin(performance.now() / 240));
       const panelW = Math.min(W * 0.84, 520 * dpr);
       const panelH = 94 * dpr;
@@ -4875,6 +4955,7 @@
     lastFrameTime = now;
     flushPendingTap(now);
     stepBoardAnimations(now);
+    stepBoardAudioCues(now);
     if(paused || gameOver){
       if(particles.length || boardAnimations.length || (mission && mission.ready && !mission.done && hasRewardCoinOnBoard()) || pendingGameOverRevealTimer){
         draw();
@@ -4945,9 +5026,10 @@
     ambienceClock = 0;
     paused=false; gameOver=false;
     current=null; next=null;
-    particles=[]; boardAnimations=[]; banner={text:"",t:0,ttl:900};
+    particles=[]; boardAnimations=[]; boardAudioCues=[]; banner={text:"",t:0,ttl:900};
     pendingTap = null;
     lastMissionMeterAudio = null;
+    runEndPulseActive = false;
     resetRunLeaderboardState();
     setOverlayOpen(modalBackdrop, false);
     setOverlayOpen(gameOverBackdrop, false);
@@ -4983,8 +5065,10 @@
     lastMissionMeterAudio = null;
     pendingTap = null;
     boardAnimations = [];
+    boardAudioCues = [];
     nextSpawnAt = 0;
     pendingGameOverRevealTimer = 0;
+    runEndPulseActive = false;
     resetRunLeaderboardState();
 
     next = newPiece();
