@@ -77,13 +77,14 @@ html,body{
   gap:8px;
   font-weight:900;
   letter-spacing:0.3px;
-  font-size:18px;
+  font-size:19px;
 }
 .title .h1 .titleText{
   display:inline-flex;
   flex-direction:column;
   justify-content:center;
-  line-height:0.88;
+  gap:4px;
+  line-height:1;
   text-align:center;
   background: linear-gradient(180deg, #fff8ef 0%, #f2ede2 58%, #d8c8ac 100%);
   -webkit-background-clip:text;
@@ -459,6 +460,21 @@ html,body{
   max-height:100%;
   padding-top:60px;
   overflow:hidden;
+}
+
+.stageCopyright{
+  position:absolute;
+  left:0;
+  top:0;
+  font-size:11px;
+  line-height:1.2;
+  color:var(--muted);
+  opacity:0.92;
+  pointer-events:none;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  z-index:1;
 }
 
 .stageMissionBar{
@@ -1055,7 +1071,7 @@ canvas{
   }
 
   .title .h1{
-    font-size:19px;
+    font-size:20px;
     line-height:1.05;
     white-space:normal;
   }
@@ -1196,7 +1212,7 @@ canvas{
   }
 
   .title .h1{
-    font-size:16px;
+    font-size:17px;
     line-height:1.05;
     white-space:normal;
   }
@@ -1490,7 +1506,7 @@ canvas{
   }
 
   .title .h1{
-    font-size:15px;
+    font-size:16px;
     white-space:normal;
   }
 

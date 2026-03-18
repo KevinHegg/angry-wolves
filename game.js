@@ -39,7 +39,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.13";
+  const GAME_VERSION = "v0.14";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -225,6 +225,7 @@
   const stageEl = document.getElementById("stage");
   const hudEl = document.getElementById("hud");
   const stageMissionBarEl = document.getElementById("stageMissionBar");
+  const stageCopyrightEl = document.getElementById("stageCopyright");
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
 
@@ -3541,6 +3542,12 @@
     if(toastEl){
       toastEl.style.left = `${boardOffset + Math.floor(canvasCssW / 2)}px`;
       toastEl.style.top = `${stagePadTop + Math.floor(canvasCssH / 2)}px`;
+    }
+    if(stageCopyrightEl){
+      const copyrightTop = Math.min(stagePadTop + canvasCssH + 6, Math.max(stagePadTop + 6, Math.floor(rect.height - 18)));
+      stageCopyrightEl.style.left = `${boardOffset}px`;
+      stageCopyrightEl.style.top = `${copyrightTop}px`;
+      stageCopyrightEl.style.maxWidth = `${canvasCssW}px`;
     }
     stageEl.style.setProperty("--cell-size-px", `${Math.max(12, Math.floor(cell / dpr))}px`);
     draw();
