@@ -39,7 +39,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.14";
+  const GAME_VERSION = "v0.15";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -680,6 +680,26 @@
       });
     }
     playJingle(notes, { step, type: noteType, gain: 0.05 });
+  }
+
+  function playChainReactionCue(depth){
+    const chainStage = Math.max(2, depth|0);
+    const urgency = clamp((chainStage - 2) / 5, 0, 1);
+    const base = 372 + (chainStage - 2) * 36;
+    const step = 0.05 - urgency * 0.012;
+    const noteType = urgency > 0.6 ? "square" : "triangle";
+    playJingle([
+      { f: base, d: 0.05, g: 0.032 + urgency * 0.012, type: noteType },
+      { f: base * 1.12, d: 0.055, g: 0.036 + urgency * 0.014, type: noteType },
+      { f: base * 1.28, d: 0.07, g: 0.04 + urgency * 0.016, type: urgency > 0.72 ? "sawtooth" : "triangle" }
+    ], { step, type: noteType, gain: 0.045 });
+    playTone({
+      type: "sine",
+      f1: Math.max(110, base * 0.52),
+      f2: Math.max(90, base * 0.36),
+      dur: 0.08,
+      gain: 0.016 + urgency * 0.006
+    });
   }
 
   function playRewardCountdownStart(){
@@ -3031,6 +3051,9 @@
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
       cascadeDepth++;
+      if(cascadeDepth > 1){
+        playChainReactionCue(cascadeDepth);
+      }
       const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
       const clearedTileLookup = new Map();
       for(const group of clears){
@@ -3544,10 +3567,8 @@
       toastEl.style.top = `${stagePadTop + Math.floor(canvasCssH / 2)}px`;
     }
     if(stageCopyrightEl){
-      const copyrightTop = Math.min(stagePadTop + canvasCssH + 6, Math.max(stagePadTop + 6, Math.floor(rect.height - 18)));
       stageCopyrightEl.style.left = `${boardOffset}px`;
-      stageCopyrightEl.style.top = `${copyrightTop}px`;
-      stageCopyrightEl.style.maxWidth = `${canvasCssW}px`;
+      stageCopyrightEl.style.width = `${canvasCssW}px`;
     }
     stageEl.style.setProperty("--cell-size-px", `${Math.max(12, Math.floor(cell / dpr))}px`);
     draw();

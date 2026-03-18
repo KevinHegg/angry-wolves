@@ -83,8 +83,8 @@ html,body{
   display:inline-flex;
   flex-direction:column;
   justify-content:center;
-  gap:4px;
-  line-height:1;
+  gap:5px;
+  line-height:1.04;
   text-align:center;
   background: linear-gradient(180deg, #fff8ef 0%, #f2ede2 58%, #d8c8ac 100%);
   -webkit-background-clip:text;
@@ -465,11 +465,13 @@ html,body{
 .stageCopyright{
   position:absolute;
   left:0;
-  top:0;
-  font-size:11px;
-  line-height:1.2;
+  right:auto;
+  bottom:2px;
+  top:auto;
+  font-size:12px;
+  line-height:1.15;
   color:var(--muted);
-  opacity:0.92;
+  opacity:0.95;
   pointer-events:none;
   white-space:nowrap;
   overflow:hidden;
