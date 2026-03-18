@@ -39,7 +39,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.16";
+  const GAME_VERSION = "v0.17";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -968,14 +968,15 @@
   function shouldOfferScoreSubmission(){
     if(!gameOver || !leaderboardConfigured() || leaderboardSubmitDismissed || submittedRunId === runId) return false;
     if(currentTotalScore() <= 0) return false;
-    if(leaderboardLoading && !leaderboardEntries.length) return true;
-    if(leaderboardEntries.length < LEADERBOARD_FULL_LIMIT) return true;
-    return currentTotalScore() >= leaderboardCutoffScore();
+    return true;
   }
   function scoreSubmissionHintText(){
     if(!leaderboardConfigured()) return "Set APPS_SCRIPT_URL to enable score posts.";
     if(leaderboardLoading && !leaderboardEntries.length) return "Barn board is loading. You can still send this run.";
     if(leaderboardEntries.length < LEADERBOARD_FULL_LIMIT) return "The public board is still filling up. Any positive run can post.";
+    if(currentTotalScore() < leaderboardCutoffScore()){
+      return `Public cutoff right now: ${leaderboardCutoffScore()} coins. This run can still be logged for tuning.`;
+    }
     return `Public cutoff right now: ${leaderboardCutoffScore()} coins.`;
   }
   function setSubmitStatus(message="", tone=""){
@@ -1170,6 +1171,8 @@
 
     try{
       const payload = buildScoreSubmission(playerName);
+      const publicCutoffBeforeSubmit = leaderboardEntries.length >= LEADERBOARD_FULL_LIMIT ? leaderboardCutoffScore() : 0;
+      const likelyOffBoard = leaderboardEntries.length >= LEADERBOARD_FULL_LIMIT && payload.score < publicCutoffBeforeSubmit;
       const res = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: {
@@ -1187,8 +1190,13 @@
       if(data.status === "suspect"){
         setSubmitStatus("Saved for review. It will stay off the public board for now.", "");
       } else {
-        setSubmitStatus("Score posted to the public barn board.", "success");
         await refreshLeaderboard({ force: true });
+        setSubmitStatus(
+          likelyOffBoard
+            ? "Run logged for barn tuning. The public board still shows only the top 20."
+            : "Run logged to the public barn board.",
+          "success"
+        );
       }
     }catch(err){
       const message = typeof err?.message === "string" ? err.message.trim() : "";
@@ -1549,8 +1557,8 @@
     if(!el) return;
     const grid = Array.from({length:4}, () => Array(4).fill(0));
     const m = trimmedMatrix(piece);
-    const offsetY = Math.floor((4 - m.length) / 2);
-    const offsetX = Math.floor((4 - (m[0]?.length || 0)) / 2);
+    const offsetY = Math.round((4 - m.length) / 2);
+    const offsetX = Math.round((4 - (m[0]?.length || 0)) / 2);
 
     for(let y=0;y<m.length;y++){
       for(let x=0;x<m[y].length;x++){
