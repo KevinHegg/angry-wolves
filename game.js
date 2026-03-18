@@ -39,7 +39,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.18";
+  const GAME_VERSION = "v0.19";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -680,29 +680,6 @@
       });
     }
     playJingle(notes, { step, type: noteType, gain: 0.05 });
-  }
-
-  function playChainReactionCue(depth, leadAnimal=0, leadSize=0){
-    const chainStage = Math.max(2, depth|0);
-    const urgency = clamp((chainStage - 2) / 5, 0, 1);
-    const base = 372 + (chainStage - 2) * 36;
-    const step = 0.05 - urgency * 0.012;
-    const noteType = urgency > 0.6 ? "square" : "triangle";
-    if(leadAnimal){
-      playBarnyard(leadAnimal, Math.max(leadSize, CLEAR_THRESHOLD));
-    }
-    playJingle([
-      { f: base, d: 0.05, g: 0.032 + urgency * 0.012, type: noteType },
-      { f: base * 1.12, d: 0.055, g: 0.036 + urgency * 0.014, type: noteType },
-      { f: base * 1.28, d: 0.07, g: 0.04 + urgency * 0.016, type: urgency > 0.72 ? "sawtooth" : "triangle" }
-    ], { step, type: noteType, gain: 0.045 });
-    playTone({
-      type: "sine",
-      f1: Math.max(110, base * 0.52),
-      f2: Math.max(90, base * 0.36),
-      dur: 0.08,
-      gain: 0.016 + urgency * 0.006
-    });
   }
 
   function playRewardCountdownStart(){
@@ -3064,9 +3041,6 @@
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
       cascadeDepth++;
-      if(cascadeDepth > 1){
-        playChainReactionCue(cascadeDepth, clears[0]?.animal || 0, clears[0]?.cells?.length || 0);
-      }
       const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
       const clearedTileLookup = new Map();
       for(const group of clears){
