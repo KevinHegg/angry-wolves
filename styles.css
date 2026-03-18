@@ -87,8 +87,8 @@ html,body{
   display:inline-flex;
   flex-direction:column;
   justify-content:center;
-  gap:6px;
-  line-height:1.08;
+  gap:5px;
+  line-height:1.05;
   text-align:center;
   background: linear-gradient(180deg, #fff8ef 0%, #f2ede2 58%, #d8c8ac 100%);
   -webkit-background-clip:text;
@@ -1025,33 +1025,52 @@ canvas{
 @media (min-width: 761px){
   html,
   body{
-    overflow:auto;
+    overflow:hidden;
+    background:#000;
+  }
+
+  body{
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:12px 0;
   }
 
   #app{
-    height:auto;
-    min-height:100svh;
-    overflow:visible;
+    width:min(430px, calc(100vw - 32px));
+    height:min(932px, calc(100vh - 24px));
+    min-height:min(932px, calc(100vh - 24px));
+    max-height:min(932px, calc(100vh - 24px));
+    border-radius:34px;
+    border:1px solid rgba(255,255,255,0.14);
+    box-shadow:
+      0 22px 80px rgba(0,0,0,0.62),
+      inset 0 0 0 1px rgba(255,255,255,0.04);
+    overflow:hidden;
+    background: radial-gradient(1200px 800px at 50% 0%, #0b0b10 0%, #050506 60%, #030304 100%);
   }
 
   #hud{
     display:grid;
-    grid-template-columns:auto minmax(0, 1fr) 108px;
+    grid-template-columns:auto minmax(0, 1fr) 84px;
     grid-template-rows:min-content min-content;
     grid-template-areas:
       "buttons title next"
       "right right next";
     align-items:start;
-    gap:8px 14px;
-    width:min(860px, calc(100% - 40px));
-    padding: 10px 0 4px;
+    gap:4px 10px;
+    width:calc(100% - 24px);
+    padding: 8px 6px 2px 2px;
+    min-height:auto;
+    margin-left:14px;
+    margin-right:auto;
   }
 
   #gameShell{
     display:block;
-    width:min(860px, calc(100% - 40px));
-    margin:0 auto;
-    padding: 0 0 16px;
+    width:100%;
+    margin:0;
+    padding: 0 0 8px;
   }
 
   #hud .left{
@@ -1064,9 +1083,10 @@ canvas{
     text-align:left;
     display:flex;
     align-items:center;
-    gap:14px;
+    gap:12px;
     flex-wrap:wrap;
     padding-top:0;
+    padding-left:4px;
     justify-self:start;
     min-width:0;
   }
@@ -1084,12 +1104,47 @@ canvas{
   }
 
   .title .h1{
-    font-size:20px;
+    font-size:17px;
     line-height:1.05;
     white-space:normal;
   }
 
+  .wolfBadge{
+    width:36px;
+    height:36px;
+    flex-basis:36px;
+    font-size:24px;
+  }
+
   .title .sub{
+    display:none;
+  }
+
+  #leaderboardButton,
+  #gear,
+  #helpButton{
+    width:36px;
+    height:36px;
+    border-radius:12px;
+    font-size:17px;
+    background: rgba(245,247,251,0.14);
+    border-color: rgba(255,255,255,0.09);
+  }
+
+  .score{
+    font-size:19px;
+    line-height:1;
+    gap:5px;
+  }
+
+  .meta{
+    font-size:11px;
+    line-height:1.15;
+    margin-top:0;
+    white-space:nowrap;
+  }
+
+  .best{
     display:none;
   }
 
@@ -1098,11 +1153,14 @@ canvas{
     position:static;
     align-self:start;
     justify-self:end;
-    width:96px;
-    min-height:96px;
-    padding:5px;
+    width:84px;
+    min-height:84px;
+    padding:3px;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
-    border-radius:16px;
+    border-radius:14px;
+    margin-top:2px;
+    justify-content:center;
+    align-items:center;
   }
 
   #nextCard .planLabel{
@@ -1110,17 +1168,20 @@ canvas{
   }
 
   #nextPreview{
-    max-width:82px;
-    gap:3px;
+    max-width:72px;
+    gap:2px;
+    margin-top:3px;
   }
 
   #nextPreview .previewCell{
-    border-radius:5px;
-    font-size:10px;
+    background: rgba(245,247,251,0.14);
+    border-color: rgba(255,255,255,0.08);
+    border-radius:3px;
+    font-size:9px;
   }
 
   #nextPreview .previewCell.filled{
-    font-size:18px;
+    font-size:14px;
   }
 
   #leftRail,
@@ -1135,43 +1196,100 @@ canvas{
   }
 
   #stage{
-    width:100%;
-    min-height:540px;
-    height:min(640px, calc(100svh - 220px));
-    max-height:640px;
-    padding-top:58px;
-    margin:0 auto;
+    width:calc(100% - 28px);
+    margin-left:14px;
+    margin-right:auto;
+    min-height:0;
+    height:100%;
+    justify-content:center;
+    box-sizing:border-box;
+    padding-top:56px;
+    padding-bottom:2px;
   }
 
   .stageMissionBar{
-    top:10px;
-    left:0;
-    right:0;
-    padding:7px 10px;
-    border-radius:12px;
+    top:8px;
+    left:8px;
+    right:4px;
+    transform:none;
+    padding:5px 8px 5px 8px;
+    border-radius:10px;
   }
 
   .stageMissionMeta{
     display:grid;
     grid-template-columns:minmax(0, 1fr) auto;
-    gap:4px 10px;
-    margin-bottom:4px;
+    gap:4px 8px;
+    margin-bottom:3px;
   }
 
   .stageMissionTitle{
-    font-size:11px;
+    font-size:10px;
     line-height:1.05;
   }
 
   .stageMissionProgressText{
-    font-size:11px;
+    font-size:10px;
     line-height:1.05;
+    max-width:none;
     text-align:right;
     justify-self:end;
   }
 
   .stageMissionMeter{
-    height:7px;
+    height:6px;
+  }
+
+  .missionBriefModal{
+    width:min(92vw, 420px);
+  }
+
+  .leaderboardModal{
+    width:min(94vw, 520px);
+    max-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  }
+
+  .missionBriefModal .gameOverStats{
+    grid-template-columns: 1fr;
+  }
+
+  .gameOverActions{
+    grid-template-columns:1fr;
+  }
+
+  .leaderboardSubmitRow{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .leaderboardNameInput{
+    grid-column:1 / -1;
+  }
+
+  .missionSpecialRow{
+    flex-direction:column;
+  }
+
+  .missionPreview{
+    width:100%;
+    max-width:160px;
+  }
+
+  .helpModal{
+    width:min(94vw, 520px);
+    max-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  }
+
+  .helpScroll{
+    max-height:none;
+  }
+
+  .leaderboardList.compact{
+    max-height:168px;
+  }
+
+  .helpSpecialPreview{
+    width:52px;
+    min-width:52px;
   }
 }
 
@@ -1241,12 +1359,13 @@ canvas{
     display:none;
   }
 
+  #leaderboardButton,
   #gear,
   #helpButton{
-    width:34px;
-    height:34px;
-    border-radius:11px;
-    font-size:16px;
+    width:36px;
+    height:36px;
+    border-radius:12px;
+    font-size:17px;
     background: rgba(245,247,251,0.14);
     border-color: rgba(255,255,255,0.09);
   }
@@ -1406,7 +1525,9 @@ canvas{
     min-height:84px;
     box-shadow: 0 10px 18px rgba(0,0,0,0.34);
     border-radius:14px;
-    margin-top:-1px;
+    margin-top:2px;
+    justify-content:center;
+    align-items:center;
   }
 
   .stageRunActions{
@@ -1434,7 +1555,7 @@ canvas{
   #nextPreview{
     max-width: 72px;
     gap:2px;
-    margin-top:0;
+    margin-top:3px;
   }
 
   #nextPreview .previewCell{
@@ -1548,9 +1669,9 @@ canvas{
   #leaderboardButton,
   #gear,
   #helpButton{
-    width:34px;
-    height:34px;
-    font-size:16px;
+    width:36px;
+    height:36px;
+    font-size:17px;
   }
 
   .score{
