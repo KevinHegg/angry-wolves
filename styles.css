@@ -71,7 +71,8 @@ html,body{
 #helpButton:active{ transform: translateY(1px); }
 
 .title .h1{
-  display:inline-flex;
+  display:grid;
+  grid-template-columns:auto minmax(0, 1fr);
   align-items:center;
   gap:8px;
   font-weight:900;
@@ -79,11 +80,17 @@ html,body{
   font-size:18px;
 }
 .title .h1 .titleText{
+  display:inline-flex;
+  flex-direction:column;
+  justify-content:center;
+  line-height:0.88;
+  text-align:center;
   background: linear-gradient(180deg, #fff8ef 0%, #f2ede2 58%, #d8c8ac 100%);
   -webkit-background-clip:text;
   background-clip:text;
   color:transparent;
   text-shadow: 0 0 16px rgba(255, 209, 102, 0.08);
+  white-space:normal;
 }
 .wolfBadge{
   position:relative;
@@ -148,21 +155,26 @@ html,body{
 }
 .wolfBadgeMouth{
   position:absolute;
-  right:0.34em;
-  top:0.54em;
-  width:0.2em;
-  height:0.26em;
-  border-radius:44% 48% 58% 52%;
-  background:rgba(35, 18, 14, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
-  transform:rotate(18deg);
+  right:0.26em;
+  top:0.52em;
+  width:0.28em;
+  height:0.34em;
+  border-radius:44% 58% 62% 48%;
+  background:rgba(33, 14, 13, 0.96);
+  box-shadow:
+    inset 0 -0.05em 0 rgba(214, 95, 106, 0.34),
+    inset 0 0 0 1px rgba(255,255,255,0.08);
+  transform:rotate(20deg);
   z-index:2;
 }
 .wolfBadge.isHowling::before,
 .wolfBadge.isHowling::after{
   animation:wolfHowlRing 0.55s ease-out;
 }
-.title{ padding-top:0; }
+.title{
+  padding-top:0;
+  min-width:0;
+}
 .title .sub{ margin-top:3px; font-size:12px; color: var(--muted); max-width: 30ch; }
 
 @keyframes wolfSnarl{
@@ -600,15 +612,20 @@ canvas{
   box-shadow: 0 18px 60px rgba(0,0,0,0.75);
 }
 .modal h2{ margin:0 0 10px 0; font-size: 16px; }
-.gameOverModal h2{ margin-bottom: 14px; }
+.gameOverModal h2{
+  margin-bottom: 8px;
+  line-height: 1.02;
+}
 .modalIconButton{
   position:absolute;
   top:12px;
   right:12px;
 }
 .gameOverNote{
-  margin: -2px 0 12px;
+  margin: 0 0 10px;
   color: var(--muted);
+  line-height:1.15;
+  max-width:calc(100% - 54px);
 }
 .helpModal{
   width:min(640px, 100%);
@@ -646,7 +663,8 @@ canvas{
   max-height:min(84svh, 780px);
   display:flex;
   flex-direction:column;
-  overflow:hidden;
+  overflow:auto;
+  overscroll-behavior:contain;
 }
 .gameOverStat{
   display:flex;
@@ -711,11 +729,11 @@ canvas{
   display:grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap:10px;
-  margin-top:12px;
+  margin-top:10px;
 }
 .leaderboardPanel{
-  margin-top:12px;
-  padding:12px;
+  margin-top:10px;
+  padding:10px 12px;
   border-radius:12px;
   background: rgba(255,255,255,0.04);
   border:1px solid rgba(255,255,255,0.06);
@@ -1039,7 +1057,7 @@ canvas{
   .title .h1{
     font-size:19px;
     line-height:1.05;
-    white-space:nowrap;
+    white-space:normal;
   }
 
   .title .sub{
@@ -1180,7 +1198,7 @@ canvas{
   .title .h1{
     font-size:16px;
     line-height:1.05;
-    white-space:nowrap;
+    white-space:normal;
   }
 
   .wolfBadge{
@@ -1473,6 +1491,22 @@ canvas{
 
   .title .h1{
     font-size:15px;
+    white-space:normal;
+  }
+
+  .gameOverModal{
+    width:min(94vw, 520px);
+    max-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+    padding:12px;
+  }
+
+  .gameOverModal .gameOverStats{
+    gap:8px;
+  }
+
+  .gameOverModal .leaderboardPanel{
+    margin-top:8px;
+    padding:9px 10px;
   }
 
   .wolfBadge{

@@ -39,7 +39,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.12";
+  const GAME_VERSION = "v0.13";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -265,6 +265,7 @@
   const gameOverTitleEl = document.getElementById("gameOverTitle");
   const gameOverNoteEl = document.getElementById("gameOverNote");
   const scoreSubmitSectionEl = document.getElementById("scoreSubmitSection");
+  const scoreSubmitRowEl = scoreSubmitSectionEl ? scoreSubmitSectionEl.querySelector(".leaderboardSubmitRow") : null;
   const scoreSubmitHintEl = document.getElementById("scoreSubmitHint");
   const scoreNameInputEl = document.getElementById("scoreNameInput");
   const scoreSubmitButton = document.getElementById("scoreSubmitButton");
@@ -1073,8 +1074,9 @@
     if(scoreSubmitButton) scoreSubmitButton.disabled = disabled;
     if(scoreSkipButton) scoreSkipButton.disabled = leaderboardSubmitPending;
     if(scoreSkipButton) scoreSkipButton.textContent = alreadyHandled ? "Done" : "Skip";
+    if(scoreSubmitRowEl) scoreSubmitRowEl.classList.toggle("hidden", alreadyHandled);
     if(scoreSubmitHintEl) scoreSubmitHintEl.textContent = alreadyHandled && leaderboardSubmitMessage ? leaderboardSubmitMessage : scoreSubmissionHintText();
-    setLeaderboardState(scoreSubmitStatusEl, leaderboardSubmitMessage, leaderboardSubmitTone);
+    setLeaderboardState(scoreSubmitStatusEl, alreadyHandled ? "" : leaderboardSubmitMessage, leaderboardSubmitTone);
   }
   async function refreshLeaderboard(opts={}){
     const force = !!opts.force;
@@ -2236,6 +2238,7 @@
     gameOver = true;
     rewardCountdown = null;
     pendingTap = null;
+    current = null;
     nextSpawnAt = 0;
     if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
