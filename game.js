@@ -30,12 +30,23 @@
   const ROTATE_ANGLE_MAX = 30;
   const ROTATE_INTENT_ANGLE = 42;
   const ROTATE_SIDE_MIN = 4;
-  const BOARD_CLEAR_ANIM_MS = 330;
-  const BOARD_CONVERT_ANIM_MS = 420;
-  const BOARD_FALL_ANIM_MS = 360;
-  const RUN_END_REVEAL_MIN_MS = 3600;
+  const BOARD_CLEAR_ANIM_MS = 390;
+  const BOARD_CONVERT_ANIM_MS = 520;
+  const BOARD_FALL_ANIM_MS = 430;
+  const BOARD_PHASE_GAP_MS = 56;
+  const RUN_END_REVEAL_MIN_MS = 4600;
   const SHARE_GRID_COLS = 6;
   const SHARE_GRID_ROWS = 6;
+  const GAME_MODE = "standard";
+  // Optional score/version tag sent to the leaderboard backend.
+  const GAME_VERSION = "v0.12";
+  // Paste your deployed Google Apps Script web app URL here.
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
+  const LEADERBOARD_PREVIEW_LIMIT = 5;
+  const LEADERBOARD_FULL_LIMIT = 20;
+  const LEADERBOARD_CACHE_MS = 15000;
+  const SCORE_NAME_MAX = 10;
+  const PLAYER_NAME_STORAGE_KEY = "angry-wolves-player-name";
 
   // special spawn weights
   const WEIGHT_NORMAL = 0.88;
@@ -241,7 +252,9 @@
   const missionSpecialPreviewEl = document.getElementById("missionSpecialPreview");
 
   const gear = document.getElementById("gear");
+  const leaderboardButton = document.getElementById("leaderboardButton");
   const helpButton = document.getElementById("helpButton");
+  const wolfHowlButton = document.getElementById("wolfHowlButton");
   const modalBackdrop = document.getElementById("modalBackdrop");
   const closeModal = document.getElementById("closeModal");
   const soundToggle = document.getElementById("soundToggle");
@@ -251,6 +264,19 @@
   const closeGameOverButton = document.getElementById("closeGameOverButton");
   const gameOverTitleEl = document.getElementById("gameOverTitle");
   const gameOverNoteEl = document.getElementById("gameOverNote");
+  const scoreSubmitSectionEl = document.getElementById("scoreSubmitSection");
+  const scoreSubmitHintEl = document.getElementById("scoreSubmitHint");
+  const scoreNameInputEl = document.getElementById("scoreNameInput");
+  const scoreSubmitButton = document.getElementById("scoreSubmitButton");
+  const scoreSkipButton = document.getElementById("scoreSkipButton");
+  const scoreSubmitStatusEl = document.getElementById("scoreSubmitStatus");
+  const leaderboardPreviewStateEl = document.getElementById("leaderboardPreviewState");
+  const leaderboardPreviewListEl = document.getElementById("leaderboardPreviewList");
+  const leaderboardOpenPreviewButton = document.getElementById("leaderboardOpenPreview");
+  const leaderboardBackdrop = document.getElementById("leaderboardBackdrop");
+  const closeLeaderboardButton = document.getElementById("closeLeaderboardButton");
+  const leaderboardModalStateEl = document.getElementById("leaderboardModalState");
+  const leaderboardModalListEl = document.getElementById("leaderboardModalList");
   const missionBriefBackdrop = document.getElementById("missionBriefBackdrop");
   const missionBriefTitleEl = document.getElementById("missionBriefTitle");
   const missionBriefBodyEl = document.getElementById("missionBriefBody");
@@ -323,9 +349,21 @@
   let banner = { text:"", t:0, ttl: 900 };
   let toastTimer = 0;
   let pendingGameOverRevealTimer = 0;
+  let wolfHowlFxTimer = 0;
   let shareSnapshot = null;
   let lastMissionMeterAudio = null;
   let pendingTap = null;
+  let runStartedAtMs = Date.now();
+  let runId = "";
+  let leaderboardEntries = [];
+  let leaderboardLoading = false;
+  let leaderboardError = "";
+  let leaderboardLastLoadedAt = 0;
+  let leaderboardSubmitPending = false;
+  let leaderboardSubmitDismissed = false;
+  let leaderboardSubmitTone = "";
+  let leaderboardSubmitMessage = "";
+  let submittedRunId = "";
 
   // touch tracking
   const IS_TOUCH = (("ontouchstart" in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
@@ -681,6 +719,48 @@
     ], { step:0.11 });
   }
 
+  function triggerWolfHowlFx(){
+    if(!wolfHowlButton) return;
+    wolfHowlButton.classList.remove("isHowling");
+    void wolfHowlButton.offsetWidth;
+    wolfHowlButton.classList.add("isHowling");
+    if(wolfHowlFxTimer){
+      clearTimeout(wolfHowlFxTimer);
+    }
+    wolfHowlFxTimer = window.setTimeout(() => {
+      wolfHowlButton.classList.remove("isHowling");
+      wolfHowlFxTimer = 0;
+    }, 620);
+  }
+
+  function playWolfHowl(style="tap"){
+    triggerWolfHowlFx();
+    if(!soundOn) return;
+    ensureAudio();
+    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
+    const triumphant = style === "victory";
+    playTone({
+      type:"triangle",
+      f1: triumphant ? 230 : 200,
+      f2: triumphant ? 520 : 420,
+      dur: triumphant ? 0.34 : 0.28,
+      gain: triumphant ? 0.08 : 0.06
+    });
+    playTone({
+      type:"sine",
+      f1: triumphant ? 128 : 116,
+      f2: triumphant ? 190 : 166,
+      dur: triumphant ? 0.3 : 0.24,
+      gain: triumphant ? 0.048 : 0.038
+    });
+    if(triumphant){
+      playJingle([
+        { f: 392, d: 0.11, g: 0.032, type: "triangle" },
+        { f: 494, d: 0.14, g: 0.034, type: "triangle" }
+      ], { step: 0.08, type: "triangle", gain: 0.03 });
+    }
+  }
+
   function playDropThump(){
     playTone({type:"square", f1:100, f2:65, dur:0.06, gain:0.08});
   }
@@ -794,6 +874,326 @@
   }
   function shareUrl(){
     return "https://kevinhegg.github.io/angry-wolves/";
+  }
+  function currentMissionBonus(){
+    return mission && mission.done ? mission.cashBonus : 0;
+  }
+  function currentTotalScore(){
+    return Math.max(0, (score + currentMissionBonus())|0);
+  }
+  function leaderboardConfigured(){
+    return !!APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("PASTE_APPS_SCRIPT_WEB_APP_URL_HERE");
+  }
+  function sanitizeLeaderboardName(raw){
+    return String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, SCORE_NAME_MAX);
+  }
+  function loadStoredLeaderboardName(){
+    try{
+      return sanitizeLeaderboardName(localStorage.getItem(PLAYER_NAME_STORAGE_KEY));
+    }catch{
+      return "";
+    }
+  }
+  function saveStoredLeaderboardName(name){
+    try{
+      localStorage.setItem(PLAYER_NAME_STORAGE_KEY, sanitizeLeaderboardName(name));
+    }catch{}
+  }
+  function generateNonce(){
+    if(window.crypto?.randomUUID) return window.crypto.randomUUID();
+    if(window.crypto?.getRandomValues){
+      const buf = new Uint32Array(4);
+      window.crypto.getRandomValues(buf);
+      return Array.from(buf, (v) => v.toString(16).padStart(8, "0")).join("-");
+    }
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+  function leaderboardMetaLine(entry, compact=false){
+    const parts = [];
+    if(entry.missionTitle) parts.push(entry.missionTitle);
+    if(entry.bestChain > 0 && !compact) parts.push(`Best ${fmtChain(entry.bestChain)}`);
+    if(entry.biggestHerdCount > 0 && entry.biggestHerdAnimal) parts.push(`${entry.biggestHerdCount} ${entry.biggestHerdAnimal}`);
+    return parts.join(" · ");
+  }
+  function normalizeLeaderboardEntry(entry, index=0){
+    if(!entry) return null;
+    const normalized = {
+      rank: Math.max(1, Number(entry.rank) || index + 1),
+      playerName: sanitizeLeaderboardName(entry.playerName ?? entry.player_name ?? ""),
+      score: Math.max(0, Number(entry.score) || 0),
+      missionTitle: String(entry.missionTitle ?? entry.mission_title ?? "").trim().slice(0, 80),
+      bestChain: Math.max(0, Number(entry.bestChain ?? entry.best_chain) || 0),
+      biggestHerdCount: Math.max(0, Number(entry.biggestHerdCount ?? entry.biggest_herd_count) || 0),
+      biggestHerdAnimal: String(entry.biggestHerdAnimal ?? entry.biggest_herd_animal ?? "").trim().slice(0, 8),
+      gameMode: String(entry.gameMode ?? entry.game_mode ?? GAME_MODE).trim() || GAME_MODE
+    };
+    if(!normalized.playerName) normalized.playerName = "ANON";
+    return normalized;
+  }
+  function leaderboardCutoffScore(){
+    if(!leaderboardEntries.length) return 0;
+    const ranked = leaderboardEntries.slice(0, LEADERBOARD_FULL_LIMIT);
+    return ranked[ranked.length - 1]?.score || 0;
+  }
+  function shouldOfferScoreSubmission(){
+    if(!gameOver || !leaderboardConfigured() || leaderboardSubmitDismissed || submittedRunId === runId) return false;
+    if(currentTotalScore() <= 0) return false;
+    if(leaderboardLoading && !leaderboardEntries.length) return true;
+    if(leaderboardEntries.length < LEADERBOARD_FULL_LIMIT) return true;
+    return currentTotalScore() >= leaderboardCutoffScore();
+  }
+  function scoreSubmissionHintText(){
+    if(!leaderboardConfigured()) return "Set APPS_SCRIPT_URL to enable score posts.";
+    if(leaderboardLoading && !leaderboardEntries.length) return "Barn board is loading. You can still send this run.";
+    if(leaderboardEntries.length < LEADERBOARD_FULL_LIMIT) return "The public board is still filling up. Any positive run can post.";
+    return `Public cutoff right now: ${leaderboardCutoffScore()} coins.`;
+  }
+  function setSubmitStatus(message="", tone=""){
+    leaderboardSubmitMessage = message;
+    leaderboardSubmitTone = tone;
+  }
+  function buildScoreSubmission(playerName){
+    return {
+      playerName,
+      score: currentTotalScore(),
+      gameMode: GAME_MODE,
+      missionTitle: mission?.title ?? shareSnapshot?.missionTitle ?? "Barn Trouble",
+      bestChain: bestCombo,
+      biggestHerdCount: bestHerd?.count || 0,
+      biggestHerdAnimal: bestHerd ? (TILE_LABEL[bestHerd.animal] || "") : "",
+      herdsCleared,
+      pace: level,
+      durationMs: Math.max(0, Date.now() - runStartedAtMs),
+      nonce: generateNonce(),
+      clientTimestamp: Date.now(),
+      version: GAME_VERSION
+    };
+  }
+  function parseJsonSafely(text){
+    try{
+      return text ? JSON.parse(text) : {};
+    }catch{
+      return {};
+    }
+  }
+  function setLeaderboardState(el, message="", tone=""){
+    if(!el) return;
+    el.textContent = message;
+    el.classList.remove("hidden", "success", "error");
+    if(!message) el.classList.add("hidden");
+    if(tone === "success") el.classList.add("success");
+    if(tone === "error") el.classList.add("error");
+  }
+  function renderLeaderboardList(target, entries, opts={}){
+    if(!target) return;
+    target.innerHTML = "";
+    const compact = !!opts.compact;
+    if(!entries.length){
+      if(opts.emptyText === ""){
+        return;
+      }
+      const empty = document.createElement("div");
+      empty.className = "leaderboardEmpty";
+      empty.textContent = opts.emptyText || "No public scores yet.";
+      target.appendChild(empty);
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    entries.forEach((entry, index) => {
+      const row = document.createElement("div");
+      row.className = "leaderboardRow";
+
+      const rank = document.createElement("div");
+      rank.className = "leaderboardRank";
+      rank.textContent = `#${entry.rank || index + 1}`;
+
+      const nameBlock = document.createElement("div");
+      nameBlock.className = "leaderboardNameBlock";
+
+      const name = document.createElement("div");
+      name.className = "leaderboardName";
+      name.textContent = entry.playerName || "ANON";
+
+      const meta = document.createElement("div");
+      meta.className = "leaderboardMeta";
+      meta.textContent = leaderboardMetaLine(entry, compact) || (compact ? "Public board" : "Approved public score");
+
+      const scoreValue = document.createElement("div");
+      scoreValue.className = "leaderboardScore";
+      scoreValue.textContent = `${Math.max(0, entry.score|0)}`;
+
+      nameBlock.appendChild(name);
+      nameBlock.appendChild(meta);
+      row.appendChild(rank);
+      row.appendChild(nameBlock);
+      row.appendChild(scoreValue);
+      frag.appendChild(row);
+    });
+    target.appendChild(frag);
+  }
+  function syncLeaderboardViews(){
+    const previewMessage = !leaderboardConfigured()
+      ? "Leaderboard not connected yet."
+      : leaderboardLoading && !leaderboardEntries.length
+        ? "Loading scores…"
+        : leaderboardError
+          ? leaderboardError
+          : leaderboardEntries.length
+            ? "Top public scores"
+            : "No public scores yet.";
+    const previewTone = leaderboardError ? "error" : "";
+    setLeaderboardState(leaderboardPreviewStateEl, previewMessage, previewTone);
+    setLeaderboardState(leaderboardModalStateEl, previewMessage, previewTone);
+
+    renderLeaderboardList(leaderboardPreviewListEl, leaderboardEntries.slice(0, LEADERBOARD_PREVIEW_LIMIT), {
+      compact: true,
+      emptyText: ""
+    });
+    renderLeaderboardList(leaderboardModalListEl, leaderboardEntries.slice(0, LEADERBOARD_FULL_LIMIT), {
+      compact: false,
+      emptyText: ""
+    });
+  }
+  function syncScoreSubmissionUI(){
+    if(!scoreSubmitSectionEl) return;
+    const alreadyHandled = submittedRunId === runId;
+    const shouldShow = !!(!leaderboardSubmitDismissed && gameOver && (shouldOfferScoreSubmission() || alreadyHandled || leaderboardSubmitPending || leaderboardSubmitMessage));
+    scoreSubmitSectionEl.classList.toggle("hidden", !shouldShow);
+    if(!shouldShow) return;
+
+    if(scoreNameInputEl && !scoreNameInputEl.value){
+      scoreNameInputEl.value = loadStoredLeaderboardName();
+    }
+
+    const disabled = leaderboardSubmitPending || alreadyHandled || !leaderboardConfigured();
+    if(scoreNameInputEl) scoreNameInputEl.disabled = disabled;
+    if(scoreSubmitButton) scoreSubmitButton.disabled = disabled;
+    if(scoreSkipButton) scoreSkipButton.disabled = leaderboardSubmitPending;
+    if(scoreSkipButton) scoreSkipButton.textContent = alreadyHandled ? "Done" : "Skip";
+    if(scoreSubmitHintEl) scoreSubmitHintEl.textContent = alreadyHandled && leaderboardSubmitMessage ? leaderboardSubmitMessage : scoreSubmissionHintText();
+    setLeaderboardState(scoreSubmitStatusEl, leaderboardSubmitMessage, leaderboardSubmitTone);
+  }
+  async function refreshLeaderboard(opts={}){
+    const force = !!opts.force;
+    if(leaderboardLoading) return;
+    if(!leaderboardConfigured()){
+      leaderboardEntries = [];
+      leaderboardError = "Leaderboard not connected yet.";
+      leaderboardLoading = false;
+      syncLeaderboardViews();
+      syncScoreSubmissionUI();
+      return;
+    }
+    if(!force && leaderboardEntries.length && (Date.now() - leaderboardLastLoadedAt) < LEADERBOARD_CACHE_MS){
+      syncLeaderboardViews();
+      syncScoreSubmissionUI();
+      return;
+    }
+
+    leaderboardLoading = true;
+    if(!leaderboardEntries.length) leaderboardError = "";
+    syncLeaderboardViews();
+    syncScoreSubmissionUI();
+
+    try{
+      const url = new URL(APPS_SCRIPT_URL);
+      url.searchParams.set("limit", LEADERBOARD_FULL_LIMIT);
+      url.searchParams.set("gameMode", GAME_MODE);
+      const res = await fetch(url.toString(), {
+        method: "GET",
+        cache: "no-store"
+      });
+      const data = parseJsonSafely(await res.text());
+      if(!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+      leaderboardEntries = Array.isArray(data.entries)
+        ? data.entries.map((entry, index) => normalizeLeaderboardEntry(entry, index)).filter(Boolean)
+        : [];
+      leaderboardLastLoadedAt = Date.now();
+      leaderboardError = "";
+    }catch(err){
+      leaderboardError = leaderboardEntries.length ? "Leaderboard refresh failed." : "Leaderboard offline right now.";
+    }finally{
+      leaderboardLoading = false;
+      syncLeaderboardViews();
+      syncScoreSubmissionUI();
+    }
+  }
+  async function submitCurrentScore(){
+    if(leaderboardSubmitPending) return;
+    const playerName = sanitizeLeaderboardName(scoreNameInputEl?.value);
+    if(!playerName){
+      setSubmitStatus("Use 1-10 letters or numbers.", "error");
+      syncScoreSubmissionUI();
+      if(scoreNameInputEl) scoreNameInputEl.focus();
+      return;
+    }
+    if(!leaderboardConfigured()){
+      setSubmitStatus("Set APPS_SCRIPT_URL before posting scores.", "error");
+      syncScoreSubmissionUI();
+      return;
+    }
+
+    leaderboardSubmitPending = true;
+    setSubmitStatus("Sending this run to the barn board…", "");
+    syncScoreSubmissionUI();
+
+    try{
+      const payload = buildScoreSubmission(playerName);
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = parseJsonSafely(await res.text());
+      if(!res.ok || data.ok === false){
+        throw new Error(data.error || data.message || `HTTP ${res.status}`);
+      }
+
+      saveStoredLeaderboardName(playerName);
+      submittedRunId = runId;
+      if(data.status === "suspect"){
+        setSubmitStatus("Saved for review. It will stay off the public board for now.", "");
+      } else {
+        setSubmitStatus("Score posted to the public barn board.", "success");
+        await refreshLeaderboard({ force: true });
+      }
+    }catch(err){
+      const message = typeof err?.message === "string" ? err.message.trim() : "";
+      setSubmitStatus(message && !/^HTTP \d+$/i.test(message) ? message : "Could not reach the barn board.", "error");
+    }finally{
+      leaderboardSubmitPending = false;
+      syncScoreSubmissionUI();
+    }
+  }
+  function dismissCurrentScoreSubmission(){
+    leaderboardSubmitDismissed = true;
+    syncScoreSubmissionUI();
+  }
+  function openLeaderboard(){
+    setOverlayOpen(leaderboardBackdrop, true);
+    refreshLeaderboard({ force: !leaderboardEntries.length });
+    draw();
+  }
+  function closeLeaderboard(){
+    setOverlayOpen(leaderboardBackdrop, false);
+    draw();
+  }
+  function resetRunLeaderboardState(){
+    runStartedAtMs = Date.now();
+    runId = generateNonce();
+    submittedRunId = "";
+    leaderboardSubmitPending = false;
+    leaderboardSubmitDismissed = false;
+    leaderboardSubmitTone = "";
+    leaderboardSubmitMessage = "";
+    if(scoreNameInputEl) scoreNameInputEl.value = loadStoredLeaderboardName();
+    syncLeaderboardViews();
+    syncScoreSubmissionUI();
   }
   function shareBragLine(){
     const missionName = mission?.title ?? shareSnapshot?.missionTitle ?? "Barn Trouble";
@@ -1417,6 +1817,10 @@
     return !!(gameOver && (pendingGameOverRevealTimer || boardAnimations.length || particles.length));
   }
 
+  function runEndVisualsSettled(now=performance.now()){
+    return !boardAnimations.length && !particles.length && boardAnimationEndsAt() <= (now + 20);
+  }
+
   function syncStageRunActions(){
     const runEnded = !!gameOver && !awaitingRunEndReveal();
     if(stageMissionBarEl) stageMissionBarEl.classList.toggle("runEnded", runEnded);
@@ -1773,9 +2177,9 @@
   }
 
   function updateGameOverStats(){
-    const missionBonus = mission && mission.done ? mission.cashBonus : 0;
+    const missionBonus = currentMissionBonus();
     const herdScore = Math.max(0, score|0);
-    const totalScore = Math.max(0, (score + missionBonus)|0);
+    const totalScore = currentTotalScore();
     if(gameOverTitleEl) gameOverTitleEl.textContent = runEndTitle;
     if(gameOverNoteEl) gameOverNoteEl.textContent = runEndNote;
     if(finalScoreEl) finalScoreEl.textContent = `${herdScore} (herding) + ${missionBonus} (bonus) = ${totalScore}`;
@@ -1783,6 +2187,8 @@
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
     if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
     if(finalComboEl) finalComboEl.textContent = fmtChain(bestCombo);
+    syncLeaderboardViews();
+    syncScoreSubmissionUI();
   }
 
   function defaultRunEndTitle(){
@@ -1815,7 +2221,8 @@
     gameOverNow({
       title: "Mission Succeeded! 🐺",
       note: `${mission.title} paid out +${mission.cashBonus} coins after the reward group cleared.`,
-      playSound: false
+      playSound: false,
+      howl: true
     });
   }
 
@@ -1832,10 +2239,19 @@
     nextSpawnAt = 0;
     if(!shareSnapshot) rememberShareSnapshot();
     if(opts.playSound !== false) playGameOverJingle();
+    if(opts.howl) playWolfHowl("victory");
     updateGameOverStats();
+    refreshLeaderboard({ force: !leaderboardEntries.length });
     const boardWaitMs = opts.waitForBoard === false ? 0 : Math.max(0, boardAnimationEndsAt() - performance.now());
     const revealDelay = opts.delayMs ?? Math.max(RUN_END_REVEAL_MIN_MS, boardWaitMs + 220);
     const reveal = () => {
+      const now = performance.now();
+      if(opts.waitForBoard !== false && !runEndVisualsSettled(now)){
+        const extraWait = Math.max(120, Math.min(240, Math.max(0, boardAnimationEndsAt() - now) + 80));
+        pendingGameOverRevealTimer = window.setTimeout(reveal, extraWait);
+        draw();
+        return;
+      }
       pendingGameOverRevealTimer = 0;
       updateGameOverStats();
       setOverlayOpen(gameOverBackdrop, true);
@@ -1862,6 +2278,7 @@
       pendingGameOverRevealTimer = 0;
     }
     updateGameOverStats();
+    refreshLeaderboard({ force: !leaderboardEntries.length });
     setOverlayOpen(gameOverBackdrop, true);
     draw();
   }
@@ -2669,7 +3086,9 @@
         haptic(12);
       }
 
-      const resolveFx = [];
+      const clearFx = [];
+      const convertFx = [];
+      const fallFx = [];
       for(const key of clearedKeys){
         const [xStr, yStr] = key.split(",");
         const x = Number(xStr);
@@ -2677,7 +3096,7 @@
         const originalTile = clearedTileLookup.get(key) || TILE.EMPTY;
         const convertedTile = conversions.get(key) || TILE.EMPTY;
         if(convertedTile){
-          resolveFx.push({
+          convertFx.push({
             type: "convert",
             x,
             y,
@@ -2686,7 +3105,7 @@
             duration: BOARD_CONVERT_ANIM_MS
           });
         } else if(originalTile !== TILE.EMPTY){
-          resolveFx.push({
+          clearFx.push({
             type: "clear",
             x,
             y,
@@ -2702,7 +3121,7 @@
 
       const gravityMoves = settleBoardNow();
       for(const move of gravityMoves){
-        resolveFx.push({
+        fallFx.push({
           type: "fall",
           x: move.x,
           fromY: move.fromY,
@@ -2711,10 +3130,16 @@
           duration: BOARD_FALL_ANIM_MS + Math.max(0, move.toY - move.fromY) * 32
         });
       }
-      if(resolveFx.length){
-        const batchEndsAt = queueBoardAnimations(resolveFx);
-        animationEndsAt = Math.max(animationEndsAt, batchEndsAt || animationEndsAt);
-      }
+      let phaseCursor = animationEndsAt;
+      const queuePhase = (entries) => {
+        if(!entries.length) return;
+        const needsGap = phaseCursor > (performance.now() + 16);
+        phaseCursor = queueBoardAnimations(entries, phaseCursor + (needsGap ? BOARD_PHASE_GAP_MS : 0)) || phaseCursor;
+      };
+      queuePhase(clearFx);
+      queuePhase(convertFx);
+      queuePhase(fallFx);
+      animationEndsAt = Math.max(animationEndsAt, phaseCursor);
     }
     const chainBonus = chainBonusForDepth(cascadeDepth);
     if(chainBonus > 0){
@@ -2756,7 +3181,7 @@
     bestCombo = Math.max(bestCombo, currentCombo);
     bumpMission("combo", currentCombo);
     const chainText = summary.chainDepth > 1 ? ` · ${fmtChain(summary.chainDepth)} +${summary.chainBonus}` : "";
-    showToast(`🪙 x${summary.totalGain}${chainText}`, 2150);
+    showToast(`🪙 x${summary.totalGain}${chainText}`, 2450);
     updateHUD();
   }
 
@@ -3030,9 +3455,9 @@
     return end;
   }
 
-  function queueBoardAnimations(entries){
+  function queueBoardAnimations(entries, startAt){
     if(!entries?.length) return;
-    const start = Math.max(performance.now(), boardAnimationEndsAt());
+    const start = Math.max(performance.now(), startAt ?? boardAnimationEndsAt());
     for(const entry of entries){
       boardAnimations.push({ ...entry, start });
     }
@@ -4060,8 +4485,8 @@
 
     if(awaitingRunEndReveal()){
       const pulse = 0.72 + 0.28 * (0.5 + 0.5 * Math.sin(performance.now() / 240));
-      const panelW = Math.min(W * 0.72, 420 * dpr);
-      const panelH = 86 * dpr;
+      const panelW = Math.min(W * 0.84, 520 * dpr);
+      const panelH = 94 * dpr;
       const panelX = Math.floor((W - panelW) / 2);
       const panelY = Math.floor((H - panelH) / 2);
       ctx.save();
@@ -4283,8 +4708,16 @@
   if(gear){
     gear.addEventListener("click", openSettings);
   }
+  if(leaderboardButton){
+    leaderboardButton.addEventListener("click", openLeaderboard);
+  }
   if(helpButton){
     helpButton.addEventListener("click", openHelp);
+  }
+  if(wolfHowlButton){
+    wolfHowlButton.addEventListener("click", () => {
+      playWolfHowl("tap");
+    });
   }
   if(closeModal){
     closeModal.addEventListener("click", closeSettings);
@@ -4303,7 +4736,7 @@
     });
   }
   function canTouchScroll(target){
-    return !!(target instanceof Element && target.closest(".helpScroll"));
+    return !!(target instanceof Element && target.closest(".helpScroll, .leaderboardList"));
   }
   if(IS_TOUCH){
     document.addEventListener("touchmove", (e) => {
@@ -4344,8 +4777,19 @@
       if(e.target === gameOverBackdrop) closeGameOverPanel();
     });
   }
+  if(leaderboardBackdrop){
+    leaderboardBackdrop.addEventListener("click", (e) => {
+      if(e.target === leaderboardBackdrop) closeLeaderboard();
+    });
+  }
   if(shareButton){
     shareButton.addEventListener("click", shareResults);
+  }
+  if(closeLeaderboardButton){
+    closeLeaderboardButton.addEventListener("click", closeLeaderboard);
+  }
+  if(leaderboardOpenPreviewButton){
+    leaderboardOpenPreviewButton.addEventListener("click", openLeaderboard);
   }
   if(stageStartButton){
     stageStartButton.addEventListener("click", restart);
@@ -4355,6 +4799,28 @@
   }
   if(missionStartButton){
     missionStartButton.addEventListener("click", closeMissionBriefing);
+  }
+  if(scoreNameInputEl){
+    scoreNameInputEl.value = loadStoredLeaderboardName();
+    scoreNameInputEl.addEventListener("input", () => {
+      const clean = sanitizeLeaderboardName(scoreNameInputEl.value);
+      if(clean !== scoreNameInputEl.value) scoreNameInputEl.value = clean;
+      if(leaderboardSubmitTone === "error"){
+        setSubmitStatus("", "");
+        syncScoreSubmissionUI();
+      }
+    });
+    scoreNameInputEl.addEventListener("keydown", (e) => {
+      if(e.key !== "Enter") return;
+      e.preventDefault();
+      submitCurrentScore();
+    });
+  }
+  if(scoreSubmitButton){
+    scoreSubmitButton.addEventListener("click", submitCurrentScore);
+  }
+  if(scoreSkipButton){
+    scoreSkipButton.addEventListener("click", dismissCurrentScoreSubmission);
   }
   if(holdButton){
     holdButton.addEventListener("click", holdCurrent);
@@ -4463,8 +4929,10 @@
     particles=[]; boardAnimations=[]; banner={text:"",t:0,ttl:900};
     pendingTap = null;
     lastMissionMeterAudio = null;
+    resetRunLeaderboardState();
     setOverlayOpen(modalBackdrop, false);
     setOverlayOpen(gameOverBackdrop, false);
+    setOverlayOpen(leaderboardBackdrop, false);
     setOverlayOpen(missionBriefBackdrop, false);
     next = newPiece();
     spawnNext();
@@ -4498,6 +4966,7 @@
     boardAnimations = [];
     nextSpawnAt = 0;
     pendingGameOverRevealTimer = 0;
+    resetRunLeaderboardState();
 
     next = newPiece();
     spawnNext();
@@ -4506,6 +4975,7 @@
     updateHUD();
     syncSoundBtn();
     updateGameOverStats();
+    refreshLeaderboard({ force: true });
     openMissionBriefing();
 
     fitCanvasToViewport();
