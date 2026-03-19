@@ -878,17 +878,12 @@
   function lowerBarnStartRow(){
     return Math.floor(ROWS / 2);
   }
-  function lowerBarnColumnOrder(){
-    const centerLeft = Math.floor((COLS - 1) / 2);
-    const centerRight = centerLeft + 1;
-    const order = [];
-    for(let offset = 0; order.length < COLS; offset++){
-      const left = centerLeft - offset;
-      const right = centerRight + offset - 1;
-      if(left >= 0) order.push(left);
-      if(right < COLS && right !== left) order.push(right);
+  function rollRestockCount(consumed){
+    let spawned = 0;
+    for(let i=0; i<Math.max(0, consumed|0); i++){
+      if(Math.random() < 0.5) spawned += 2;
     }
-    return order.slice(0, COLS);
+    return spawned;
   }
   function formatRestockToast(eggs, turds){
     const parts = [];
@@ -2174,6 +2169,7 @@
   }
 
   function spawnNext(){
+    if(clearPendingHerdsBeforeSpawn()) return;
     if(mission && mission.ready && !mission.done && !hasRewardCoinOnBoard() && cashoutCharge >= missionCashoutEvery()){
       current = preparePiece(createCashoutPiece());
       cashoutCharge = 0;
@@ -2193,6 +2189,26 @@
     playSpawnCue(current);
     updateHUD();
     if(collides(current,0,0)) gameOverNow();
+  }
+
+  function clearPendingHerdsBeforeSpawn(){
+    if(gameOver || current || boardAnimations.length) return false;
+    if(findAnimalGroupsToClear().length === 0) return false;
+
+    const summary = resolveBoard();
+    if(!summary || summary.groupsCleared <= 0) return false;
+
+    applyChainResult(summary);
+    if(summary.rewardEarned){
+      finishMissionEarned();
+      return true;
+    }
+
+    current = null;
+    nextSpawnAt = performance.now() + Math.max(0, summary.animationWaitMs || 0);
+    updateHUD();
+    draw();
+    return true;
   }
 
   function updateLevel(){
@@ -2666,11 +2682,10 @@
     let turdCount = Math.max(0, turds|0);
     if(!eggCount && !turdCount) return { eggs: 0, turds: 0 };
 
-    const colOrder = lowerBarnColumnOrder();
     const emptyCandidates = [];
     const occupiedCandidates = [];
     for(let y = ROWS - 1; y >= lowerBarnStartRow(); y--){
-      for(const x of colOrder){
+      for(let x = 0; x < COLS; x++){
         if(overlay[y][x] !== POWER.NONE) continue;
         const candidate = { x, y };
         if(board[y][x] === TILE.EMPTY){
@@ -2680,6 +2695,8 @@
         }
       }
     }
+    shuffleInPlace(emptyCandidates);
+    shuffleInPlace(occupiedCandidates);
 
     const selected = [];
     const used = new Set();
@@ -3353,7 +3370,10 @@
       queuePhase(fallFx);
       animationEndsAt = Math.max(animationEndsAt, phaseCursor);
     }
-    const restocked = restockLowerBarnOverlays(consumedEggs, consumedTurds);
+    const restocked = restockLowerBarnOverlays(
+      rollRestockCount(consumedEggs),
+      rollRestockCount(consumedTurds)
+    );
     const chainBonus = chainBonusForDepth(cascadeDepth);
     if(chainBonus > 0){
       score += chainBonus;
