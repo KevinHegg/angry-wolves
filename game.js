@@ -31,9 +31,10 @@
   const ROTATE_INTENT_ANGLE = 42;
   const ROTATE_SIDE_MIN = 4;
   const BOARD_CLEAR_ANIM_MS = 430;
+  const BOARD_CONVERT_PREVIEW_ANIM_MS = 140;
   const BOARD_CONVERT_ANIM_MS = 520;
   const BOARD_FALL_ANIM_MS = 430;
-  const BOARD_PHASE_GAP_MS = 72;
+  const BOARD_PHASE_GAP_MS = 132;
   const CLEAR_AUDIO_STAGGER_MS = 72;
   const RUN_END_REVEAL_MIN_MS = 4600;
   const SHARE_GRID_COLS = 6;
@@ -869,6 +870,31 @@
   }
   function animalWord(animal){
     return ANIMAL_NAME[animal] || "animals";
+  }
+  function animalTieBreakIndex(animal){
+    const idx = ANIMALS.indexOf(animal);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  }
+  function lowerBarnStartRow(){
+    return Math.floor(ROWS / 2);
+  }
+  function lowerBarnColumnOrder(){
+    const centerLeft = Math.floor((COLS - 1) / 2);
+    const centerRight = centerLeft + 1;
+    const order = [];
+    for(let offset = 0; order.length < COLS; offset++){
+      const left = centerLeft - offset;
+      const right = centerRight + offset - 1;
+      if(left >= 0) order.push(left);
+      if(right < COLS && right !== left) order.push(right);
+    }
+    return order.slice(0, COLS);
+  }
+  function formatRestockToast(eggs, turds){
+    const parts = [];
+    if(eggs > 0) parts.push(`+${eggs} 🥚`);
+    if(turds > 0) parts.push(`+${turds} 💩`);
+    return parts.length ? `Lower barn ${parts.join(" ")}` : "";
   }
   function bestHerdSummary(best){
     if(!best) return "-";
@@ -2616,7 +2642,7 @@
 
   function scatterLowerHalfOverlays(power, count=1, excludedKeys=new Set()){
     const candidates = [];
-    const startRow = Math.floor(ROWS / 2);
+    const startRow = lowerBarnStartRow();
     for(let y=startRow; y<ROWS; y++){
       for(let x=0; x<COLS; x++){
         const key = keyForCell(x, y);
@@ -2631,6 +2657,81 @@
       overlay[y][x] = power;
       placed++;
       if(placed >= count) break;
+    }
+    return placed;
+  }
+
+  function restockLowerBarnOverlays(eggs=0, turds=0){
+    let eggCount = Math.max(0, eggs|0);
+    let turdCount = Math.max(0, turds|0);
+    if(!eggCount && !turdCount) return { eggs: 0, turds: 0 };
+
+    const colOrder = lowerBarnColumnOrder();
+    const emptyCandidates = [];
+    const occupiedCandidates = [];
+    for(let y = ROWS - 1; y >= lowerBarnStartRow(); y--){
+      for(const x of colOrder){
+        if(overlay[y][x] !== POWER.NONE) continue;
+        const candidate = { x, y };
+        if(board[y][x] === TILE.EMPTY){
+          emptyCandidates.push(candidate);
+        } else {
+          occupiedCandidates.push(candidate);
+        }
+      }
+    }
+
+    const selected = [];
+    const used = new Set();
+    const spacedFromChosen = (candidate) => selected.every(({x, y}) => Math.max(Math.abs(candidate.x - x), Math.abs(candidate.y - y)) > 1);
+    const takeCandidate = (pool, requireSpacing) => {
+      for(const candidate of pool){
+        const key = keyForCell(candidate.x, candidate.y);
+        if(used.has(key)) continue;
+        if(requireSpacing && !spacedFromChosen(candidate)) continue;
+        used.add(key);
+        selected.push(candidate);
+        return candidate;
+      }
+      return null;
+    };
+    const takeSlot = () =>
+      takeCandidate(emptyCandidates, true) ||
+      takeCandidate(emptyCandidates, false) ||
+      takeCandidate(occupiedCandidates, true) ||
+      takeCandidate(occupiedCandidates, false);
+
+    const queue = [];
+    let nextPower = eggCount >= turdCount ? POWER.EGG : POWER.TURD;
+    while(eggCount > 0 || turdCount > 0){
+      if(nextPower === POWER.EGG){
+        if(eggCount > 0){
+          queue.push(POWER.EGG);
+          eggCount--;
+        } else if(turdCount > 0){
+          queue.push(POWER.TURD);
+          turdCount--;
+        }
+        nextPower = POWER.TURD;
+      } else {
+        if(turdCount > 0){
+          queue.push(POWER.TURD);
+          turdCount--;
+        } else if(eggCount > 0){
+          queue.push(POWER.EGG);
+          eggCount--;
+        }
+        nextPower = POWER.EGG;
+      }
+    }
+
+    const placed = { eggs: 0, turds: 0 };
+    for(const power of queue){
+      const slot = takeSlot();
+      if(!slot) break;
+      overlay[slot.y][slot.x] = power;
+      if(power === POWER.EGG) placed.eggs++;
+      if(power === POWER.TURD) placed.turds++;
     }
     return placed;
   }
@@ -2996,7 +3097,7 @@
     return `${x},${y}`;
   }
 
-  function connectedAnimalSizeExcluding(sx, sy, animal, blocked, cache){
+  function connectedAnimalComponentExcluding(sx, sy, animal, blocked, cache){
     const startKey = keyForCell(sx, sy);
     if(cache.has(startKey)) return cache.get(startKey);
 
@@ -3019,13 +3120,19 @@
       }
     }
 
-    const size = cells.length;
-    for(const [x, y] of cells) cache.set(keyForCell(x, y), size);
-    return size;
+    let componentId = startKey;
+    for(const [x, y] of cells){
+      const key = keyForCell(x, y);
+      if(key < componentId) componentId = key;
+    }
+
+    const component = { id: componentId, size: cells.length };
+    for(const [x, y] of cells) cache.set(keyForCell(x, y), component);
+    return component;
   }
 
   function choosePerimeterConversionAnimal(x, y, blocked, cache){
-    const candidateSizes = new Map();
+    const candidateScores = new Map();
 
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
       const nx = x + dx;
@@ -3035,23 +3142,41 @@
       if(blocked.has(key)) continue;
       const animal = board[ny][nx];
       if(!ANIMALS.includes(animal)) continue;
-      const size = connectedAnimalSizeExcluding(nx, ny, animal, blocked, cache);
-      candidateSizes.set(animal, Math.max(candidateSizes.get(animal) || 0, size));
-    }
-
-    let bestSize = 0;
-    let tied = [];
-    for(const [animal, size] of candidateSizes){
-      if(size > bestSize){
-        bestSize = size;
-        tied = [animal];
-      } else if(size === bestSize){
-        tied.push(animal);
+      const component = connectedAnimalComponentExcluding(nx, ny, animal, blocked, cache);
+      if(!component) continue;
+      if(!candidateScores.has(animal)){
+        candidateScores.set(animal, {
+          mergedSize: 0,
+          touchingEdges: 0,
+          components: new Set()
+        });
+      }
+      const score = candidateScores.get(animal);
+      score.touchingEdges++;
+      if(!score.components.has(component.id)){
+        score.components.add(component.id);
+        score.mergedSize += component.size;
       }
     }
 
-    if(bestSize <= 0 || !tied.length) return null;
-    return tied.length === 1 ? tied[0] : randChoice(tied);
+    let bestAnimal = null;
+    let bestMergedSize = -1;
+    let bestTouchingEdges = -1;
+    for(const animal of ANIMALS){
+      const score = candidateScores.get(animal);
+      if(!score) continue;
+      if(
+        score.mergedSize > bestMergedSize ||
+        (score.mergedSize === bestMergedSize && score.touchingEdges > bestTouchingEdges) ||
+        (score.mergedSize === bestMergedSize && score.touchingEdges === bestTouchingEdges && animalTieBreakIndex(animal) < animalTieBreakIndex(bestAnimal))
+      ){
+        bestAnimal = animal;
+        bestMergedSize = score.mergedSize;
+        bestTouchingEdges = score.touchingEdges;
+      }
+    }
+
+    return bestMergedSize > 0 ? bestAnimal : null;
   }
 
   function buildClearConversions(clears){
@@ -3081,6 +3206,8 @@
     let totalGain = 0;
     let groupsCleared = 0;
     let rewardEarned = false;
+    let consumedEggs = 0;
+    let consumedTurds = 0;
     let animationEndsAt = performance.now();
     while(true){
       if(gameOver) break;
@@ -3109,6 +3236,8 @@
           if(overlay[y][x] === POWER.EGG) eggs++;
           if(overlay[y][x] === POWER.TURD) turds++;
         }
+        consumedEggs += eggs;
+        consumedTurds += turds;
         if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
         if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
         if(!bestHerd || cells.length > bestHerd.count || (cells.length === bestHerd.count && gain > bestHerd.gain)){
@@ -3148,6 +3277,7 @@
       }
 
       const clearFx = [];
+      const previewFx = [];
       const convertFx = [];
       const fallFx = [];
       for(const key of clearedKeys){
@@ -3157,6 +3287,14 @@
         const originalTile = clearedTileLookup.get(key) || TILE.EMPTY;
         const convertedTile = conversions.get(key) || TILE.EMPTY;
         if(convertedTile){
+          previewFx.push({
+            type: "preview",
+            x,
+            y,
+            fromTile: originalTile,
+            toTile: convertedTile,
+            duration: BOARD_CONVERT_PREVIEW_ANIM_MS
+          });
           convertFx.push({
             type: "convert",
             x,
@@ -3203,17 +3341,19 @@
         if(onStart) onStart(phaseStart);
         phaseCursor = queueBoardAnimations(entries, phaseStart) || phaseCursor;
       };
-      const herdSoundPhaseStart = phaseStartFor(clearFx) ?? phaseStartFor(convertFx) ?? phaseStartFor(fallFx);
+      const herdSoundPhaseStart = phaseStartFor(clearFx) ?? phaseStartFor(previewFx) ?? phaseStartFor(convertFx) ?? phaseStartFor(fallFx);
       if(herdSoundPhaseStart != null){
         clearSoundCues.forEach((cue, index) => {
           queueBoardAudioCue(herdSoundPhaseStart + index * CLEAR_AUDIO_STAGGER_MS, () => playBarnyard(cue.animal, cue.size));
         });
       }
       queuePhase(clearFx);
+      queuePhase(previewFx);
       queuePhase(convertFx);
       queuePhase(fallFx);
       animationEndsAt = Math.max(animationEndsAt, phaseCursor);
     }
+    const restocked = restockLowerBarnOverlays(consumedEggs, consumedTurds);
     const chainBonus = chainBonusForDepth(cascadeDepth);
     if(chainBonus > 0){
       score += chainBonus;
@@ -3240,6 +3380,8 @@
       rewardEarned,
       chainDepth: cascadeDepth,
       chainBonus,
+      restockedEggs: restocked.eggs,
+      restockedTurds: restocked.turds,
       animationWaitMs: Math.max(0, animationEndsAt - performance.now())
     };
   }
@@ -3254,7 +3396,8 @@
     bestCombo = Math.max(bestCombo, currentCombo);
     bumpMission("combo", currentCombo);
     const chainText = summary.chainDepth > 1 ? ` · ${fmtChain(summary.chainDepth)} +${summary.chainBonus}` : "";
-    showToast(`🪙 x${summary.totalGain}${chainText}`, 2450);
+    const restockText = formatRestockToast(summary.restockedEggs || 0, summary.restockedTurds || 0);
+    showToast(`🪙 x${summary.totalGain}${chainText}${restockText ? ` · ${restockText}` : ""}`, 2600);
     updateHUD();
   }
 
@@ -3817,6 +3960,27 @@
         const alpha = 0.85 - t * 0.85;
         const gy = px + fx.y * cell - t * cell * 0.08;
         drawFloatingTile(px + fx.x * cell, gy, fx.tile, { alpha, scale });
+        continue;
+      }
+      if(fx.type === "preview"){
+        const gx = px + fx.x * cell;
+        const gy = px + fx.y * cell;
+        const pulse = 0.45 + 0.55 * Math.sin(t * Math.PI);
+        const accent = TILE_COLOR[fx.toTile] || "#ffd166";
+
+        ctx.save();
+        ctx.globalAlpha = 0.22 + pulse * 0.22;
+        roundRectFill(gx + 6, gy + 6, cell - 12, cell - 12, 9, "#0b0d14");
+        ctx.globalAlpha = 0.46 + pulse * 0.28;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = Math.max(2, Math.floor(cell * 0.08));
+        roundRectStroke(gx + 5, gy + 5, cell - 10, cell - 10, 9);
+        ctx.restore();
+
+        drawFloatingTile(gx, gy, fx.toTile, {
+          alpha: 0.34 + pulse * 0.3,
+          scale: 0.78 + pulse * 0.08
+        });
         continue;
       }
       if(fx.type === "convert"){
