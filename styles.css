@@ -1668,16 +1668,56 @@ canvas{
   .gameOverModal{
     width:min(94vw, 520px);
     max-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
-    padding:12px;
+    padding:10px;
+  }
+
+  .gameOverModal h2{
+    margin-bottom:6px;
+  }
+
+  .gameOverModal .gameOverNote{
+    margin-bottom:8px;
   }
 
   .gameOverModal .gameOverStats{
-    gap:8px;
+    gap:6px;
+  }
+
+  .gameOverModal .gameOverStat:not(.gameOverStatWide){
+    gap:2px;
+    min-height:64px;
+    padding:9px 10px 8px;
+  }
+
+  .gameOverModal .gameOverStat:not(.gameOverStatWide) .statLabel{
+    font-size:11px;
+    line-height:1.05;
+  }
+
+  .gameOverModal .gameOverStat:not(.gameOverStatWide) .statValue{
+    font-size:16px;
+    line-height:1;
+  }
+
+  .gameOverModal .gameOverStatWide{
+    padding:10px;
   }
 
   .gameOverModal .leaderboardPanel{
+    margin-top:7px;
+    padding:8px 10px;
+  }
+
+  .gameOverModal .leaderboardState{
+    margin-top:3px;
+    font-size:10px;
+    line-height:1.25;
+  }
+
+  .gameOverModal .leaderboardList.compact{
+    max-height:136px;
     margin-top:8px;
-    padding:9px 10px;
+    gap:6px;
   }
 
   .wolfBadge{
@@ -1748,7 +1788,29 @@ canvas{
     padding:9px 10px;
   }
 
+  .gameOverModal .leaderboardRow{
+    padding:8px 10px;
+  }
+
+  .gameOverModal .leaderboardName{
+    font-size:12px;
+  }
+
+  .gameOverModal .leaderboardMeta{
+    font-size:10px;
+  }
+
   .leaderboardScore{
     font-size:14px;
+  }
+
+  .gameOverActions{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px;
+    margin-top:8px;
+  }
+
+  .gameOverActions .closeBtn{
+    padding:11px 12px;
   }
 }

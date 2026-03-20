@@ -40,7 +40,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.21";
+  const GAME_VERSION = "v0.22";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -1874,12 +1874,17 @@
   }
 
   function syncStageRunActions(){
-    const runEnded = !!gameOver && !awaitingRunEndReveal();
+    const runEnded = !!gameOver;
+    const revealReady = runEnded && !awaitingRunEndReveal();
     if(stageMissionBarEl) stageMissionBarEl.classList.toggle("runEnded", runEnded);
-    if(stageRunActionsEl) stageRunActionsEl.classList.toggle("hidden", !runEnded);
+    if(stageRunActionsEl) stageRunActionsEl.classList.toggle("hidden", !revealReady);
     if(!runEnded) return;
     if(stageMissionTitleEl) stageMissionTitleEl.textContent = runEndTitle;
-    if(stageMissionProgressTextEl) stageMissionProgressTextEl.textContent = stageRunSummary();
+    if(stageMissionProgressTextEl){
+      stageMissionProgressTextEl.textContent = revealReady
+        ? stageRunSummary()
+        : runEndPulseLine();
+    }
   }
 
   function updateMissionUI(){
@@ -2292,6 +2297,7 @@
     current = null;
     nextSpawnAt = 0;
     if(!shareSnapshot) rememberShareSnapshot();
+    updateHUD();
     if(opts.playSound !== false) playGameOverJingle();
     if(opts.howl) playWolfHowl("victory");
     updateGameOverStats();
@@ -2456,6 +2462,9 @@
       updateHUD();
       return false;
     }
+    banner.text = `Reward clock: ${rewardCountdownLabel()}. Mission failed.`;
+    banner.t = performance.now();
+    updateHUD();
     gameOverNow({
       title: "Mission Failed 💥",
       note: `The reward coin survived the full ${REWARD_COUNTDOWN_START}-settle clock, so the barn shut the gates before you could cash it in.`
