@@ -1707,8 +1707,8 @@ canvas{
 
   .gameOverModal .gameOverStat:not(.gameOverStatWide){
     gap:2px;
-    min-height:64px;
-    padding:9px 10px 8px;
+    min-height:0;
+    padding:10px;
   }
 
   .gameOverModal .gameOverStat:not(.gameOverStatWide) .statLabel{
