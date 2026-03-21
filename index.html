@@ -10,7 +10,7 @@
   <title>Angry Wolves</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=0.23" />
 </head>
 <body>
   <div id="app">
@@ -23,7 +23,7 @@
         </div>
         <div class="title">
           <div class="h1"><button id="wolfHowlButton" class="wolfBadge" type="button" aria-label="Howl at the barn" title="Howl"><span class="wolfBadgeEmoji" aria-hidden="true">🐺</span><span class="wolfBadgeMouth" aria-hidden="true"></span></button><span class="titleText"><span>Angry</span><span>Wolves</span></span></div>
-          <div class="sub">Match 10+ • wolves blast • black sheep convert</div>
+          <div class="sub">Match 10+ • missions own the chaos</div>
         </div>
       </div>
       <div class="right">
@@ -33,6 +33,7 @@
       <div id="nextCard" class="planCard">
         <span class="planLabel">Next</span>
         <div id="nextPreview" class="previewGrid"></div>
+        <span id="nextCardHint" class="planHint">Tap to swap</span>
       </div>
     </header>
 
@@ -41,7 +42,7 @@
         <button id="holdButton" class="planCard actionCard">
           <span class="planLabel">Swap</span>
           <span class="planValue">Swap with Next</span>
-          <span class="planHint">Double tap or press C</span>
+          <span class="planHint">Click here, tap Next, or press C</span>
         </button>
         <div id="missionCard" class="planCard">
           <span class="planLabel">Barn Mission</span>
@@ -53,8 +54,8 @@
           </div>
           <div class="missionSpecialStrip">
             <div class="missionSpecialCopyBlock">
-              <span id="missionSpecialName" class="planHint">Special tetrad: warming up</span>
-              <span id="missionSpecialInfo" class="planHint">Mission tricks will appear here.</span>
+              <span id="missionSpecialName" class="planHint">Mission legend warming up</span>
+              <span id="missionSpecialInfo" class="planHint">Mission legend will appear here.</span>
             </div>
             <div id="missionSpecialPreview" class="previewGrid"></div>
           </div>
@@ -103,7 +104,7 @@
 
     <footer id="help">
       <div>
-        <b>Touch:</b> tap side = ←/→ · drag = move · drag ↓ = drop · swipe ↑ left/right = ↺/↻ · double tap or hold = swap with Next
+        <b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · tap Next = swap
       </div>
       <div class="legend">🥚 x2 · <span class="danger">💩 ÷2</span> · Space/F = slam</div>
     </footer>
@@ -112,7 +113,7 @@
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings (v0.21)</h2>
+      <h2>Settings (v0.23)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -217,8 +218,8 @@
       <div class="row missionSpecialRow">
         <div class="rowLeft missionSpecialCopy">
           <div>
-            <div id="missionBriefSpecialName" class="rowTitle">Special tetrad</div>
-            <div id="missionBriefSpecialInfo" class="rowSub">Mission trick explainer</div>
+            <div id="missionBriefSpecialName" class="rowTitle">Mission legend</div>
+            <div id="missionBriefSpecialInfo" class="rowSub">Mission special rundown</div>
           </div>
         </div>
         <div id="missionBriefPreview" class="previewGrid missionPreview"></div>
@@ -235,17 +236,16 @@
           Match <b>10+</b> of one animal to clear that herd. After a herd clears, border squares turn into the strongest touching herd, then animals fall, and chains repeat.
         </p>
         <p class="helpText">
-          Gold-frame mission tetrads can show up in <b>Next</b>. Hit the mission goal, then clear the pulsing reward-coin herd within <b>10 settles</b> or the run ends.
+          Mission specials use the real <b>Next</b> queue. If a special is in Next, you can swap it, hold it, and plan around it. Hit the goal, then clear the pulsing reward-coin herd within <b>10 settles</b> or the run ends.
         </p>
 
         <details class="helpFold">
           <summary>Touchscreen Controls</summary>
           <div class="helpFoldBody">
-            <p class="helpText">← or → tap the left or right side to nudge one column.</p>
-            <p class="helpText">↔ drag sideways to steer while the tetrad falls.</p>
-            <p class="helpText">↓ drag down to speed the drop.</p>
-            <p class="helpText">↺ swipe up on the left half to rotate counterclockwise. ↻ swipe up on the right half to rotate clockwise.</p>
-            <p class="helpText">⇄ double tap or press and hold to swap the falling tetrad with <b>Next</b>. You get one swap per settle.</p>
+            <p class="helpText">Tap the left or right side to nudge one column.</p>
+            <p class="helpText">Drag sideways to steer. Drag down to speed the drop.</p>
+            <p class="helpText">Swipe up on the left half for ↺. Swipe up on the right half for ↻.</p>
+            <p class="helpText">Tap the <b>Next</b> card to swap. Press and hold is still there as a backup. You get one swap per settle.</p>
           </div>
         </details>
 
@@ -269,17 +269,17 @@
         </details>
 
         <details class="helpFold">
-          <summary>Barn Wildcards</summary>
+          <summary>Legacy Wildcards</summary>
           <div class="helpFoldBody">
-            <p class="helpText">These are regular special tetrads, not mission-only pieces.</p>
+            <p class="helpText">These only return if the legacy global-special settings are turned back on.</p>
             <div id="helpGeneralSpecials" class="helpSpecialList"></div>
           </div>
         </details>
 
         <details class="helpFold">
-          <summary>Mission Tetrads</summary>
+          <summary>Mission Specials</summary>
           <div class="helpFoldBody">
-            <p class="helpText">Mission tetrads have a shared gold frame, can appear in <b>Next</b>, and usually leave a 💩 behind if they settle without touching the pile.</p>
+            <p class="helpText">Mission specials share the gold frame and always come through the real <b>Next</b> queue. If it is in Next, it is fair game. Wolves are fair game too. They are just meaner.</p>
             <div id="helpMissionSpecials" class="helpSpecialList"></div>
           </div>
         </details>
@@ -288,6 +288,6 @@
     </div>
   </div>
 
-  <script src="game.js"></script>
+  <script src="game.js?v=0.23"></script>
 </body>
 </html>
