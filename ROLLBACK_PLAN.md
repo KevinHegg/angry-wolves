@@ -20,6 +20,9 @@ All feature switches live near the top of [game.js](/Users/kevinhegg/Documents/a
 - `USE_NEW_TOUCH_CONTROLS`
 - `USE_ENHANCED_CHAOS_AUDIO`
 - `USE_TUNED_CLUTTER_SPAWNS`
+- `USE_MISSION_BRIEF_SPECIAL_CARDS`
+- `USE_BRIEF_HELP_SHORTCUT`
+- `USE_IOS_AUDIO_RESUME_FIXES`
 
 ## Restore Prior Mission Deck
 
@@ -71,6 +74,25 @@ Revert these files:
 - [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css)
 
 This removes the Next-card swap hint, shortened help text, and the updated mission/help wording without touching gameplay logic.
+
+## Revert Mission Briefing / Audio Polish Pass
+
+Set these in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js):
+
+- `USE_MISSION_BRIEF_SPECIAL_CARDS = false`
+- `USE_BRIEF_HELP_SHORTCUT = false`
+- `USE_IOS_AUDIO_RESUME_FIXES = false`
+
+This focused follow-up pass touches the same four files but can be backed out piecemeal:
+
+- Mission briefing layout changes:
+  Set `USE_MISSION_BRIEF_SPECIAL_CARDS = false` to collapse the new two-card briefing back to a simpler single-special summary, then revert the mission-brief markup/styles in [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html) and [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css) if a full visual rollback is wanted.
+- Help-button-before-start changes:
+  Set `USE_BRIEF_HELP_SHORTCUT = false` to hide the mission-brief `?` button immediately. The shared help modal still works from the HUD button.
+- Special explainer copy/rendering changes:
+  Set `USE_MISSION_BRIEF_SPECIAL_CARDS = false` to stop rendering the new per-special explainer cards. If needed, revert the briefing-copy helpers in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js) without touching mission logic.
+- iPhone audio lifecycle changes:
+  Set `USE_IOS_AUDIO_RESUME_FIXES = false` to remove the added `pageshow` / `focus` / visible-resume nudges and the safe pre-play resume attempt. Existing sound enable/disable behavior remains.
 
 ## Full Feature Revert
 

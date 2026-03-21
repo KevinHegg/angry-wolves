@@ -23,6 +23,9 @@
   const USE_NEW_TOUCH_CONTROLS = true;
   const USE_ENHANCED_CHAOS_AUDIO = true;
   const USE_TUNED_CLUTTER_SPAWNS = true;
+  const USE_MISSION_BRIEF_SPECIAL_CARDS = true;
+  const USE_BRIEF_HELP_SHORTCUT = true;
+  const USE_IOS_AUDIO_RESUME_FIXES = true;
 
   // touch movement + gesture tuning
   const TOUCH_MOVE_STEP_X = USE_NEW_TOUCH_CONTROLS ? 18 : 22;
@@ -49,7 +52,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.25";
+  const GAME_VERSION = "v0.26";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -348,9 +351,10 @@
   const missionBriefBodyEl = document.getElementById("missionBriefBody");
   const missionBriefObjectiveEl = document.getElementById("missionBriefObjective");
   const missionBriefBonusEl = document.getElementById("missionBriefBonus");
-  const missionBriefSpecialNameEl = document.getElementById("missionBriefSpecialName");
+  const missionBriefRuleEl = document.getElementById("missionBriefRule");
   const missionBriefSpecialInfoEl = document.getElementById("missionBriefSpecialInfo");
-  const missionBriefPreviewEl = document.getElementById("missionBriefPreview");
+  const missionBriefSpecialsEl = document.getElementById("missionBriefSpecials");
+  const missionBriefHelpButton = document.getElementById("missionBriefHelpButton");
   const missionStartButton = document.getElementById("missionStartButton");
   const helpBackdrop = document.getElementById("helpBackdrop");
   const closeHelpButton = document.getElementById("closeHelp");
@@ -815,6 +819,8 @@
   let masterGain = null;
   let soundOn = loadSoundPref();
   let audioUnlocked = false;
+  let audioPrimeOnResume = false;
+  let pendingAudioResume = null;
   let ambienceClock = 0;
 
   function loadSoundPref(){
@@ -858,27 +864,65 @@
     osc.start(t0);
     osc.stop(t0 + 0.01);
   }
+  function resumeAudioContext(opts={}){
+    const { prime=true } = opts;
+    if(!soundOn) return Promise.resolve(false);
+    ensureAudio();
+    if(!audioCtx) return Promise.resolve(false);
+    syncMasterGain();
+    if(audioCtx.state === "running"){
+      audioUnlocked = true;
+      if(prime) primeAudioContext();
+      audioPrimeOnResume = false;
+      return Promise.resolve(true);
+    }
+    if(audioCtx.state === "closed") return Promise.resolve(false);
+    if(prime) audioPrimeOnResume = true;
+    if(pendingAudioResume) return pendingAudioResume;
+    const resumeCall = typeof audioCtx.resume === "function" ? audioCtx.resume() : Promise.resolve();
+    pendingAudioResume = Promise.resolve(resumeCall)
+      .then(() => {
+        const running = !!audioCtx && audioCtx.state === "running";
+        if(running){
+          audioUnlocked = true;
+          if(audioPrimeOnResume) primeAudioContext();
+        }
+        return running;
+      })
+      .catch(() => false)
+      .finally(() => {
+        audioPrimeOnResume = false;
+        pendingAudioResume = null;
+      });
+    return pendingAudioResume;
+  }
+  function prepareAudioPlayback(){
+    if(!soundOn) return false;
+    ensureAudio();
+    if(!audioCtx || !masterGain) return false;
+    syncMasterGain();
+    if(audioCtx.state !== "running"){
+      if(USE_IOS_AUDIO_RESUME_FIXES){
+        resumeAudioContext({ prime:false });
+      }
+      return false;
+    }
+    return true;
+  }
+  function nudgeAudioWake(){
+    if(!USE_IOS_AUDIO_RESUME_FIXES) return;
+    if(!soundOn || !audioUnlocked || !audioCtx) return;
+    window.setTimeout(() => {
+      resumeAudioContext({ prime:false });
+    }, 40);
+  }
   function unlockAudioSilently(){
     if(!soundOn) return;
-    ensureAudio();
-    if(!audioCtx) return;
-    syncMasterGain();
-    const markUnlocked = () => {
-      audioUnlocked = true;
-      primeAudioContext();
-    };
-    if(audioCtx.state === "suspended"){
-      audioCtx.resume().then(markUnlocked).catch(() => {});
-      return;
-    }
-    markUnlocked();
+    resumeAudioContext({ prime:true });
   }
 
   function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.16, noise=false}){
-    if(!soundOn) return;
-    ensureAudio();
-    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
-    syncMasterGain();
+    if(!prepareAudioPlayback()) return;
 
     const t0 = audioCtx.currentTime;
     const g = audioCtx.createGain();
@@ -912,10 +956,7 @@
   }
 
   function playJingle(notes, opts={}){
-    if(!soundOn) return;
-    ensureAudio();
-    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
-    syncMasterGain();
+    if(!prepareAudioPlayback()) return;
     const {
       step = 0.08,
       type = "square",
@@ -1091,9 +1132,7 @@
     const epic = style === "angry_victory";
     const triumphant = epic || style === "victory";
     triggerWolfHowlFx(epic ? 1120 : triumphant ? 760 : 620);
-    if(!soundOn) return;
-    ensureAudio();
-    if(!audioCtx || !masterGain || audioCtx.state !== "running") return;
+    if(!prepareAudioPlayback()) return;
     playTone({
       type:"triangle",
       f1: epic ? 176 : triumphant ? 230 : 200,
@@ -2209,6 +2248,105 @@
       : `${primary?.title} is the common pull. ${secondary?.title} is the rarer troublemaker. Both arrive through the real Next queue.`;
   }
 
+  function missionBriefRuleCopy(){
+    return `Goal first. Then clear the reward herd in ${REWARD_COUNTDOWN_START} settles.`;
+  }
+
+  function missionBriefSpecialHeaderCopy(sourceMission=mission){
+    if(!USE_MISSION_BRIEF_SPECIAL_CARDS){
+      return missionSpecialLegendInfo(sourceMission, { compact:false });
+    }
+    const loadout = missionSpecialLoadout(sourceMission);
+    if(!loadout.length) return "No mission special this run.";
+    return loadout.length > 1
+      ? "Common first. Rare second. Both show up in real Next."
+      : "This special shows up in the real Next queue.";
+  }
+
+  function missionBriefSpecialRoleLabel(specialId, idx, total){
+    if(total <= 1) return "Mission special";
+    const common = idx === 0;
+    if(["angry_wolf", "pack_howl"].includes(specialId)) return common ? "Common troublemaker" : "Rare troublemaker";
+    if(specialId === "salt_lick") return common ? "Common pull" : "Rare pull";
+    if(specialId === "rain_barrel") return common ? "Common cleanup" : "Rare cleanup";
+    if(specialId === "rooster_call") return common ? "Common combo" : "Rare combo";
+    if(specialId === "barnstorm_crate") return common ? "Common mayhem" : "Rare troublemaker";
+    if(specialId === "barn_goods") return common ? "Common cash-in" : "Rare cash-in";
+    if(["bunker_buster", "bunker"].includes(specialId)) return common ? "Common breaker" : "Rare troublemaker";
+    return common ? "Common special" : "Rare special";
+  }
+
+  function missionBriefSpecialLines(specialId, sourceMission=mission){
+    switch(specialId){
+      case "angry_wolf":
+        return ["On hit: blasts the landing patch + 2 turds.", "On whiff: leaves 1 turd."];
+      case "pack_howl":
+        return ["On lock: becomes the touched animal.", "Nearby: scrambles 4 animals + 1 turd."];
+      case "salt_lick":
+        return ["Nearby: pulls up to 2 animals in.", "If nobody moves: drops 1 egg."];
+      case "rain_barrel":
+        return ["On lock: washes up to 4 eggs/turds.", "If clean: drops 1 egg."];
+      case "rooster_call":
+        return ["Nearby: flips up to 2 chickens to match.", "On lock: drops 2 eggs."];
+      case "barnstorm_crate":
+        return ["On lock: sprays 2 eggs + 1 turd.", "Nearby: flips 1 animal to match."];
+      case "barn_goods":
+      case "produce":
+        return ["On producer hit: tags 1 good + 1 egg.", "On whiff: drops 1 turd."];
+      case "bunker_buster":
+      case "bunker":
+        return ["On hit: chain-blasts the touched cluster.", "On whiff: drops 1 here + 3 below."];
+      default: {
+        const rule = missionSpecialRule(specialId, sourceMission);
+        return [rule?.short || rule?.desc || "Mission special through Next."];
+      }
+    }
+  }
+
+  function missionBriefSpecialCards(sourceMission=mission){
+    const loadout = missionSpecialLoadout(sourceMission);
+    if(!loadout.length) return [];
+    const selected = USE_MISSION_BRIEF_SPECIAL_CARDS ? loadout : [loadout[0]];
+    const totalCards = selected.length;
+    return selected.map((entry, idx) => {
+      const rule = missionSpecialRule(entry?.id, sourceMission);
+      const previewAnimal = sourceMission?.animal ?? rule?.previewAnimal ?? TILE.COW;
+      return {
+        id: entry?.id,
+        role: missionBriefSpecialRoleLabel(entry?.id, idx, totalCards),
+        title: rule?.title || "Mission special",
+        lines: missionBriefSpecialLines(entry?.id, sourceMission).filter(Boolean).slice(0, 2),
+        piece: createMissionSpecialPiece({
+          sourceMission,
+          specialId: entry?.id,
+          productAnimal: previewAnimal
+        })
+      };
+    });
+  }
+
+  function renderMissionBriefSpecialCards(sourceMission=mission){
+    if(!missionBriefSpecialsEl) return;
+    const cards = missionBriefSpecialCards(sourceMission);
+    if(!cards.length){
+      missionBriefSpecialsEl.innerHTML = "";
+      return;
+    }
+    missionBriefSpecialsEl.innerHTML = cards.map((card, idx) => `
+      <article class="missionBriefSpecialCard${cards.length === 1 ? " missionBriefSpecialCardSolo" : ""}">
+        <div class="missionBriefSpecialRole">${card.role}</div>
+        <div class="missionBriefSpecialName">${card.title}</div>
+        <div class="missionBriefSpecialLines">
+          ${card.lines.map((line) => `<div class="missionBriefSpecialLine">${line}</div>`).join("")}
+        </div>
+        <div id="mission-brief-special-${idx}" class="previewGrid missionBriefPreviewGrid"></div>
+      </article>
+    `).join("");
+    cards.forEach((card, idx) => {
+      renderPreview(document.getElementById(`mission-brief-special-${idx}`), card.piece);
+    });
+  }
+
   function missionLegendPreviewPiece(sourceMission=mission){
     return createMissionSpecialPiece({
       sourceMission,
@@ -2315,46 +2453,28 @@
 
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
-    if(mission.brief) return `${missionObjectiveLabel()}. ${mission.brief} ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "animal") return `Clear enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "destroy") return `Destroy enough ${animalWord(mission.animal)} ${TILE_LABEL[mission.animal]} with clears, blasts, or chain fallout to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "clears") return `Clear enough big groups of ${BIG_GROUP_THRESHOLD} or more animals to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "combo") return `A chain happens when one herd clear causes another in the same settle. First the touching perimeter flips, then gravity drops the stack, then any new 10+ herd clears. Reach ${fmtChain(mission.target)} in one full cascade. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "wolf") return `Trigger enough wolf blasts to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "score") return `Rack up coins fast. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "level") return `Stay alive long enough to reach the target pace. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "big_group") return `Build oversized clusters and clear them to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "product"){
-      const product = productInfoForAnimal(mission.animal);
-      return `Drop the ${product.noun} tetrad onto ${animalWord(mission.animal)}. A clean hit turns it into ${animalWord(mission.animal)}, leaves an egg behind, and tags that group. Clear that tagged group to cash in one ${product.noun}. Miss and it drops a turd before joining whatever it touched. Hit the goal, then ${missionCashoutObjectiveCopy().charAt(0).toLowerCase()}${missionCashoutObjectiveCopy().slice(1)}`;
-    }
-    if(mission.type === "build_group") return `Build a live group up to the target size without clearing it too soon. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "special_use") return `Use your mission special on purpose to hit the goal. ${missionCashoutObjectiveCopy()}`;
-    if(mission.type === "locks") return `Complete the required settles. ${missionCashoutObjectiveCopy()}`;
-    return `The barn demands something weird from you today. Finish the objective, then ${missionCashoutObjectiveCopy().charAt(0).toLowerCase()}${missionCashoutObjectiveCopy().slice(1)}`;
-  }
-
-  function missionSpecialExtraNote(){
-    const loadout = missionSpecialLoadout();
-    const primary = missionSpecialRule(loadout[0]?.id);
-    if(!primary) return "";
-    if(loadout.length > 1) return "";
-    return primary.leaveLonelyTurd === false ? "" : " Lonely drops still leave a turd.";
+    if(mission.brief) return mission.brief;
+    if(mission.type === "combo") return `One settle. Hit ${fmtChain(mission.target)} before the barn untangles itself.`;
+    if(mission.type === "product") return "Hit the right producer. Misses get messy.";
+    if(mission.type === "build_group") return "Build it huge, but do not cash it early.";
+    if(mission.type === "large_clears") return "Chunky herds only. Tiny clears do not count.";
+    if(mission.type === "turds") return "Bring boots. The floor is trying to win.";
+    return "The barn picked a fresh problem for you.";
   }
 
   function openMissionBriefing(){
-    const specialRule = missionSpecialRule();
     if(missionBriefTitleEl) missionBriefTitleEl.textContent = mission?.title ?? "Mission Briefing";
     if(missionBriefBodyEl) missionBriefBodyEl.textContent = missionBriefCopy();
     if(missionBriefObjectiveEl) missionBriefObjectiveEl.textContent = missionObjectiveLabel();
-    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Earn at least +${mission?.bonus ?? 0} coins`;
-    if(missionBriefSpecialNameEl) missionBriefSpecialNameEl.textContent = missionSpecialLegendTitle();
-    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = specialRule ? `${missionSpecialLegendInfo(mission, { compact:false })}${missionSpecialExtraNote()}` : "No special tetrad assigned.";
-    renderPreview(missionBriefPreviewEl, missionLegendPreviewPiece());
+    if(missionBriefBonusEl) missionBriefBonusEl.textContent = `Cash out +${mission?.bonus ?? 0}`;
+    if(missionBriefRuleEl) missionBriefRuleEl.textContent = missionBriefRuleCopy();
+    if(missionBriefSpecialInfoEl) missionBriefSpecialInfoEl.textContent = missionBriefSpecialHeaderCopy(mission);
+    renderMissionBriefSpecialCards(mission);
     setOverlayOpen(missionBriefBackdrop, true);
   }
 
   function closeMissionBriefing(){
+    if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
     setOverlayOpen(missionBriefBackdrop, false);
     draw();
   }
@@ -2645,21 +2765,25 @@
   }
 
   function openSettings(){
+    if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
     setOverlayOpen(modalBackdrop, true);
     draw();
   }
 
   function closeSettings(){
+    if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
     setOverlayOpen(modalBackdrop, false);
     draw();
   }
 
   function openHelp(){
+    if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
     setOverlayOpen(helpBackdrop, true);
     draw();
   }
 
   function closeHelp(){
+    if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
     setOverlayOpen(helpBackdrop, false);
     draw();
   }
@@ -5475,8 +5599,15 @@
   window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
   window.addEventListener("click", unlockAudioSilently, {passive:true});
   document.addEventListener("visibilitychange", () => {
-    if(document.visibilityState === "visible") unlockAudioSilently();
+    if(document.visibilityState === "visible"){
+      if(USE_IOS_AUDIO_RESUME_FIXES) nudgeAudioWake();
+      else unlockAudioSilently();
+    }
   });
+  if(USE_IOS_AUDIO_RESUME_FIXES){
+    window.addEventListener("pageshow", nudgeAudioWake, {passive:true});
+    window.addEventListener("focus", nudgeAudioWake, {passive:true});
+  }
 
   // ===== Keyboard (non-touch) =====
   if(!IS_TOUCH){
@@ -5552,6 +5683,12 @@
   }
   if(helpButton){
     helpButton.addEventListener("click", openHelp);
+  }
+  if(missionBriefHelpButton){
+    missionBriefHelpButton.hidden = !USE_BRIEF_HELP_SHORTCUT;
+    if(USE_BRIEF_HELP_SHORTCUT){
+      missionBriefHelpButton.addEventListener("click", openHelp);
+    }
   }
   if(wolfHowlButton){
     wolfHowlButton.addEventListener("click", () => {
@@ -5737,6 +5874,7 @@
 
   // ===== Restart =====
   function restart(){
+    if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
     if(pendingGameOverRevealTimer){
       clearTimeout(pendingGameOverRevealTimer);
       pendingGameOverRevealTimer = 0;

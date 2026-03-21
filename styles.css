@@ -698,6 +698,94 @@ canvas{
 }
 .missionBriefModal{
   width: min(560px, 100%);
+  max-height:min(84svh, 760px);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+#missionBriefTitle{
+  max-width:calc(100% - 54px);
+}
+.missionBriefRule{
+  margin:0;
+  font-size:12px;
+  color:var(--muted);
+}
+.missionBriefSpecialHeader{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.missionBriefSpecialEyebrow{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  color:rgba(255,209,102,0.80);
+}
+.missionBriefSpecialHeaderText{
+  font-size:12px;
+  line-height:1.18;
+  color:var(--muted);
+}
+.missionBriefSpecialGrid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:10px;
+}
+.missionBriefSpecialCard{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px;
+  border-radius:12px;
+  background:var(--surface-fill);
+  border:1px solid var(--surface-stroke);
+}
+.missionBriefSpecialCardSolo{
+  grid-column:1 / -1;
+}
+.missionBriefSpecialRole{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:rgba(255,209,102,0.78);
+}
+.missionBriefSpecialName{
+  font-size:14px;
+  font-weight:900;
+  line-height:1.05;
+}
+.missionBriefSpecialLines{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-height:44px;
+}
+.missionBriefSpecialLine{
+  font-size:12px;
+  line-height:1.15;
+  color:var(--muted);
+}
+.missionBriefPreviewGrid{
+  width:72px;
+  min-width:72px;
+  max-width:72px;
+  gap:2px;
+  align-self:flex-end;
+}
+.missionBriefPreviewGrid .previewCell{
+  border-radius:4px;
+  font-size:8px;
+}
+.missionBriefPreviewGrid .previewCell.filled{
+  font-size:11px;
+}
+#missionBriefHelpButton{
+  font-weight:900;
 }
 .leaderboardModal{
   width:min(560px, 100%);
@@ -782,6 +870,9 @@ canvas{
   background: var(--surface-fill);
   color: var(--txt);
   font-weight: 900;
+}
+.missionBriefModal .closeBtn{
+  margin-top:2px;
 }
 .secondaryBtn{
   background: var(--surface-fill);
@@ -1834,5 +1925,19 @@ canvas{
 
   .gameOverActions .closeBtn{
     padding:11px 12px;
+  }
+}
+
+@media (max-width: 360px){
+  .missionBriefSpecialGrid{
+    grid-template-columns:1fr;
+  }
+
+  .missionBriefSpecialLines{
+    min-height:0;
+  }
+
+  .missionBriefPreviewGrid{
+    align-self:flex-start;
   }
 }

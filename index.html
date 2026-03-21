@@ -10,7 +10,7 @@
   <title>Angry Wolves</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="styles.css?v=0.25" />
+  <link rel="stylesheet" href="styles.css?v=0.26" />
 </head>
 <body>
   <div id="app">
@@ -113,7 +113,7 @@
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings (v0.25)</h2>
+      <h2>Settings (v0.26)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -128,7 +128,7 @@
 
       <button id="closeModal" class="closeBtn">Done</button>
       <div class="note">
-        Tip: iPhone Safari does not offer true tab fullscreen. For the closest version, tap Share → <b>Add to Home Screen</b>. If sound is still silent, also check the phone's silent switch and volume.
+        Tip: iPhone Safari does not offer true tab fullscreen. For the closest version, tap Share → <b>Add to Home Screen</b>. Sound follows the silent switch. If sound is on but missing, tap <b>Start</b> or the sound toggle to wake it back up.
       </div>
     </div>
   </div>
@@ -203,6 +203,7 @@
 
   <div id="missionBriefBackdrop" class="modalBackdrop hidden">
     <div class="modal missionBriefModal">
+      <button id="missionBriefHelpButton" class="modalIconButton" aria-label="Open help before starting">?</button>
       <h2 id="missionBriefTitle">Mission Briefing</h2>
       <div id="missionBriefBody" class="note gameOverNote">Here is the problem in the barn today.</div>
       <div class="gameOverStats">
@@ -215,15 +216,12 @@
           <span id="missionBriefBonus" class="statValue">0</span>
         </div>
       </div>
-      <div class="row missionSpecialRow">
-        <div class="rowLeft missionSpecialCopy">
-          <div>
-            <div id="missionBriefSpecialName" class="rowTitle">Mission legend</div>
-            <div id="missionBriefSpecialInfo" class="rowSub">Mission special rundown</div>
-          </div>
-        </div>
-        <div id="missionBriefPreview" class="previewGrid missionPreview"></div>
+      <div id="missionBriefRule" class="note missionBriefRule">Finish the goal, then clear the reward herd before the 10-settle timer expires.</div>
+      <div class="missionBriefSpecialHeader">
+        <div class="missionBriefSpecialEyebrow">Mission specials</div>
+        <div id="missionBriefSpecialInfo" class="missionBriefSpecialHeaderText">Both of these come through the real Next queue.</div>
       </div>
+      <div id="missionBriefSpecials" class="missionBriefSpecialGrid" aria-live="polite"></div>
       <button id="missionStartButton" class="closeBtn">Start</button>
     </div>
   </div>
@@ -279,7 +277,7 @@
         <details class="helpFold">
           <summary>Mission Specials</summary>
           <div class="helpFoldBody">
-            <p class="helpText">Mission specials share the gold frame and always come through the real <b>Next</b> queue. If it is in Next, it is fair game. Wolves are fair game too. They are just meaner.</p>
+            <p class="helpText">The mission brief shows this run's two gold-frame specials before you start. They still arrive through the real <b>Next</b> queue, so if one is in Next you can swap it, hold it, or duck it.</p>
             <div id="helpMissionSpecials" class="helpSpecialList"></div>
           </div>
         </details>
@@ -288,6 +286,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=0.25"></script>
+  <script src="game.js?v=0.26"></script>
 </body>
 </html>
