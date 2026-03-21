@@ -49,7 +49,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.24";
+  const GAME_VERSION = "v0.25";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -1408,17 +1408,28 @@
     const ranked = leaderboardEntries.slice(0, LEADERBOARD_FULL_LIMIT);
     return ranked[ranked.length - 1]?.score || 0;
   }
+  function leaderboardIsFull(){
+    return leaderboardEntries.length >= LEADERBOARD_FULL_LIMIT;
+  }
+  function qualifiesForPublicLeaderboard(score=currentTotalScore()){
+    const total = Math.max(0, Number(score) || 0);
+    if(total <= 0) return false;
+    if(!leaderboardIsFull()) return true;
+    return total > leaderboardCutoffScore();
+  }
   function shouldOfferScoreSubmission(){
     if(!gameOver || !leaderboardConfigured() || leaderboardSubmitDismissed || submittedRunId === runId) return false;
     if(currentTotalScore() <= 0) return false;
+    if(leaderboardLoading && !leaderboardEntries.length) return true;
+    if(leaderboardIsFull() && !qualifiesForPublicLeaderboard()) return false;
     return true;
   }
   function scoreSubmissionHintText(){
     if(!leaderboardConfigured()) return "Set APPS_SCRIPT_URL to enable score posts.";
     if(leaderboardLoading && !leaderboardEntries.length) return "Barn board is loading. You can still send this run.";
     if(leaderboardEntries.length < LEADERBOARD_FULL_LIMIT) return "The public board is still filling up. Any positive run can post.";
-    if(currentTotalScore() < leaderboardCutoffScore()){
-      return `Public cutoff right now: ${leaderboardCutoffScore()} coins. This run can still be logged for tuning.`;
+    if(!qualifiesForPublicLeaderboard()){
+      return `Public cutoff right now: ${leaderboardCutoffScore()} coins. Beat it to make the top 20.`;
     }
     return `Public cutoff right now: ${leaderboardCutoffScore()} coins.`;
   }
@@ -1598,6 +1609,7 @@
   }
   async function submitCurrentScore(){
     if(leaderboardSubmitPending) return;
+    if(!shouldOfferScoreSubmission()) return;
     const playerName = sanitizeLeaderboardName(scoreNameInputEl?.value);
     if(!playerName){
       setSubmitStatus("Use 1-10 letters or numbers.", "error");
@@ -1617,8 +1629,8 @@
 
     try{
       const payload = buildScoreSubmission(playerName);
-      const publicCutoffBeforeSubmit = leaderboardEntries.length >= LEADERBOARD_FULL_LIMIT ? leaderboardCutoffScore() : 0;
-      const likelyOffBoard = leaderboardEntries.length >= LEADERBOARD_FULL_LIMIT && payload.score < publicCutoffBeforeSubmit;
+      const publicCutoffBeforeSubmit = leaderboardIsFull() ? leaderboardCutoffScore() : 0;
+      const likelyOffBoard = leaderboardIsFull() && payload.score <= publicCutoffBeforeSubmit;
       const res = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: {
