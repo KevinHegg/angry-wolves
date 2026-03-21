@@ -52,7 +52,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.26";
+  const GAME_VERSION = "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -1428,6 +1428,50 @@
     if(!normalized.playerName) normalized.playerName = "ANON";
     return normalized;
   }
+  function rankLeaderboardEntries(entries){
+    const indexed = Array.isArray(entries)
+      ? entries.map((entry, index) => ({ entry: normalizeLeaderboardEntry(entry, index), index })).filter((row) => row.entry)
+      : [];
+    indexed.sort((a, b) => {
+      const scoreDelta = b.entry.score - a.entry.score;
+      if(scoreDelta) return scoreDelta;
+      const chainDelta = b.entry.bestChain - a.entry.bestChain;
+      if(chainDelta) return chainDelta;
+      const herdDelta = b.entry.biggestHerdCount - a.entry.biggestHerdCount;
+      if(herdDelta) return herdDelta;
+      return a.index - b.index;
+    });
+    return indexed.slice(0, LEADERBOARD_FULL_LIMIT).map(({ entry }, index) => ({
+      ...entry,
+      rank: index + 1
+    }));
+  }
+  function leaderboardEntryFromSubmission(submission){
+    if(!submission) return null;
+    return normalizeLeaderboardEntry({
+      rank: LEADERBOARD_FULL_LIMIT,
+      playerName: submission.playerName,
+      score: submission.score,
+      missionTitle: submission.missionTitle,
+      bestChain: submission.bestChain,
+      biggestHerdCount: submission.biggestHerdCount,
+      biggestHerdAnimal: submission.biggestHerdAnimal,
+      gameMode: submission.gameMode,
+      sourceNonce: submission.nonce
+    });
+  }
+  function mergeSubmittedLeaderboardEntry(submission, entries=leaderboardEntries){
+    const optimisticEntry = leaderboardEntryFromSubmission(submission);
+    if(!optimisticEntry) return rankLeaderboardEntries(entries);
+    const next = Array.isArray(entries) ? entries.slice() : [];
+    const existingIndex = next.findIndex((entry) => leaderboardEntryMatchesSubmission(entry, submission));
+    if(existingIndex >= 0){
+      next[existingIndex] = { ...next[existingIndex], ...optimisticEntry };
+    } else {
+      next.push(optimisticEntry);
+    }
+    return rankLeaderboardEntries(next);
+  }
   function leaderboardEntryMatchesSubmission(entry, submission){
     if(!entry || !submission) return false;
     if(entry.sourceNonce && submission.nonce && entry.sourceNonce === submission.nonce) return true;
@@ -1603,6 +1647,7 @@
   }
   async function refreshLeaderboard(opts={}){
     const force = !!opts.force;
+    const preserveSubmission = opts.preserveSubmission || null;
     if(leaderboardLoading) return;
     if(!leaderboardConfigured()){
       leaderboardEntries = [];
@@ -1633,12 +1678,17 @@
       });
       const data = parseJsonSafely(await res.text());
       if(!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
-      leaderboardEntries = Array.isArray(data.entries)
-        ? data.entries.map((entry, index) => normalizeLeaderboardEntry(entry, index)).filter(Boolean)
-        : [];
+      leaderboardEntries = rankLeaderboardEntries(Array.isArray(data.entries) ? data.entries : []);
+      if(preserveSubmission){
+        leaderboardEntries = mergeSubmittedLeaderboardEntry(preserveSubmission, leaderboardEntries);
+      }
       leaderboardLastLoadedAt = Date.now();
       leaderboardError = "";
     }catch(err){
+      if(preserveSubmission){
+        leaderboardEntries = mergeSubmittedLeaderboardEntry(preserveSubmission, leaderboardEntries);
+        leaderboardLastLoadedAt = Date.now();
+      }
       leaderboardError = leaderboardEntries.length ? "Leaderboard refresh failed." : "Leaderboard offline right now.";
     }finally{
       leaderboardLoading = false;
@@ -1688,8 +1738,11 @@
       if(data.status === "suspect"){
         setSubmitStatus("Saved for review. It will stay off the public board for now.", "");
       } else {
-        await refreshLeaderboard({ force: true });
+        leaderboardEntries = mergeSubmittedLeaderboardEntry(payload, leaderboardEntries);
+        leaderboardLastLoadedAt = Date.now();
+        leaderboardError = "";
         submittedLeaderboardRank = leaderboardRankForSubmission(payload);
+        syncLeaderboardViews();
         setSubmitStatus(
           likelyOffBoard
             ? "Run logged for barn tuning. The public board still shows only the top 20."
@@ -1698,6 +1751,11 @@
               : "Run logged to the public barn board.",
           "success"
         );
+        refreshLeaderboard({ force: true, preserveSubmission: payload }).then(() => {
+          submittedLeaderboardRank = leaderboardRankForSubmission(payload);
+          syncLeaderboardViews();
+          syncScoreSubmissionUI();
+        });
       }
     }catch(err){
       const message = typeof err?.message === "string" ? err.message.trim() : "";
