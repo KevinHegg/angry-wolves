@@ -98,6 +98,7 @@ html,body{
   white-space:normal;
 }
 .wolfBadge{
+  --wolf-badge-animation-ms:640ms;
   position:relative;
   display:inline-flex;
   align-items:center;
@@ -108,94 +109,37 @@ html,body{
   padding:0;
   border:0;
   border-radius:999px;
-  background: radial-gradient(circle at 32% 26%, #ffdca8 0 12%, #c29c69 18%, #6b7486 60%, #232731 100%);
+  background: rgba(37, 24, 13, 0.62);
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.12),
-    0 0 0 1px rgba(0,0,0,0.42),
-    0 6px 14px rgba(0,0,0,0.32);
+    inset 0 0 0 1px rgba(255,245,220,0.12),
+    0 0 0 1px rgba(0,0,0,0.36),
+    0 6px 14px rgba(0,0,0,0.28);
   overflow:hidden;
   transform-origin:center;
-  animation:wolfSnarl 2.8s ease-in-out infinite;
-  font-size:28px;
   cursor:pointer;
   appearance:none;
   -webkit-appearance:none;
   touch-action:manipulation;
 }
-.wolfBadge::before,
-.wolfBadge::after{
-  content:"";
-  position:absolute;
-  right:-4px;
-  top:50%;
-  border-radius:999px;
-  border:2px solid rgba(166, 223, 255, 0.84);
-  border-left-color:transparent;
-  border-bottom-color:transparent;
-  opacity:0;
-  pointer-events:none;
-  transform-origin:center;
-}
-.wolfBadge::before{
-  width:13px;
-  height:13px;
-  margin-top:-12px;
-}
-.wolfBadge::after{
-  width:20px;
-  height:20px;
-  margin-top:-16px;
-  right:-9px;
-}
 .wolfBadge:active{
   transform:translateY(1px) scale(0.98);
 }
-.wolfBadgeEmoji{
-  position:relative;
-  z-index:1;
-  font-size:0.92em;
-  line-height:1;
-  transform:translate(-0.02em, 0.03em);
-  filter:saturate(1.08) contrast(1.06);
+.wolfBadgeIcon{
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:inherit;
+  background-image:url("assets/wolf/howling-wolf-icon.png");
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  filter:saturate(1.04) contrast(1.02);
+  transform:scale(1.02);
 }
-.wolfBadgeMouth{
-  position:absolute;
-  right:0.25em;
-  top:0.6em;
-  width:0.24em;
-  height:0.08em;
-  border-radius:999px;
-  background:rgba(34, 15, 13, 0.98);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.06),
-    inset 0 -0.02em 0 rgba(255,255,255,0.1);
-  transform:rotate(18deg) scale(1);
-  transform-origin:center;
-  transition:
-    top 160ms ease,
-    width 160ms ease,
-    height 160ms ease,
-    border-radius 160ms ease,
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease;
-  z-index:2;
-}
-.wolfBadge.isHowling .wolfBadgeMouth{
-  top:0.49em;
-  width:0.31em;
-  height:0.34em;
-  border-radius:48% 52% 58% 42%;
-  background:rgba(28, 10, 11, 0.98);
-  box-shadow:
-    inset 0 -0.08em 0 rgba(214, 95, 106, 0.44),
-    inset 0 0 0 1px rgba(255,255,255,0.1),
-    0 0 0 1px rgba(0,0,0,0.12);
-  transform:rotate(12deg) scale(1.02);
-}
-.wolfBadge.isHowling::before,
-.wolfBadge.isHowling::after{
-  animation:wolfHowlRing 0.55s ease-out;
+.wolfBadge.isHowling .wolfBadgeIcon{
+  background-image:url("assets/wolf/howling-wolf-sprite.png");
+  background-size:400% 100%;
+  animation:wolfHowlSprite var(--wolf-badge-animation-ms) linear 1;
 }
 .title{
   padding-top:0;
@@ -203,27 +147,11 @@ html,body{
 }
 .title .sub{ margin-top:3px; font-size:12px; color: var(--muted); max-width: 30ch; }
 
-@keyframes wolfSnarl{
-  0%, 100%{
-    transform:translateY(0) rotate(-5deg) scale(1);
-  }
-  50%{
-    transform:translateY(-1px) rotate(3deg) scale(1.05);
-  }
-}
-
-@keyframes wolfHowlRing{
-  0%{
-    opacity:0;
-    transform:scale(0.6) rotate(12deg);
-  }
-  18%{
-    opacity:0.92;
-  }
-  100%{
-    opacity:0;
-    transform:scale(1.28) rotate(12deg);
-  }
+@keyframes wolfHowlSprite{
+  0%, 24.9%{ background-position:0% 0; }
+  25%, 49.9%{ background-position:33.333% 0; }
+  50%, 74.9%{ background-position:66.666% 0; }
+  75%, 100%{ background-position:100% 0; }
 }
 
 #hud .right{ text-align:right; min-width: 160px; font-variant-numeric: tabular-nums; }
@@ -851,6 +779,26 @@ canvas{
 .icon{ font-size:18px; }
 .rowTitle{ font-weight:900; }
 .rowSub{ font-size:12px; color: var(--muted); margin-top:2px; }
+.audioVolumeRow{
+  margin-top:8px;
+}
+.rangeControl{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:150px;
+}
+.rangeValue{
+  min-width:42px;
+  text-align:right;
+  color:var(--accent);
+  font-weight:900;
+  font-size:12px;
+}
+.rangeControl input[type="range"]{
+  width:96px;
+  accent-color:var(--accent);
+}
 
 .toggleBtn{
   padding:10px 12px;
@@ -1112,6 +1060,21 @@ canvas{
 }
 .helpSpecialPreview .previewCell.filled{
   font-size:10px;
+}
+.helpMiniDiagram{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  width:max-content;
+  max-width:100%;
+  margin:0 0 8px;
+  padding:6px 8px;
+  border-radius:10px;
+  background:var(--surface-fill);
+  border:1px solid var(--surface-stroke);
+  color:var(--accent);
+  font-size:15px;
+  font-weight:900;
 }
 .hidden { display: none !important; }
 
@@ -1939,5 +1902,207 @@ canvas{
 
   .missionBriefPreviewGrid{
     align-self:flex-start;
+  }
+}
+
+/* Refresh V2 prototype: board-first barnyard layout, gated by JS body class. */
+html.refreshV2,
+body.refreshV2{
+  min-height:100vh;
+  height:100vh;
+  background:
+    radial-gradient(900px 600px at 50% -10%, rgba(198, 154, 86, 0.22), transparent 58%),
+    radial-gradient(800px 500px at 50% 70%, rgba(78, 103, 47, 0.2), transparent 62%),
+    linear-gradient(180deg, #2d2012 0%, #171008 64%, #080604 100%);
+}
+
+body.refreshV2 #app{
+  height:100vh;
+  min-height:100vh;
+  background:
+    radial-gradient(850px 620px at 50% 0%, rgba(133, 92, 46, 0.36), transparent 62%),
+    linear-gradient(180deg, #2a1d10 0%, #0d0905 100%);
+}
+
+body.refreshV2 #hud{
+  position:relative;
+  grid-template-columns:auto minmax(0, 1fr);
+  grid-template-areas:
+    "buttons title"
+    "right right";
+  width:calc(100% - 14px);
+  min-height:76px;
+  padding:6px 82px 7px 3px;
+  margin-left:7px;
+  margin-right:7px;
+  gap:3px 7px;
+  background:
+    linear-gradient(180deg, rgba(247, 224, 174, 0.16), rgba(61, 39, 19, 0.18)),
+    linear-gradient(90deg, rgba(96, 65, 34, 0.22), rgba(247, 224, 174, 0.06), rgba(96, 65, 34, 0.22));
+  border-bottom:1px solid rgba(238, 204, 137, 0.12);
+}
+
+body.refreshV2 .hudButtons{
+  gap:5px;
+}
+
+body.refreshV2 #gear,
+body.refreshV2 #leaderboardButton,
+body.refreshV2 #helpButton{
+  width:30px;
+  height:30px;
+  border-radius:10px;
+  font-size:14px;
+  background:linear-gradient(180deg, rgba(255, 239, 198, 0.18), rgba(88, 58, 28, 0.28));
+  border-color:rgba(238, 204, 137, 0.18);
+}
+
+body.refreshV2 .wolfBadge{
+  width:30px;
+  height:30px;
+  flex-basis:30px;
+  font-size:20px;
+}
+
+body.refreshV2 .title .h1{
+  font-size:15px;
+  gap:6px;
+}
+
+body.refreshV2 .score{
+  font-size:17px;
+}
+
+body.refreshV2 .meta{
+  font-size:10px;
+  color:rgba(232, 227, 216, 0.68);
+}
+
+body.refreshV2 #nextCard{
+  position:absolute;
+  top:6px;
+  right:6px;
+  z-index:4;
+  width:68px;
+  min-height:62px;
+  padding:3px;
+  border-radius:12px;
+  background:
+    linear-gradient(180deg, rgba(253, 233, 186, 0.22), rgba(102, 69, 34, 0.3)),
+    rgba(42, 28, 14, 0.6);
+  border-color:rgba(238, 204, 137, 0.2);
+}
+
+body.refreshV2 #nextPreview{
+  width:56px;
+  max-width:56px;
+  grid-template-rows:repeat(3, minmax(0, 1fr));
+  gap:2px;
+}
+
+body.refreshV2 #nextCard .planLabel{
+  font-size:8px;
+  letter-spacing:0.07em;
+}
+
+body.refreshV2 #nextPreview .previewCell{
+  border-radius:3px;
+  font-size:8px;
+  min-width:0;
+}
+
+body.refreshV2 #nextPreview .previewCell.filled{
+  font-size:11px;
+}
+
+body.refreshV2 #nextCardHint{
+  font-size:7px;
+  line-height:1;
+  margin-top:1px;
+}
+
+body.refreshV2 #gameShell{
+  width:100%;
+  padding:0 5px 5px;
+}
+
+body.refreshV2 #stage{
+  width:calc(100vw - 24px);
+  margin-left:12px;
+  margin-right:12px;
+  min-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 106px);
+  padding-top:34px;
+  padding-bottom:0;
+  justify-content:center;
+}
+
+body.refreshV2 .stageMissionBar{
+  top:2px;
+  left:4px;
+  right:4px;
+  padding:4px 7px;
+  border-radius:9px;
+  background:
+    linear-gradient(180deg, rgba(250, 230, 185, 0.88), rgba(215, 178, 113, 0.7)),
+    #d9b879;
+  border-color:rgba(77, 49, 21, 0.4);
+  box-shadow:0 8px 18px rgba(0,0,0,0.26);
+  color:#2c1b0d;
+}
+
+body.refreshV2 .stageMissionMeta{
+  gap:4px 8px;
+  margin-bottom:2px;
+}
+
+body.refreshV2 .stageMissionTitle,
+body.refreshV2 .stageMissionProgressText{
+  font-size:9px;
+  color:#2c1b0d;
+  text-shadow:none;
+}
+
+body.refreshV2 .stageMissionMeter{
+  height:5px;
+  background:rgba(72, 45, 18, 0.22);
+  border-color:rgba(72, 45, 18, 0.18);
+}
+
+body.refreshV2 .stageMissionMeter .missionMeterFill{
+  background:linear-gradient(90deg, #6f8f3d, #d79a36);
+  box-shadow:none;
+}
+
+body.refreshV2 canvas{
+  border-radius:18px;
+  border-color:rgba(238, 204, 137, 0.26);
+  box-shadow:
+    0 18px 34px rgba(0,0,0,0.48),
+    0 0 0 1px rgba(0,0,0,0.36);
+  background:#496434;
+}
+
+body.refreshV2 .stageCopyright{
+  display:none;
+}
+
+@media (min-width: 761px){
+  body.refreshV2 #app{
+    width:min(430px, calc(100vw - 28px));
+  }
+
+  body.refreshV2 #stage{
+    width:calc(100% - 10px);
+    min-height:calc(100% - 106px);
+  }
+}
+
+@media (max-width: 480px){
+  body.refreshV2 #stage{
+    min-height:calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 102px);
+  }
+
+  body.refreshV2 #hud{
+    padding-top:4px;
   }
 }

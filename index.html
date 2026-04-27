@@ -10,7 +10,7 @@
   <title>Angry Wolves</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="styles.css?v=0.27" />
+  <link rel="stylesheet" href="styles.css?v=0.34-v2" />
 </head>
 <body>
   <div id="app">
@@ -22,7 +22,7 @@
           <button id="helpButton" aria-label="Help">?</button>
         </div>
         <div class="title">
-          <div class="h1"><button id="wolfHowlButton" class="wolfBadge" type="button" aria-label="Howl at the barn" title="Howl"><span class="wolfBadgeEmoji" aria-hidden="true">🐺</span><span class="wolfBadgeMouth" aria-hidden="true"></span></button><span class="titleText"><span>Angry</span><span>Wolves</span></span></div>
+          <div class="h1"><button id="wolfHowlButton" class="wolfBadge" type="button" aria-label="Howl" title="Howl"><span class="wolfBadgeIcon" aria-hidden="true"></span></button><span class="titleText"><span>Angry</span><span>Wolves</span></span></div>
           <div class="sub">Match 10+ • missions own the chaos</div>
         </div>
       </div>
@@ -113,7 +113,7 @@
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings (v0.27)</h2>
+      <h2>Settings (v0.34-v2)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -124,6 +124,31 @@
           </div>
         </div>
         <button id="soundToggle" class="toggleBtn">ON</button>
+      </div>
+
+      <div class="row audioVolumeRow">
+        <div class="rowLeft">
+          <div class="icon">🎚️</div>
+          <div>
+            <div class="rowTitle">SFX Volume</div>
+            <div class="rowSub">How loud the barn gets</div>
+          </div>
+        </div>
+        <label class="rangeControl">
+          <span id="sfxVolumeValue" class="rangeValue">80%</span>
+          <input id="sfxVolume" type="range" min="0" max="100" value="82" />
+        </label>
+      </div>
+
+      <div class="row">
+        <div class="rowLeft">
+          <div class="icon">🐷</div>
+          <div>
+            <div class="rowTitle">Goofy Animals</div>
+            <div class="rowSub">Cartoon bleats, oinks, and awoos</div>
+          </div>
+        </div>
+        <button id="goofyToggle" class="toggleBtn">ON</button>
       </div>
 
       <button id="closeModal" class="closeBtn">Done</button>
@@ -230,13 +255,6 @@
     <div class="modal helpModal">
       <h2>How To Play</h2>
       <div class="helpScroll">
-        <p class="helpText">
-          Match <b>10+</b> of one animal to clear that herd. After a herd clears, border squares turn into the strongest touching herd, then animals fall, and chains repeat.
-        </p>
-        <p class="helpText">
-          Mission specials use the real <b>Next</b> queue. If a special is in Next, you can swap it, hold it, and plan around it. Hit the goal, then clear the pulsing reward-coin herd within <b>10 settles</b> or the run ends.
-        </p>
-
         <details class="helpFold">
           <summary>Touchscreen Controls</summary>
           <div class="helpFoldBody">
@@ -256,10 +274,30 @@
           </div>
         </details>
 
+        <details class="helpFold" open>
+          <summary>Core Loop</summary>
+          <div class="helpFoldBody">
+            <div class="helpMiniDiagram" aria-hidden="true">
+              <span>🐑</span><span>🐑</span><span>🐑</span><span>+</span><span>⬇</span><span>=</span><span>🪙</span>
+            </div>
+            <p class="helpText">Make <b>9+</b> matching animals touch. That clears a herd for coins.</p>
+            <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
+            <p class="helpText">🥚 boosts a herd. 💩 muddies the payout. The barn is not subtle.</p>
+          </div>
+        </details>
+
+        <details class="helpFold" open>
+          <summary>Missions</summary>
+          <div class="helpFoldBody">
+            <p class="helpText">The strip above the board shows one tiny job. Finish it, then cash the reward herd.</p>
+            <p class="helpText">Special pieces, when a mission has them, always appear in the real <b>Next</b> tray.</p>
+          </div>
+        </details>
+
         <details class="helpFold">
           <summary>Scoring And Multipliers</summary>
           <div class="helpFoldBody">
-            <p class="helpText">10+ herds earn size bonuses: +2, +3, +5, +8, +13, and so on. Once that herd bonus reaches <b>+55</b>, it slows into +10, +15, +20 steps.</p>
+            <p class="helpText">Herds earn size bonuses: +2, +3, +5, +8, +13, and so on. Once that herd bonus reaches <b>+55</b>, it slows into +10, +15, +20 steps.</p>
             <p class="helpText">Chain clears add a separate combo payout that starts at <b>+5</b> for x2 and keeps climbing from there.</p>
             <p class="helpText">🥚 doubles that herd once per egg. 2 eggs = x4. 3 eggs = x8.</p>
             <p class="helpText">💩 halves that herd once per turd. 2 turds = ÷4. Eggs and turds stack together.</p>
@@ -286,6 +324,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=0.27"></script>
+  <script src="game.js?v=0.34-v2"></script>
 </body>
 </html>

@@ -7,14 +7,60 @@
   // =========================
 
   // ===== Config =====
-  const COLS = 10;
-  const ROWS = 13;                 // bigger tiles (reduced rows)
-  const CLEAR_THRESHOLD = 10;
-  const BIG_GROUP_THRESHOLD = 13;
+  function runtimeFlag(name, fallback=false){
+    try{
+      const params = new URLSearchParams(window.location.search);
+      if(params.has(name)){
+        const value = String(params.get(name) || "").toLowerCase();
+        return !["0", "false", "off", "no"].includes(value);
+      }
+      return fallback;
+    }catch{
+      return fallback;
+    }
+  }
+  function runtimeNumber(name, fallback){
+    try{
+      const params = new URLSearchParams(window.location.search);
+      if(!params.has(name)) return fallback;
+      const value = Number(params.get(name));
+      return Number.isFinite(value) ? value : fallback;
+    }catch{
+      return fallback;
+    }
+  }
 
-  const BASE_FALL_MS = 650;
+  const REFRESH_V2_DEFAULT_ENABLED = true;
+  const REFRESH_V2_FORCED_LEGACY = runtimeFlag("v1", false) || runtimeFlag("legacy", false);
+  const REFRESH_V2_ENABLED = !REFRESH_V2_FORCED_LEGACY && runtimeFlag("v2", REFRESH_V2_DEFAULT_ENABLED);
+  const SIMPLE_HERD_GRAVITY_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("simpleHerdGravity", true);
+  const FARM_BOARD_RENDERER_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("farmBoard", true);
+  const VECTOR_ANIMAL_TOKENS_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("vectorAnimals", true);
+  const HUMOR_AUDIO_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("humorAudio", true);
+  const V2_ONBOARDING_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("v2Onboarding", true);
+
+  const LEGACY_COLS = 10;
+  const LEGACY_ROWS = 13;
+  const V2_COLS = 8;
+  const V2_ROWS = 12;
+  const COLS = REFRESH_V2_ENABLED ? V2_COLS : LEGACY_COLS;
+  const ROWS = REFRESH_V2_ENABLED ? V2_ROWS : LEGACY_ROWS;
+  const CLEAR_THRESHOLD = 10;
+  const V2_CLEAR_THRESHOLD = Math.max(8, Math.min(10, Math.round(runtimeNumber("herdThreshold", 9))));
+  const ACTIVE_CLEAR_THRESHOLD = REFRESH_V2_ENABLED ? V2_CLEAR_THRESHOLD : CLEAR_THRESHOLD;
+  const BIG_GROUP_THRESHOLD = REFRESH_V2_ENABLED ? 11 : 13;
+  const V2_NEAR_CLEAR_MARGIN = 2;
+  const V2_HERD_HINT_MAX_GROUPS = 3;
+
+  const LEGACY_BASE_FALL_MS = 650;
+  const V2_BASE_FALL_MS = 800;
+  const V2_SETTLED_BASE_FALL_MS = LEGACY_BASE_FALL_MS;
+  const BASE_FALL_MS = REFRESH_V2_ENABLED ? V2_BASE_FALL_MS : LEGACY_BASE_FALL_MS;
   const MIN_FALL_MS  = 120;
   const LEVEL_EVERY_LOCKS = 12;
+  const V2_OPENING_RAMP_GRACE_LOCKS = 6;
+  const V2_POST_HERD_RAMP_GRACE_LOCKS = 3;
+  const V2_BASE_FALL_BLEND_LOCKS = LEVEL_EVERY_LOCKS * 2;
 
   const USE_REVISED_MISSION_DECK = true;
   const USE_MISSION_ONLY_SPECIALS = true;
@@ -41,6 +87,8 @@
   const TOUCH_ROTATE_INTENT_ANGLE = USE_NEW_TOUCH_CONTROLS ? 48 : 42;
   const TOUCH_TAP_MAX_MS = USE_NEW_TOUCH_CONTROLS ? 220 : 260;
   const ROTATE_SIDE_MIN = 4;
+  const V2_ONBOARDING_STORAGE_KEY = "angry-wolves-v2-onboarding-seen";
+  const V2_RUNS_STARTED_KEY = "angry-wolves-v2-runs-started";
   const BOARD_CLEAR_ANIM_MS = 430;
   const BOARD_CONVERT_PREVIEW_ANIM_MS = 140;
   const BOARD_CONVERT_ANIM_MS = 520;
@@ -52,7 +100,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.34-v2" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -190,6 +238,16 @@
     [TILE.CRATE]: "#c8874d",
   };
 
+  const VECTOR_TOKEN_META = {
+    [TILE.SHEEP]: { base: "#f5f0df", shade: "#d8d1ba", ink: "#4b3d33", accent: "#fffaf0" },
+    [TILE.GOAT]: { base: "#d8ad78", shade: "#9a6840", ink: "#3c281c", accent: "#f0d6ad" },
+    [TILE.CHICKEN]: { base: "#f4ca55", shade: "#c78329", ink: "#4a2c15", accent: "#f15b3d" },
+    [TILE.COW]: { base: "#f1ead8", shade: "#24201d", ink: "#2c241d", accent: "#d6b17c" },
+    [TILE.PIG]: { base: "#ef9db1", shade: "#bf5f78", ink: "#5d2b39", accent: "#ffd0dc" },
+    [TILE.WOLF]: { base: "#68717e", shade: "#343a44", ink: "#171a20", accent: "#f0d19d" },
+    [TILE.BLACK_SHEEP]: { base: "#252733", shade: "#111219", ink: "#f1ead8", accent: "#8ee6ff" }
+  };
+
   const SPECIAL_TILE_META = {
     [TILE.WOLF]: { accent: "#d7dfef", badge: "🐺" },
     [TILE.BLACK_SHEEP]: { accent: "#8ee6ff", badge: "↺" },
@@ -282,6 +340,8 @@
     RAIN_O:       { matrix:[[1,1],[1,1]], tile:TILE.RAIN, rotates:false },
     ROOSTER_L:    { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.ROOSTER, rotates:true },
     CRATE_S:      { matrix:[[0,1,1],[1,1,0],[0,0,0]], tile:TILE.CRATE, rotates:true },
+    EGG_SPREAD_L: { matrix:[[1,0,0],[1,1,1],[0,0,0]], tile:TILE.SEEDER_EGG, rotates:true },
+    MUCK_WAGON_Z: { matrix:[[1,1,0],[0,1,1],[0,0,0]], tile:TILE.SEEDER_TURD, rotates:true },
     PRODUCE_O:    { matrix:[[1,1],[1,1]], rotates:false },
     CASHOUT_1:    { matrix:[[1]], tile:TILE.CASHOUT, rotates:false }
   };
@@ -326,6 +386,9 @@
   const modalBackdrop = document.getElementById("modalBackdrop");
   const closeModal = document.getElementById("closeModal");
   const soundToggle = document.getElementById("soundToggle");
+  const sfxVolumeInput = document.getElementById("sfxVolume");
+  const sfxVolumeValueEl = document.getElementById("sfxVolumeValue");
+  const goofyToggle = document.getElementById("goofyToggle");
   const gameOverBackdrop = document.getElementById("gameOverBackdrop");
   const restartButton = document.getElementById("restartButton");
   const shareButton = document.getElementById("shareButton");
@@ -423,6 +486,7 @@
   let pendingGameOverRevealTimer = 0;
   let runEndPulseActive = false;
   let wolfHowlFxTimer = 0;
+  const WOLF_BADGE_HOWL_MS = 640;
   let shareSnapshot = null;
   let lastMissionMeterAudio = null;
   let pendingTap = null;
@@ -590,6 +654,24 @@
       tile: TILE.ROOSTER,
       specKey: "ROOSTER_L",
       onLock: missionRoosterCallPiece
+    },
+    egg_basket: {
+      title: "Egg Basket",
+      desc: () => "Egg L-piece. Turns into the touched animal and plants four eggs nearby.",
+      short: "Plants eggs nearby.",
+      help: "Egg L-piece. It becomes the touched animal and plants four egg bonuses around the landing zone.",
+      tile: TILE.SEEDER_EGG,
+      specKey: "EGG_SPREAD_L",
+      onLock: missionEggBasketPiece
+    },
+    muck_wagon: {
+      title: "Muck Wagon",
+      desc: () => "Mud zigzag. Turns useful, then spreads three mud traps nearby.",
+      short: "Spreads mud traps nearby.",
+      help: "Mud zigzag. It becomes the touched animal and spreads three single-use mud traps nearby.",
+      tile: TILE.SEEDER_TURD,
+      specKey: "MUCK_WAGON_Z",
+      onLock: missionMuckWagonPiece
     },
     barnstorm_crate: {
       title: "Barnstorm Crate",
@@ -812,20 +894,196 @@
     }
   ].filter((entry) => USE_ANGRY_WOLVES_MISSION || entry.id !== "angry_wolves");
 
-  const ACTIVE_MISSION_DEFS = USE_REVISED_MISSION_DECK ? REVISED_MISSION_DEFS : LEGACY_MISSION_DEFS;
+  const V2_MISSION_DEFS = [
+    {
+      id: "v2_sheep_sweep_intro",
+      title: "Sheep Sweep",
+      family: "species",
+      type: "animal",
+      animal: TILE.SHEEP,
+      target: ACTIVE_CLEAR_THRESHOLD,
+      bonus: 90,
+      hint: `clear ${ACTIVE_CLEAR_THRESHOLD} sheep`,
+      objective: `Clear ${ACTIVE_CLEAR_THRESHOLD} sheep`,
+      brief: "Round up the fluff.",
+      specialEvery: 99,
+      specials: [],
+      onboarding: true,
+      weight: 0
+    },
+    {
+      id: "v2_sheep_sweep",
+      title: "Sheep Sweep",
+      family: "species",
+      type: "animal",
+      animal: TILE.SHEEP,
+      target: ACTIVE_CLEAR_THRESHOLD * 2,
+      bonus: 120,
+      hint: `${ACTIVE_CLEAR_THRESHOLD * 2} sheep`,
+      objective: `Clear ${ACTIVE_CLEAR_THRESHOLD * 2} sheep`,
+      brief: "Round up the fluff.",
+      specialEvery: 5.2,
+      specials: [{ id: "salt_lick", weight: 3 }, { id: "egg_basket", weight: 1 }],
+      weight: 2.4
+    },
+    {
+      id: "v2_pig_panic",
+      title: "Pig Panic",
+      family: "species",
+      type: "animal",
+      animal: TILE.PIG,
+      target: ACTIVE_CLEAR_THRESHOLD * 2,
+      bonus: 130,
+      hint: `${ACTIVE_CLEAR_THRESHOLD * 2} pigs`,
+      objective: `Clear ${ACTIVE_CLEAR_THRESHOLD * 2} pigs`,
+      brief: "Somebody yelled snacks.",
+      specialEvery: 4.8,
+      specials: [{ id: "egg_basket", weight: 2 }, { id: "muck_wagon", weight: 1 }],
+      weight: 1.55
+    },
+    {
+      id: "v2_goat_rodeo",
+      title: "Goat Rodeo",
+      family: "species",
+      type: "animal",
+      animal: TILE.GOAT,
+      target: ACTIVE_CLEAR_THRESHOLD * 2,
+      bonus: 135,
+      hint: `${ACTIVE_CLEAR_THRESHOLD * 2} goats`,
+      objective: `Clear ${ACTIVE_CLEAR_THRESHOLD * 2} goats`,
+      brief: "The fence filed a complaint.",
+      specialEvery: 4.8,
+      specials: [{ id: "salt_lick", weight: 3 }, { id: "muck_wagon", weight: 1 }],
+      weight: 1.45
+    },
+    {
+      id: "v2_egg_rush",
+      title: "Egg Rush",
+      family: "special",
+      type: "egg_clear",
+      target: 2,
+      bonus: 155,
+      hint: "2 egg herds",
+      objective: "Clear 2 herds with eggs",
+      brief: "Breakfast found leverage.",
+      specialEvery: 4.1,
+      specials: [{ id: "egg_basket", weight: 3 }, { id: "rooster_call", weight: 1 }],
+      weight: 1.35
+    },
+    {
+      id: "v2_mud_season",
+      title: "Mud Season",
+      family: "hazard",
+      type: "turds",
+      target: 3,
+      bonus: 145,
+      hint: "clean 3 messes",
+      objective: "Clear 3 turds",
+      brief: "The floor has opinions.",
+      specialEvery: 3.9,
+      specials: [{ id: "rain_barrel", weight: 3 }, { id: "muck_wagon", weight: 1 }],
+      weight: 1.25
+    },
+    {
+      id: "v2_wolf_alert",
+      title: "Wolf Alert",
+      family: "hazard",
+      type: "wolf",
+      target: 1,
+      bonus: 210,
+      hint: "1 wolf scare",
+      objective: "Survive 1 wolf scare",
+      brief: "That is not a dog.",
+      specialEvery: 2.5,
+      specials: [{ id: "pack_howl", weight: 3 }, { id: "rain_barrel", weight: 1 }],
+      minRunsStarted: 2,
+      weight: 0.75
+    },
+    {
+      id: "v2_chain_reaction",
+      title: "Chain Reaction",
+      family: "chain",
+      type: "combo",
+      target: 3,
+      bonus: 180,
+      hint: "hit x3",
+      objective: "Hit a x3 chain",
+      brief: "Gravity gets to be funny.",
+      specialEvery: 4.0,
+      specials: [{ id: "rooster_call", weight: 2 }, { id: "egg_basket", weight: 1 }],
+      weight: 1.05
+    },
+    {
+      id: "v2_barn_cash",
+      title: "Barn Cash",
+      family: "special",
+      type: "product",
+      target: 2,
+      bonus: 170,
+      goodsAnimals: ANIMALS,
+      hint: "cash 2 goods",
+      objective: "Cash 2 goods",
+      brief: "Tiny market. Loud register.",
+      specialEvery: 3.8,
+      specials: [{ id: "barn_goods", weight: 3 }, { id: "egg_basket", weight: 1 }],
+      weight: 1.0
+    },
+    {
+      id: "angry_wolves",
+      title: "Angry Wolves",
+      family: "hazard",
+      type: "large_clears",
+      target: 2,
+      minSize: Math.min(ACTIVE_CLEAR_THRESHOLD + 2, 12),
+      bonus: 900,
+      hint: `2 herds ${Math.min(ACTIVE_CLEAR_THRESHOLD + 2, 12)}+`,
+      objective: `Clear 2 herds of ${Math.min(ACTIVE_CLEAR_THRESHOLD + 2, 12)}+`,
+      brief: "Big howl. Big trouble. Big bonus.",
+      specialEvery: 2.6,
+      specials: [{ id: "angry_wolf", weight: 3 }, { id: "pack_howl", weight: 2 }],
+      minRunsStarted: 3,
+      weight: 0.22,
+      marquee: true
+    }
+  ].filter((entry) => USE_ANGRY_WOLVES_MISSION || entry.id !== "angry_wolves");
+
+  const ACTIVE_MISSION_DEFS = REFRESH_V2_ENABLED
+    ? V2_MISSION_DEFS
+    : USE_REVISED_MISSION_DECK
+      ? REVISED_MISSION_DEFS
+      : LEGACY_MISSION_DEFS;
 
   // ===== Audio (silent unlock, no popups) =====
   let audioCtx = null;
   let masterGain = null;
   let soundOn = loadSoundPref();
+  let sfxVolume = loadSfxVolumePref();
+  let goofyAnimalSounds = loadGoofyAnimalPref();
   let audioUnlocked = false;
   let audioPrimeOnResume = false;
   let pendingAudioResume = null;
   let ambienceClock = 0;
+  let audioDirector = null;
 
   function loadSoundPref(){
     try{
       const v = localStorage.getItem("aw_sound");
+      return v === null ? true : (v === "1");
+    }catch{
+      return true;
+    }
+  }
+  function loadSfxVolumePref(){
+    try{
+      const v = Number(localStorage.getItem("aw_sfx_volume"));
+      return Number.isFinite(v) ? clamp(v, 0, 1) : 0.82;
+    }catch{
+      return 0.82;
+    }
+  }
+  function loadGoofyAnimalPref(){
+    try{
+      const v = localStorage.getItem("aw_goofy_animals");
       return v === null ? true : (v === "1");
     }catch{
       return true;
@@ -836,20 +1094,34 @@
       localStorage.setItem("aw_sound", soundOn ? "1" : "0");
     }catch{}
   }
+  function saveSfxVolumePref(){
+    try{
+      localStorage.setItem("aw_sfx_volume", String(sfxVolume));
+    }catch{}
+  }
+  function saveGoofyAnimalPref(){
+    try{
+      localStorage.setItem("aw_goofy_animals", goofyAnimalSounds ? "1" : "0");
+    }catch{}
+  }
   function ensureAudio(){
     if(audioCtx) return;
     try{
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = soundOn ? 1.0 : 0.0;
+      masterGain.gain.value = soundOn ? sfxVolume : 0.0;
       masterGain.connect(audioCtx.destination);
+      audioCtx.onstatechange = () => {
+        if(audioCtx?.state === "running") audioUnlocked = true;
+      };
+      if(HUMOR_AUDIO_ENABLED) audioDirector = createAudioDirector();
     }catch{
       audioCtx = null; masterGain = null;
     }
   }
   function syncMasterGain(){
     if(masterGain && audioCtx){
-      masterGain.gain.setValueAtTime(soundOn ? 1.0 : 0.0, audioCtx.currentTime);
+      masterGain.gain.setValueAtTime(soundOn ? sfxVolume : 0.0, audioCtx.currentTime);
     }
   }
   function primeAudioContext(){
@@ -916,9 +1188,12 @@
       resumeAudioContext({ prime:false });
     }, 40);
   }
-  function unlockAudioSilently(){
+  function safeResumeAudioFromGesture(){
     if(!soundOn) return;
-    resumeAudioContext({ prime:true });
+    return resumeAudioContext({ prime:true });
+  }
+  function unlockAudioSilently(){
+    safeResumeAudioFromGesture();
   }
 
   function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.16, noise=false}){
@@ -984,7 +1259,463 @@
     });
   }
 
+  const AUDIO_ANIMAL_NAMES = {
+    [TILE.SHEEP]: "sheep",
+    [TILE.GOAT]: "goat",
+    [TILE.CHICKEN]: "chicken",
+    [TILE.COW]: "cow",
+    [TILE.PIG]: "pig",
+    [TILE.WOLF]: "wolf",
+    [TILE.BLACK_SHEEP]: "black_sheep"
+  };
+
+  function createAudioDirector(){
+    const buses = new Map();
+    const cooldowns = new Map();
+    const busLevels = {
+      ui: 0.44,
+      piece: 0.58,
+      animal: 0.78,
+      herd: 0.82,
+      mission: 0.76,
+      wolf: 0.88,
+      clutter: 0.5,
+      ambience: 0.32
+    };
+    const eventCooldowns = {
+      ui_button_tap: 26,
+      piece_move: 34,
+      piece_rotate: 54,
+      piece_invalid: 140,
+      herd_near: 900,
+      mission_progress: 120,
+      reward_countdown: 160,
+      wolf_threat: 700,
+      ambient_barn: 4200
+    };
+
+    function bus(name="piece"){
+      const key = busLevels[name] === undefined ? "piece" : name;
+      if(buses.has(key)) return buses.get(key);
+      const g = audioCtx.createGain();
+      g.gain.value = busLevels[key];
+      g.connect(masterGain);
+      buses.set(key, g);
+      return g;
+    }
+
+    function canPlay(key, ms=0){
+      if(!ms) return true;
+      const now = performance.now();
+      const last = cooldowns.get(key) || 0;
+      if(now - last < ms) return false;
+      cooldowns.set(key, now);
+      return true;
+    }
+
+    function varied(freq, cents=18){
+      const bend = (Math.random() * 2 - 1) * cents;
+      return Math.max(28, freq * Math.pow(2, bend / 1200));
+    }
+
+    function startAt(delay=0){
+      return audioCtx.currentTime + Math.max(0, delay);
+    }
+
+    function shapeGain(g, t0, dur, gain, attack=0.008, release=0.04){
+      const peakAt = t0 + Math.max(0.004, attack);
+      const endAt = t0 + Math.max(0.018, dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), peakAt);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.18), Math.max(peakAt + 0.004, endAt - release));
+      g.gain.exponentialRampToValueAtTime(0.0001, endAt);
+    }
+
+    function route(source, g, busName, filterOpts=null){
+      if(filterOpts){
+        const f = audioCtx.createBiquadFilter();
+        f.type = filterOpts.type || "lowpass";
+        f.frequency.setValueAtTime(filterOpts.freq || 1200, audioCtx.currentTime);
+        if(filterOpts.q !== undefined) f.Q.setValueAtTime(filterOpts.q, audioCtx.currentTime);
+        source.connect(f);
+        f.connect(g);
+      } else {
+        source.connect(g);
+      }
+      g.connect(bus(busName));
+    }
+
+    function tone(opts={}){
+      if(!prepareAudioPlayback()) return false;
+      const {
+        type = "sine",
+        f1 = 220,
+        f2 = null,
+        dur = 0.12,
+        gain = 0.08,
+        bus: busName = "piece",
+        delay = 0,
+        attack = 0.008,
+        release = 0.04,
+        pitchJitter = 18,
+        filter = null
+      } = opts;
+      const t0 = startAt(delay);
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(varied(f1, pitchJitter), t0);
+      if(f2) osc.frequency.exponentialRampToValueAtTime(varied(Math.max(36, f2), pitchJitter), t0 + Math.max(0.016, dur));
+      shapeGain(g, t0, dur, gain, attack, release);
+      route(osc, g, busName, filter);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.035);
+      return true;
+    }
+
+    function noise(opts={}){
+      if(!prepareAudioPlayback()) return false;
+      const {
+        dur = 0.08,
+        gain = 0.05,
+        bus: busName = "piece",
+        delay = 0,
+        filter = { type:"bandpass", freq:900, q:0.8 },
+        attack = 0.004,
+        release = 0.035
+      } = opts;
+      const t0 = startAt(delay);
+      const bufferSize = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0; i<bufferSize; i++){
+        const tail = 1 - i / bufferSize;
+        data[i] = (Math.random() * 2 - 1) * tail * tail;
+      }
+      const src = audioCtx.createBufferSource();
+      const g = audioCtx.createGain();
+      src.buffer = buffer;
+      shapeGain(g, t0, dur, gain, attack, release);
+      route(src, g, busName, filter);
+      src.start(t0);
+      src.stop(t0 + dur + 0.02);
+      return true;
+    }
+
+    function sequence(notes, opts={}){
+      const {
+        step = 0.07,
+        bus: busName = "piece",
+        type = "triangle",
+        gain = 0.055,
+        delay = 0,
+        pitchJitter = 14
+      } = opts;
+      notes.forEach((note, idx) => {
+        const data = typeof note === "number" ? { f: note } : note;
+        tone({
+          type: data.type || type,
+          f1: data.f,
+          f2: data.f2 || data.f,
+          dur: data.d || step * 0.9,
+          gain: data.g || gain,
+          bus: data.bus || busName,
+          delay: delay + idx * step,
+          pitchJitter
+        });
+      });
+      return true;
+    }
+
+    function woodTick(delay=0, gain=0.042){
+      noise({ dur:0.028, gain:gain * 0.55, bus:"ui", delay, filter:{ type:"bandpass", freq:1250, q:1.2 } });
+      tone({ type:"triangle", f1:360, f2:280, dur:0.035, gain, bus:"ui", delay, pitchJitter:10 });
+    }
+
+    function barnThump(intensity=1, delay=0){
+      const heft = clamp(intensity, 0.5, 1.8);
+      noise({ dur:0.07 + heft * 0.018, gain:0.055 * heft, bus:"piece", delay, filter:{ type:"lowpass", freq:520, q:0.5 } });
+      tone({ type:"square", f1:105, f2:58, dur:0.09 + heft * 0.025, gain:0.06 * heft, bus:"piece", delay, pitchJitter:8 });
+    }
+
+    function wolfVoice(style="tap", intensity=1, delay=0){
+      const epic = style === "angry_victory";
+      const victory = epic || style === "victory";
+      const tiny = style === "threat";
+      const heft = clamp(intensity, 0.65, 1.8);
+      const dur = epic ? 1.45 : victory ? 0.72 : tiny ? 0.24 : 0.36;
+      const start = epic ? 132 : victory ? 164 : tiny ? 140 : 176;
+      const top = epic ? 520 : victory ? 455 : tiny ? 210 : 390;
+      tone({ type:"triangle", f1:start, f2:top, dur, gain:(epic ? 0.09 : 0.06) * heft, bus:"wolf", delay, attack:0.03, release:0.16, pitchJitter:9 });
+      tone({ type:"sawtooth", f1:start * 0.52, f2:top * 0.35, dur:dur * 0.92, gain:(epic ? 0.032 : 0.022) * heft, bus:"wolf", delay:delay + 0.02, attack:0.04, release:0.2, pitchJitter:7, filter:{ type:"lowpass", freq:620, q:0.6 } });
+      if(epic){
+        sequence([
+          { f:196, d:0.16, g:0.028 },
+          { f:247, d:0.16, g:0.03 },
+          { f:330, d:0.2, g:0.035 },
+          { f:494, d:0.22, g:0.028 }
+        ], { bus:"wolf", type:"triangle", step:0.18, delay:delay + 0.56, pitchJitter:8 });
+        noise({ dur:0.22, gain:0.035, bus:"wolf", delay:delay + 0.92, filter:{ type:"bandpass", freq:760, q:0.7 } });
+      } else if(!tiny){
+        tone({ type:"square", f1:310, f2:160, dur:0.08, gain:0.024, bus:"wolf", delay:delay + dur * 0.72, pitchJitter:16 });
+      }
+    }
+
+    function animalVoice(animal, event="chirp", intensity=1, opts={}){
+      const id = AUDIO_ANIMAL_NAMES[animal] || animal;
+      const delay = opts.delay || 0;
+      const heft = clamp(intensity, 0.55, 1.75);
+      if(id === "wolf") {
+        wolfVoice(event, heft, delay);
+        return true;
+      }
+      if(!goofyAnimalSounds){
+        tone({ type:"triangle", f1:260 + (Number(animal) || 1) * 32, f2:210, dur:0.075, gain:0.035 * heft, bus:"animal", delay });
+        return true;
+      }
+      if(id === "cow"){
+        tone({ type:"sawtooth", f1:118, f2:76, dur:0.18 + heft * 0.04, gain:0.072 * heft, bus:"animal", delay, pitchJitter:7, filter:{ type:"lowpass", freq:520, q:0.7 } });
+        tone({ type:"sine", f1:84, f2:62, dur:0.22 + heft * 0.04, gain:0.045 * heft, bus:"animal", delay:delay + 0.018, pitchJitter:5 });
+      } else if(id === "pig"){
+        noise({ dur:0.045, gain:0.035 * heft, bus:"animal", delay, filter:{ type:"bandpass", freq:640, q:1.4 } });
+        tone({ type:"square", f1:245, f2:170, dur:0.07, gain:0.052 * heft, bus:"animal", delay:delay + 0.018, pitchJitter:24 });
+        tone({ type:"triangle", f1:205, f2:260, dur:0.045, gain:0.032 * heft, bus:"animal", delay:delay + 0.082, pitchJitter:26 });
+      } else if(id === "sheep" || id === "black_sheep"){
+        tone({ type:"triangle", f1:id === "black_sheep" ? 330 : 460, f2:id === "black_sheep" ? 230 : 330, dur:0.15 + heft * 0.025, gain:0.052 * heft, bus:"animal", delay, pitchJitter:30 });
+        tone({ type:"sine", f1:id === "black_sheep" ? 250 : 380, f2:id === "black_sheep" ? 190 : 280, dur:0.13, gain:0.026 * heft, bus:"animal", delay:delay + 0.04, pitchJitter:40 });
+      } else if(id === "goat"){
+        tone({ type:"triangle", f1:310, f2:570, dur:0.1, gain:0.052 * heft, bus:"animal", delay, pitchJitter:22 });
+        tone({ type:"square", f1:430, f2:260, dur:0.12, gain:0.036 * heft, bus:"animal", delay:delay + 0.07, pitchJitter:30, filter:{ type:"bandpass", freq:880, q:0.8 } });
+      } else if(id === "chicken"){
+        noise({ dur:0.038, gain:0.028 * heft, bus:"animal", delay, filter:{ type:"bandpass", freq:1500, q:1.1 } });
+        sequence([
+          { f:830, d:0.034, g:0.04 * heft, type:"square" },
+          { f:690, d:0.034, g:0.034 * heft, type:"square" },
+          { f:940, d:0.03, g:0.032 * heft, type:"triangle" }
+        ], { bus:"animal", step:0.035, delay:delay + 0.02, pitchJitter:28 });
+      } else {
+        tone({ type:"triangle", f1:300, f2:210, dur:0.08, gain:0.04 * heft, bus:"animal", delay });
+      }
+      return true;
+    }
+
+    function animalChorus(animal, size=ACTIVE_CLEAR_THRESHOLD, mode="clear"){
+      const count = mode === "settle" ? 1 : clamp(Math.round(size / 5), 2, 4);
+      for(let i=0; i<count; i++){
+        animalVoice(animal, mode === "settle" ? "settle" : "chorus", 0.85 + i * 0.12, { delay:i * 0.045 });
+      }
+    }
+
+    const recipes = {
+      animal_voice: ({ animal=null, event="chirp", intensity=1 }={}) => animalVoice(animal, event, intensity),
+      ui_button_tap: () => woodTick(0, 0.034),
+      ui_open_modal: () => {
+        noise({ dur:0.12, gain:0.042, bus:"ui", filter:{ type:"bandpass", freq:720, q:0.55 } });
+        tone({ type:"triangle", f1:240, f2:320, dur:0.08, gain:0.024, bus:"ui", delay:0.035 });
+      },
+      ui_close_modal: () => {
+        woodTick(0, 0.034);
+        tone({ type:"square", f1:210, f2:130, dur:0.05, gain:0.028, bus:"ui", delay:0.025 });
+      },
+      piece_move: () => {
+        woodTick(0, 0.024);
+        noise({ dur:0.03, gain:0.014, bus:"piece", filter:{ type:"bandpass", freq:620, q:0.9 } });
+      },
+      piece_rotate: () => {
+        woodTick(0, 0.03);
+        tone({ type:"triangle", f1:520, f2:720, dur:0.052, gain:0.034, bus:"piece", delay:0.026, pitchJitter:11 });
+      },
+      piece_invalid: () => {
+        tone({ type:"square", f1:170, f2:95, dur:0.105, gain:0.05, bus:"piece", pitchJitter:8 });
+        noise({ dur:0.038, gain:0.025, bus:"piece", delay:0.015, filter:{ type:"lowpass", freq:360, q:0.8 } });
+        haptic(8);
+      },
+      piece_hard_drop: ({ distance=1 }={}) => {
+        barnThump(1 + Math.min(8, distance) * 0.08);
+        haptic(12);
+      },
+      piece_land: ({ animal=null, size=4 }={}) => {
+        barnThump(0.9);
+        if(animal) animalVoice(animal, "settle", 0.68, { delay:0.035 });
+      },
+      piece_swap: () => {
+        sequence([392, 554], { bus:"piece", type:"triangle", step:0.045, gain:0.04, pitchJitter:12 });
+        woodTick(0.05, 0.024);
+      },
+      piece_spawn: ({ animal=null, specialId="" }={}) => {
+        if(["angry_wolf", "pack_howl"].includes(specialId) || animal === TILE.WOLF) return recipes.wolf_alert();
+        if(specialId){
+          sequence([330, 440, 392], { bus:"mission", type:"triangle", step:0.045, gain:0.032, pitchJitter:20 });
+          return true;
+        }
+        if(animal) animalVoice(animal, "spawn", 0.55);
+        return true;
+      },
+      herd_near: ({ animal=null, size=0 }={}) => {
+        if(animal) {
+          animalVoice(animal, "murmur", 0.42 + size / 18);
+          animalVoice(animal, "murmur", 0.36 + size / 20, { delay:0.055 });
+        } else {
+          sequence([330, 360], { bus:"herd", type:"triangle", step:0.055, gain:0.026 });
+        }
+      },
+      herd_complete: ({ animal=null, size=ACTIVE_CLEAR_THRESHOLD, mode="clear" }={}) => {
+        barnThump(1.05 + size / 24);
+        if(animal) animalChorus(animal, size, mode);
+        if(size >= BIG_GROUP_THRESHOLD){
+          sequence([392, 494, 587], { bus:"herd", type:"triangle", step:0.055, gain:0.035, delay:0.11 });
+        }
+        haptic(size >= BIG_GROUP_THRESHOLD ? 18 : 10);
+      },
+      chain_bonus: ({ depth=2 }={}) => {
+        const capped = Math.min(5, Math.max(2, depth));
+        sequence(Array.from({ length:capped }, (_, i) => ({ f:360 + i * 86, d:0.052, g:0.032 + i * 0.006, type:i % 2 ? "square" : "triangle" })), {
+          bus:"herd",
+          step:0.048,
+          pitchJitter:12
+        });
+        if(depth >= 3) noise({ dur:0.09, gain:0.03, bus:"herd", delay:0.16, filter:{ type:"bandpass", freq:1180, q:0.8 } });
+        if(depth >= 4) {
+          animalVoice(TILE.CHICKEN, "party", 0.75, { delay:0.18 });
+          animalVoice(TILE.PIG, "party", 0.72, { delay:0.23 });
+          animalVoice(TILE.GOAT, "party", 0.68, { delay:0.28 });
+        }
+        haptic(depth >= 4 ? 28 : 14);
+      },
+      mission_start: () => {
+        sequence([392, 523, 659], { bus:"mission", type:"triangle", step:0.07, gain:0.045 });
+        animalVoice(TILE.CHICKEN, "rooster", 0.65, { delay:0.11 });
+      },
+      level_up: () => {
+        sequence([392, 494, 587, 784], { bus:"mission", type:"square", step:0.06, gain:0.045, pitchJitter:8 });
+        barnThump(0.72, 0.14);
+      },
+      mission_progress: ({ ratio=0 }={}) => {
+        const base = 360 + clamp(ratio, 0, 1) * 320;
+        sequence([base, base + 70], { bus:"mission", type:ratio > 0.75 ? "square" : "triangle", step:0.045, gain:0.028 + ratio * 0.016, pitchJitter:8 });
+      },
+      reward_countdown_start: () => sequence([620, 520, 420], { bus:"mission", type:"square", step:0.06, gain:0.046 }),
+      reward_countdown: ({ remaining=0 }={}) => {
+        const urgency = 1 - clamp(remaining / REWARD_COUNTDOWN_START, 0, 1);
+        tone({ type:"square", f1:420 + urgency * 280, f2:360 + urgency * 180, dur:0.052, gain:0.04 + urgency * 0.02, bus:"mission" });
+      },
+      mission_complete: ({ rare=false }={}) => {
+        sequence(rare ? [392, 523, 659, 880, 988] : [523, 659, 784, 988], {
+          bus:"mission",
+          type:"triangle",
+          step: rare ? 0.075 : 0.065,
+          gain: rare ? 0.058 : 0.048,
+          pitchJitter:8
+        });
+        if(rare) {
+          animalVoice(TILE.CHICKEN, "party", 0.7, { delay:0.24 });
+          noise({ dur:0.12, gain:0.032, bus:"mission", delay:0.28, filter:{ type:"bandpass", freq:980, q:0.75 } });
+        }
+      },
+      game_over: () => sequence([
+        { f:392, d:0.12, g:0.05, type:"sawtooth" },
+        { f:330, d:0.14, g:0.044, type:"sawtooth" },
+        { f:262, d:0.18, g:0.038, type:"sawtooth" }
+      ], { bus:"mission", step:0.11, pitchJitter:6 }),
+      egg_bonus: () => {
+        tone({ type:"triangle", f1:620, f2:820, dur:0.075, gain:0.04, bus:"clutter", pitchJitter:12 });
+        woodTick(0.04, 0.02);
+      },
+      turd_penalty: () => {
+        noise({ dur:0.07, gain:0.05, bus:"clutter", filter:{ type:"lowpass", freq:260, q:0.7 } });
+        tone({ type:"sawtooth", f1:155, f2:86, dur:0.09, gain:0.028, bus:"clutter", delay:0.02 });
+      },
+      special_activate: ({ specialId="", hit=false, animal=null, count=0, style="" }={}) => {
+        if(["angry_wolf", "pack_howl"].includes(specialId)) return recipes.wolf_havoc({ hit, count:count || (hit ? 4 : 0), style });
+        if(["bunker_buster", "bunker", "bomb"].includes(specialId)) {
+          barnThump(hit ? 1.55 : 0.9);
+          noise({ dur:0.11, gain:0.055, bus:"mission", filter:{ type:"lowpass", freq:460, q:0.8 } });
+          return true;
+        }
+        if(specialId === "rain_barrel") return sequence([294, 392, 330], { bus:"mission", type:"sine", step:0.06, gain:0.04 });
+        if(specialId === "rooster_call") return animalVoice(TILE.CHICKEN, "rooster", 0.9);
+        if(specialId === "egg_basket") {
+          sequence([520, 660, 780], { bus:"mission", type:"triangle", step:0.045, gain:0.036 });
+          return recipes.egg_bonus();
+        }
+        if(specialId === "muck_wagon") {
+          noise({ dur:0.09, gain:0.052, bus:"clutter", filter:{ type:"lowpass", freq:320, q:0.7 } });
+          tone({ type:"sawtooth", f1:190, f2:92, dur:0.1, gain:0.032, bus:"clutter", delay:0.03 });
+          return true;
+        }
+        if(specialId === "barnstorm_crate") {
+          sequence([480, 350, 620], { bus:"mission", type:"triangle", step:0.04, gain:0.04 });
+          noise({ dur:0.08, gain:0.035, bus:"mission", delay:0.07, filter:{ type:"bandpass", freq:1100, q:0.9 } });
+          return true;
+        }
+        if(animal) return animalVoice(animal, "special", 0.8);
+        return sequence([392, 523], { bus:"mission", type:"triangle", step:0.05, gain:0.035 });
+      },
+      wolf_alert: () => {
+        if(!canPlay("wolf_alert", 350)) return false;
+        tone({ type:"sawtooth", f1:180, f2:112, dur:0.16, gain:0.054, bus:"wolf", pitchJitter:8, filter:{ type:"lowpass", freq:520, q:0.8 } });
+        wolfVoice("threat", 0.85, 0.08);
+        haptic(14);
+      },
+      wolf_threat: () => {
+        tone({ type:"sawtooth", f1:112, f2:86, dur:0.2, gain:0.035, bus:"wolf", filter:{ type:"lowpass", freq:360, q:0.5 } });
+        animalVoice(randChoice(ANIMALS), "panic", 0.48, { delay:0.05 });
+      },
+      wolf_havoc: ({ count=0, style="" }={}) => {
+        barnThump(1.55 + Math.min(8, count) * 0.05);
+        noise({ dur:0.16, gain:0.07, bus:"wolf", filter:{ type:"lowpass", freq:420, q:0.8 } });
+        tone({ type:"square", f1:240, f2:72, dur:0.18, gain:0.052, bus:"wolf", delay:0.02 });
+        wolfVoice(style || "tap", 1.05, 0.1);
+        haptic(24);
+      },
+      wolf_howl: ({ style="tap", intensity=1 }={}) => wolfVoice(style, intensity),
+      angry_wolves_complete: () => {
+        wolfVoice("angry_victory", 1.3);
+        sequence([196, 247, 330, 392, 523], { bus:"mission", type:"triangle", step:0.14, gain:0.042, delay:0.36, pitchJitter:8 });
+        haptic(34);
+      },
+      ambient_barn: () => {
+        if(Math.random() < 0.5) animalVoice(randChoice(ANIMALS), "ambient", 0.28);
+        else tone({ type:"triangle", f1:130 + Math.random() * 42, f2:92 + Math.random() * 28, dur:0.16, gain:0.018, bus:"ambience", pitchJitter:28 });
+      }
+    };
+
+    function playGameEventSound(eventName, payload={}){
+      const cooldown = eventCooldowns[eventName] || 0;
+      if(!canPlay(eventName, cooldown)) return false;
+      const recipe = recipes[eventName];
+      if(!recipe) return false;
+      recipe(payload);
+      return true;
+    }
+
+    return {
+      animalVoice,
+      playGameEventSound,
+      syncVolumes(){
+        for(const [name, g] of buses){
+          g.gain.setValueAtTime(busLevels[name] ?? 0.5, audioCtx.currentTime);
+        }
+      }
+    };
+  }
+
+  function playGameEventSound(eventName, payload={}){
+    if(!HUMOR_AUDIO_ENABLED) return false;
+    ensureAudio();
+    if(!audioDirector && audioCtx && masterGain) audioDirector = createAudioDirector();
+    if(!audioDirector) return false;
+    return audioDirector.playGameEventSound(eventName, payload);
+  }
+
+  function animalVoice(type, event="chirp", intensity=1){
+    if(playGameEventSound("animal_voice", { animal:type, event, intensity })) return true;
+    if(HUMOR_AUDIO_ENABLED && audioDirector) return audioDirector.animalVoice(type, event, intensity);
+    return false;
+  }
+
   function playBarnyard(animal, size, mode="clear"){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound(mode === "settle" ? "piece_land" : "herd_complete", { animal, size, mode })) return;
     const isBig = mode === "clear";
     const heft = clamp(size / 18, 0, 1);
 
@@ -1050,14 +1781,17 @@
   }
 
   function playLevelUpJingle(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("level_up")) return;
     playJingle([392, 494, 587, 784], { step:0.075, type:"square", gain:0.07 });
   }
 
   function playMissionJingle(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("mission_complete", { rare: mission?.id === "angry_wolves" })) return;
     playJingle([523, 659, 784, 988], { step:0.07, type:"triangle", gain:0.08 });
   }
 
   function playMissionMeterPulse(ratio, delta=1){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("mission_progress", { ratio, delta })) return;
     const urgency = clamp(ratio, 0, 1);
     const notes = [];
     const count = delta >= 2 || urgency > 0.72 ? 2 : 1;
@@ -1076,6 +1810,7 @@
   }
 
   function playRewardCountdownStart(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("reward_countdown_start")) return;
     playJingle([
       { f: 620, d: 0.07, g: 0.05, type: "triangle" },
       { f: 520, d: 0.08, g: 0.055, type: "square" }
@@ -1083,6 +1818,7 @@
   }
 
   function playRewardCountdownPulse(remaining){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("reward_countdown", { remaining })) return;
     const urgency = 1 - clamp(remaining / REWARD_COUNTDOWN_START, 0, 1);
     const notes = [];
     const count = remaining <= 3 ? 3 : remaining <= 6 ? 2 : 1;
@@ -1100,6 +1836,7 @@
   }
 
   function playHoldJingle(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_swap")) return;
     playJingle([
       { f: 440, d: 0.06, g: 0.05, type: "triangle" },
       { f: 554, d: 0.06, g: 0.05, type: "triangle" }
@@ -1107,6 +1844,7 @@
   }
 
   function playGameOverJingle(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("game_over")) return;
     playJingle([
       { f: 392, d: 0.12, g: 0.07, type: "sawtooth" },
       { f: 330, d: 0.14, g: 0.065, type: "sawtooth" },
@@ -1114,7 +1852,7 @@
     ], { step:0.11 });
   }
 
-  function triggerWolfHowlFx(duration=620){
+  function triggerWolfHowlFx(duration=WOLF_BADGE_HOWL_MS){
     if(!wolfHowlButton) return;
     wolfHowlButton.classList.remove("isHowling");
     void wolfHowlButton.offsetWidth;
@@ -1128,24 +1866,33 @@
     }, duration);
   }
 
-  function playWolfHowl(style="tap"){
+  function playWolfHowl(options="tap"){
+    const settings = typeof options === "string" ? { style: options } : (options || {});
+    const style = settings.style || "tap";
     const epic = style === "angry_victory";
     const triumphant = epic || style === "victory";
-    triggerWolfHowlFx(epic ? 1120 : triumphant ? 760 : 620);
+    const intensity = Number.isFinite(settings.intensity)
+      ? settings.intensity
+      : epic ? 1.25 : triumphant ? 1 : 0.82;
+    if(settings.fromGesture) safeResumeAudioFromGesture();
+    if(settings.animateBadge !== false){
+      triggerWolfHowlFx(epic ? 1120 : triumphant ? 760 : WOLF_BADGE_HOWL_MS);
+    }
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound(epic ? "angry_wolves_complete" : "wolf_howl", { style, intensity, source:settings.source || "" })) return;
     if(!prepareAudioPlayback()) return;
     playTone({
       type:"triangle",
       f1: epic ? 176 : triumphant ? 230 : 200,
       f2: epic ? 540 : triumphant ? 520 : 420,
       dur: epic ? 0.88 : triumphant ? 0.34 : 0.28,
-      gain: epic ? 0.085 : triumphant ? 0.08 : 0.06
+      gain: (epic ? 0.085 : triumphant ? 0.08 : 0.06) * intensity
     });
     playTone({
       type:"sine",
       f1: epic ? 102 : triumphant ? 128 : 116,
       f2: epic ? 228 : triumphant ? 190 : 166,
       dur: epic ? 0.82 : triumphant ? 0.3 : 0.24,
-      gain: epic ? 0.05 : triumphant ? 0.048 : 0.038
+      gain: (epic ? 0.05 : triumphant ? 0.048 : 0.038) * intensity
     });
     if(triumphant){
       playJingle([
@@ -1160,24 +1907,34 @@
   }
 
   function playDropThump(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_hard_drop")) return;
     playTone({type:"square", f1:100, f2:65, dur:0.06, gain:0.08});
   }
 
+  function playInvalidMove(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_invalid")) return;
+    playTone({type:"square", f1:190, f2:96, dur:0.08, gain:0.04});
+  }
+
   function playMoveTick(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_move")) return;
     playTone({type:"triangle", f1:420, f2:390, dur:0.035, gain:0.028});
   }
 
   function playRotateTick(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_rotate")) return;
     playTone({type:"triangle", f1:520, f2:690, dur:0.05, gain:0.04});
   }
 
   function playLockTick(){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_land")) return;
     playTone({type:"square", f1:170, f2:120, dur:0.05, gain:0.05});
     playTone({noise:true, dur:0.025, gain:0.018});
   }
 
   function playChainBonusSting(depth){
     if(!USE_ENHANCED_CHAOS_AUDIO || depth <= 1) return;
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("chain_bonus", { depth })) return;
     const capped = Math.min(5, depth);
     const notes = Array.from({ length: capped - 1 }, (_, idx) => ({
       f: 420 + idx * 62,
@@ -1200,6 +1957,7 @@
 
   function playSpawnCue(piece){
     const animal = pieceLeadAnimal(piece);
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_spawn", { animal, specialId: piece?.specialId || "", kind: piece?.kind || "" })) return;
     if(piece?.kind === "MISSION_SPECIAL"){
       const specialId = piece.specialId;
       if(["bomb", "bunker", "bunker_buster"].includes(specialId)){
@@ -1208,7 +1966,7 @@
         playJingle([659, 523], { step:0.06, type:"triangle", gain:0.045 });
       } else if(["morph", "produce", "barn_goods"].includes(specialId)){
         playJingle([392, 523, 659], { step:0.05, type:"triangle", gain:0.04 });
-      } else if(["seeder", "barnstorm_crate"].includes(specialId)){
+      } else if(["seeder", "barnstorm_crate", "egg_basket", "muck_wagon"].includes(specialId)){
         playJingle([523, 440], { step:0.07, type:"square", gain:0.04 });
       } else if(["brand", "feed", "rooster_call"].includes(specialId)){
         playJingle([330, 392, 523], { step:0.06, type:"triangle", gain:0.04 });
@@ -1228,6 +1986,7 @@
 
   function playAmbienceTick(){
     if(!soundOn || !audioUnlocked) return;
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("ambient_barn")) return;
     if(Math.random() < (USE_ENHANCED_CHAOS_AUDIO ? 0.1 : 0.08)){
       playJingle([
         { f: 165 + Math.random()*35, d: 0.08, g: 0.03, type: "sine" },
@@ -1236,6 +1995,20 @@
     } else if(USE_ENHANCED_CHAOS_AUDIO && Math.random() < 0.035){
       playTone({ type:"triangle", f1:140 + Math.random()*28, f2:90 + Math.random()*18, dur:0.14, gain:0.022 });
     }
+  }
+
+  function playSpecialCue(specialId, payload={}){
+    return HUMOR_AUDIO_ENABLED && playGameEventSound("special_activate", { specialId, ...payload });
+  }
+
+  function maybePlayNearHerdMurmur(){
+    if(!HUMOR_AUDIO_ENABLED || !REFRESH_V2_ENABLED || gameOver) return;
+    const nearMin = Math.max(2, ACTIVE_CLEAR_THRESHOLD - V2_NEAR_CLEAR_MARGIN);
+    const near = findAnimalGroups(board, nearMin)
+      .filter((group) => group.cells.length < ACTIVE_CLEAR_THRESHOLD)
+      .sort((a, b) => b.cells.length - a.cells.length)[0];
+    if(!near) return;
+    playGameEventSound("herd_near", { animal: near.animal, size: near.cells.length, threshold: ACTIVE_CLEAR_THRESHOLD });
   }
 
   // ===== Haptics =====
@@ -1770,11 +2543,13 @@
     syncScoreSubmissionUI();
   }
   function openLeaderboard(){
+    playGameEventSound("ui_open_modal");
     setOverlayOpen(leaderboardBackdrop, true);
     refreshLeaderboard({ force: !leaderboardEntries.length });
     draw();
   }
   function closeLeaderboard(){
+    playGameEventSound("ui_close_modal");
     setOverlayOpen(leaderboardBackdrop, false);
     draw();
   }
@@ -1846,6 +2621,8 @@
     if(mission.type === "level") return `Lv ${level}/${mission.target}`;
     if(mission.type === "big_group") return `${missionProgressText(mission.progress, mission.target)} jumbo`;
     if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} of ${mission.minSize}+`;
+    if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species`;
+    if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds`;
     if(mission.type === "product"){
       return mission.animal
         ? `${missionProgressText(mission.progress, mission.target)} ${productInfoForAnimal(mission.animal).plural}`
@@ -2134,14 +2911,31 @@
 
   function renderPreview(el, piece){
     if(!el) return;
-    const grid = Array.from({length:4}, () => Array(4).fill(0));
-    const m = trimmedMatrix(piece);
-    const offsetY = Math.round((4 - m.length) / 2);
-    const offsetX = Math.round((4 - (m[0]?.length || 0)) / 2);
+    const cols = 4;
+    const rows = REFRESH_V2_ENABLED && el === nextPreviewEl ? 3 : 4;
+    const grid = Array.from({length:rows}, () => Array(cols).fill(0));
+    let m = trimmedMatrix(piece);
+    const activeTiles = [];
+    for(let y=0;y<m.length;y++){
+      for(let x=0;x<m[y].length;x++){
+        if(m[y][x]) activeTiles.push({ x, y, tile: m[y][x] });
+      }
+    }
+    const straightLine = activeTiles.length === 4 && (
+      activeTiles.every((cell) => cell.y === activeTiles[0].y) ||
+      activeTiles.every((cell) => cell.x === activeTiles[0].x)
+    );
+    if(rows === 3 && straightLine){
+      m = [activeTiles.map((cell) => cell.tile)];
+    }
+    const offsetY = straightLine && rows === 3
+      ? 1
+      : clamp(Math.round((rows - m.length) / 2), 0, Math.max(0, rows - m.length));
+    const offsetX = clamp(Math.round((cols - (m[0]?.length || 0)) / 2), 0, Math.max(0, cols - (m[0]?.length || 0)));
 
     for(let y=0;y<m.length;y++){
       for(let x=0;x<m[y].length;x++){
-        if(m[y][x]) grid[offsetY + y][offsetX + x] = m[y][x];
+        if(m[y][x] && grid[offsetY + y]?.[offsetX + x] !== undefined) grid[offsetY + y][offsetX + x] = m[y][x];
       }
     }
 
@@ -2242,8 +3036,57 @@
     ]);
   }
 
+  function v2OnboardingSeen(){
+    if(!V2_ONBOARDING_ENABLED) return true;
+    try{
+      if(runtimeFlag("resetOnboarding", false)){
+        localStorage.removeItem(V2_ONBOARDING_STORAGE_KEY);
+        localStorage.removeItem(V2_RUNS_STARTED_KEY);
+        return false;
+      }
+      return localStorage.getItem(V2_ONBOARDING_STORAGE_KEY) === "1";
+    }catch{
+      return false;
+    }
+  }
+
+  function markV2OnboardingSeen(){
+    if(!V2_ONBOARDING_ENABLED) return;
+    try{
+      localStorage.setItem(V2_ONBOARDING_STORAGE_KEY, "1");
+    }catch{}
+  }
+
+  function v2RunsStarted(){
+    try{
+      return Math.max(0, Number(localStorage.getItem(V2_RUNS_STARTED_KEY)) || 0);
+    }catch{
+      return 0;
+    }
+  }
+
+  function bumpV2RunsStarted(){
+    if(!REFRESH_V2_ENABLED) return v2RunsStarted();
+    const nextCount = v2RunsStarted() + 1;
+    try{
+      localStorage.setItem(V2_RUNS_STARTED_KEY, String(nextCount));
+    }catch{}
+    return nextCount;
+  }
+
+  function v2MissionPool(runsStarted=v2RunsStarted()){
+    if(!V2_ONBOARDING_ENABLED || v2OnboardingSeen()){
+      return V2_MISSION_DEFS.filter((entry) => !entry.onboarding && (!entry.minRunsStarted || runsStarted >= entry.minRunsStarted));
+    }
+    const intro = V2_MISSION_DEFS.find((entry) => entry.onboarding);
+    return intro ? [intro] : V2_MISSION_DEFS;
+  }
+
   function newMission(){
-    const def = weightedChoice(ACTIVE_MISSION_DEFS, (entry) => entry?.weight ?? 1);
+    const runsStarted = REFRESH_V2_ENABLED ? bumpV2RunsStarted() : 0;
+    const pool = REFRESH_V2_ENABLED ? v2MissionPool(runsStarted) : ACTIVE_MISSION_DEFS;
+    const def = weightedChoice(pool.length ? pool : ACTIVE_MISSION_DEFS, (entry) => entry?.weight ?? 1);
+    if(REFRESH_V2_ENABLED && def?.onboarding) markV2OnboardingSeen();
     const tunedBonus = Math.max(def?.marquee ? 200 : 80, Math.round(def.bonus * 0.6));
     return {
       ...def,
@@ -2251,6 +3094,7 @@
       goodsAnimals: Array.isArray(def.goodsAnimals) ? def.goodsAnimals.slice() : undefined,
       bonus: tunedBonus,
       progress: 0,
+      seenAnimals: [],
       done: false,
       ready: false,
       cashBonus: tunedBonus,
@@ -2281,7 +3125,7 @@
 
   function missionSpecialLegendTitle(sourceMission=mission){
     const loadout = missionSpecialLoadout(sourceMission);
-    if(!loadout.length) return "Mission legend";
+    if(!loadout.length) return REFRESH_V2_ENABLED ? "No specials yet" : "Mission legend";
     const names = loadout
       .map(({ id }) => missionSpecialRule(id, sourceMission)?.title)
       .filter(Boolean);
@@ -2293,7 +3137,7 @@
   function missionSpecialLegendInfo(sourceMission=mission, opts={}){
     const compact = !!opts.compact;
     const loadout = missionSpecialLoadout(sourceMission);
-    if(!loadout.length) return "No mission special this run.";
+    if(!loadout.length) return REFRESH_V2_ENABLED ? "Just build herds. Wolves can wait." : "No mission special this run.";
     const primary = missionSpecialRule(loadout[0]?.id, sourceMission);
     const secondary = missionSpecialRule(loadout[1]?.id, sourceMission);
     if(!secondary){
@@ -2307,6 +3151,7 @@
   }
 
   function missionBriefRuleCopy(){
+    if(REFRESH_V2_ENABLED) return `Finish the tiny job. Then cash the reward herd within ${REWARD_COUNTDOWN_START} settles.`;
     return `Goal first. Then clear the reward herd in ${REWARD_COUNTDOWN_START} settles.`;
   }
 
@@ -2315,7 +3160,7 @@
       return missionSpecialLegendInfo(sourceMission, { compact:false });
     }
     const loadout = missionSpecialLoadout(sourceMission);
-    if(!loadout.length) return "No mission special this run.";
+    if(!loadout.length) return REFRESH_V2_ENABLED ? "No specials here. Learn the herd shape first." : "No mission special this run.";
     return loadout.length > 1
       ? "Common first. Rare second. Both show up in real Next."
       : "This special shows up in the real Next queue.";
@@ -2328,6 +3173,8 @@
     if(specialId === "salt_lick") return common ? "Common pull" : "Rare pull";
     if(specialId === "rain_barrel") return common ? "Common cleanup" : "Rare cleanup";
     if(specialId === "rooster_call") return common ? "Common combo" : "Rare combo";
+    if(specialId === "egg_basket") return common ? "Common egg spread" : "Rare egg spread";
+    if(specialId === "muck_wagon") return common ? "Common mud spread" : "Rare mud spread";
     if(specialId === "barnstorm_crate") return common ? "Common mayhem" : "Rare troublemaker";
     if(specialId === "barn_goods") return common ? "Common cash-in" : "Rare cash-in";
     if(["bunker_buster", "bunker"].includes(specialId)) return common ? "Common breaker" : "Rare troublemaker";
@@ -2346,6 +3193,10 @@
         return ["On lock: washes up to 4 eggs/turds.", "If clean: drops 1 egg."];
       case "rooster_call":
         return ["Nearby: flips up to 2 chickens to match.", "On lock: drops 2 eggs."];
+      case "egg_basket":
+        return ["On lock: becomes the touched animal.", "Nearby: plants 4 eggs."];
+      case "muck_wagon":
+        return ["On lock: becomes the touched animal.", "Nearby: spreads 3 mud traps."];
       case "barnstorm_crate":
         return ["On lock: sprays 2 eggs + 1 turd.", "Nearby: flips 1 animal to match."];
       case "barn_goods":
@@ -2454,6 +3305,18 @@
     return 3 + level;
   }
 
+  function speedRampLockCount(){
+    if(!REFRESH_V2_ENABLED) return locks;
+    const graceLocks = herdsCleared > 0 ? V2_POST_HERD_RAMP_GRACE_LOCKS : V2_OPENING_RAMP_GRACE_LOCKS;
+    return Math.max(0, locks - graceLocks);
+  }
+
+  function baseFallMsForPace(){
+    if(!REFRESH_V2_ENABLED) return LEGACY_BASE_FALL_MS;
+    const blend = clamp(speedRampLockCount() / V2_BASE_FALL_BLEND_LOCKS, 0, 1);
+    return Math.round(V2_BASE_FALL_MS + (V2_SETTLED_BASE_FALL_MS - V2_BASE_FALL_MS) * blend);
+  }
+
   function registerLockCycle(opts={}){
     locks++;
     if(mission && !mission.done){
@@ -2487,6 +3350,7 @@
 
   function missionDisplayLabel(sourceMission=mission){
     if(!sourceMission) return "Warm up the barn";
+    if(REFRESH_V2_ENABLED && sourceMission.hint) return `${sourceMission.title} — ${sourceMission.hint}`;
     return sourceMission.hint ? `${sourceMission.title} (${sourceMission.hint})` : sourceMission.title;
   }
 
@@ -2495,13 +3359,15 @@
     if(mission.objective) return mission.objective;
     if(mission.type === "animal") return `Clear ${mission.target} ${animalWord(mission.animal)}`;
     if(mission.type === "destroy") return `Destroy ${mission.target} ${animalWord(mission.animal)}`;
-    if(mission.type === "clears") return `Clear ${mission.target} big groups (${BIG_GROUP_THRESHOLD}+)`;
+    if(mission.type === "clears") return `Clear ${mission.target} herds of ${ACTIVE_CLEAR_THRESHOLD}+`;
     if(mission.type === "combo") return `${fmtChain(mission.target)} combo`;
     if(mission.type === "wolf") return `Trigger ${mission.target} wolf tantrum${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "score") return `Score ${mission.target} coins`;
     if(mission.type === "level") return `Reach pace ${mission.target}`;
     if(mission.type === "big_group") return `Clear ${mission.target} jumbo groups`;
     if(mission.type === "large_clears") return `Clear ${mission.target} herds of ${mission.minSize}+`;
+    if(mission.type === "variety") return `Clear ${mission.target} different animals`;
+    if(mission.type === "egg_clear") return `Clear ${mission.target} egg herds`;
     if(mission.type === "product") return mission.animal ? `Cash in ${mission.target} ${productInfoForAnimal(mission.animal).plural}` : `Cash ${mission.target} goods`;
     if(mission.type === "turds") return `Clear ${mission.target} turds`;
     if(mission.type === "special_use") return `Use your mission special ${mission.target} time${mission.target === 1 ? "" : "s"}`;
@@ -2512,6 +3378,8 @@
   function missionBriefCopy(){
     if(!mission) return "The barn is quiet. It will not stay that way.";
     if(mission.brief) return mission.brief;
+    if(mission.type === "variety") return "Mix the barn. Cash the confusion.";
+    if(mission.type === "egg_clear") return "Eggs make the coins louder.";
     if(mission.type === "combo") return `One settle. Hit ${fmtChain(mission.target)} before the barn untangles itself.`;
     if(mission.type === "product") return "Hit the right producer. Misses get messy.";
     if(mission.type === "build_group") return "Build it huge, but do not cash it early.";
@@ -2533,6 +3401,7 @@
 
   function closeMissionBriefing(){
     if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
+    playGameEventSound("mission_start");
     setOverlayOpen(missionBriefBackdrop, false);
     draw();
   }
@@ -2577,6 +3446,15 @@
 
   function missionActiveStatusText(){
     if(!mission) return "Start dropping pieces";
+    if(REFRESH_V2_ENABLED){
+      if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
+      if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} herds`;
+      if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species`;
+      if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds`;
+      if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} messes`;
+      if(mission.type === "wolf") return `${missionProgressText(mission.progress, mission.target)} scares`;
+      if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} big herds`;
+    }
     if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} cleared`;
     if(mission.type === "destroy") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} wrecked`;
     if(mission.type === "combo") return `Best chain ${fmtChain(bestCombo)} / ${fmtChain(mission.target)}`;
@@ -2585,6 +3463,8 @@
     if(mission.type === "level") return `Pace ${level} / ${mission.target}`;
     if(mission.type === "big_group") return `${missionProgressText(mission.progress, mission.target)} jumbo clears`;
     if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} herds of ${mission.minSize}+`;
+    if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species cleared`;
+    if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds`;
     if(mission.type === "product"){
       return mission.animal
         ? `${missionProgressText(mission.progress, mission.target)} ${productInfoForAnimal(mission.animal).plural} cashed`
@@ -2687,6 +3567,14 @@
     if(!mission || mission.done || mission.ready) return;
     if(event === "animal" && mission.type === "animal" && mission.animal === value.animal){
       mission.progress += value.amount;
+    } else if(event === "animal" && mission.type === "variety"){
+      const animal = value?.animal;
+      if(ANIMALS.includes(animal)){
+        const seen = new Set(Array.isArray(mission.seenAnimals) ? mission.seenAnimals : []);
+        seen.add(animal);
+        mission.seenAnimals = Array.from(seen);
+        mission.progress = mission.seenAnimals.length;
+      }
     } else if(event === "destroy" && mission.type === "destroy" && mission.animal === value.animal){
       mission.progress += value.amount;
     } else if(event === "clears" && mission.type === "clears"){
@@ -2703,6 +3591,8 @@
       mission.progress += value.amount;
     } else if(event === "product" && mission.type === "product" && !mission.animal){
       mission.progress += value.amount;
+    } else if(event === "egg_clear" && mission.type === "egg_clear"){
+      mission.progress += value?.amount ?? 1;
     } else if(event === "turds" && mission.type === "turds"){
       mission.progress += value;
     } else if(event === "special_use" && mission.type === "special_use"){
@@ -2785,10 +3675,10 @@
 
   function updateLevel(){
     const prevLevel = level;
-    level = 1 + Math.floor(locks / LEVEL_EVERY_LOCKS);
+    level = 1 + Math.floor(speedRampLockCount() / LEVEL_EVERY_LOCKS);
     fallInterval = Math.max(
       MIN_FALL_MS,
-      Math.floor(BASE_FALL_MS * Math.pow(0.88, level-1) * missionPressureMultiplier())
+      Math.floor(baseFallMsForPace() * Math.pow(0.88, level-1) * missionPressureMultiplier())
     );
     if(level > prevLevel){
       banner.text = `Pace ${level}! The barn got meaner.`;
@@ -2824,24 +3714,28 @@
 
   function openSettings(){
     if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
+    playGameEventSound("ui_open_modal");
     setOverlayOpen(modalBackdrop, true);
     draw();
   }
 
   function closeSettings(){
     if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
+    playGameEventSound("ui_close_modal");
     setOverlayOpen(modalBackdrop, false);
     draw();
   }
 
   function openHelp(){
     if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
+    playGameEventSound("ui_open_modal");
     setOverlayOpen(helpBackdrop, true);
     draw();
   }
 
   function closeHelp(){
     if(USE_IOS_AUDIO_RESUME_FIXES) unlockAudioSilently();
+    playGameEventSound("ui_close_modal");
     setOverlayOpen(helpBackdrop, false);
     draw();
   }
@@ -2947,12 +3841,14 @@
   }
 
   function closeGameOverPanel(){
+    playGameEventSound("ui_close_modal");
     setOverlayOpen(gameOverBackdrop, false);
     draw();
   }
 
   function openGameOverPanel(){
     if(!gameOver) return;
+    playGameEventSound("ui_open_modal");
     if(pendingGameOverRevealTimer){
       clearTimeout(pendingGameOverRevealTimer);
       pendingGameOverRevealTimer = 0;
@@ -3098,6 +3994,7 @@
       playBarnyard(opts.settleAnimal, 4, "settle");
     }
     if(opts.playLockTick !== false) playLockTick();
+    if(!summary?.groupsCleared) maybePlayNearHerdMurmur();
     if(opts.hapticMs) haptic(opts.hapticMs);
     if(!gameOver){
       const waitMs = Math.max(0, summary?.animationWaitMs || 0);
@@ -3117,6 +4014,7 @@
     const label = opts.label || "Wolf pack";
     const extraTurds = Math.max(0, opts.extraTurds|0);
     const howlStyle = opts.howlStyle || "";
+    const wolfSettleStyle = howlStyle || (label === "Angry Wolf" ? "victory" : "tap");
     const blast = new Set();
     const cells = footprintCells(piece);
     const around = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
@@ -3147,14 +4045,18 @@
       const extraPlaced = extraTurds ? scatterNearbyOverlays(piece, { turds: extraTurds, radius: 2 }) : { turds: 0 };
       banner.text = `${label} blasted ${popped.length} tiles${extraPlaced.turds ? ` and kicked up ${extraPlaced.turds} rude 💩` : ""}.`;
       banner.t = performance.now();
-      playTone({type:"sawtooth", f1:120, f2:45, dur:0.20, gain:0.20});
-      playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.16});
-      if(howlStyle) playWolfHowl(howlStyle);
+      if(!playSpecialCue("angry_wolf", { hit:true, count:popped.length, style:wolfSettleStyle, source:"angry_wolf_settle" })){
+        playTone({type:"sawtooth", f1:120, f2:45, dur:0.20, gain:0.20});
+        playTone({type:"square", f1:80, f2:40, dur:0.16, gain:0.16});
+        playWolfHowl({ style:wolfSettleStyle, source:"angry_wolf_settle", animateBadge:false });
+      }
       haptic(18);
       bumpMission("wolf", 1);
     } else if(markOneFootprintOverlay(piece, POWER.TURD)){
       banner.text = `${label} whiffed and still left a rude 💩 behind.`;
       banner.t = performance.now();
+      playSpecialCue("angry_wolf", { hit:false, style:"tap", source:"angry_wolf_whiff" });
+      playGameEventSound("turd_penalty");
     }
   }
 
@@ -3376,10 +4278,56 @@
     return nearbyCellsForPiece(piece, radius, opts).filter(([x, y]) => ANIMALS.includes(board[y][x]));
   }
 
-  function placePieceAsAnimal(piece, animal){
-    for(const [x, y] of footprintCells(piece)){
-      board[y][x] = animal;
+  let mudHazardLockSummary = null;
+
+  function beginMudHazardTracking(){
+    mudHazardLockSummary = { destroyed: 0, cells: [] };
+  }
+
+  function finishMudHazardTracking(){
+    const summary = mudHazardLockSummary;
+    mudHazardLockSummary = null;
+    return summary || { destroyed: 0, cells: [] };
+  }
+
+  function shouldMudDestroyLandingCell(x, y){
+    return REFRESH_V2_ENABLED && overlay[y]?.[x] === POWER.TURD && board[y]?.[x] === TILE.EMPTY;
+  }
+
+  function consumeMudLandingCell(x, y, tile){
+    overlay[y][x] = POWER.NONE;
+    rewardMap[y][x] = false;
+    productMap[y][x] = 0;
+    if(mudHazardLockSummary){
+      mudHazardLockSummary.destroyed++;
+      mudHazardLockSummary.cells.push([x, y, tile]);
     }
+  }
+
+  function placeLandingTileWithMud(x, y, tile){
+    if(shouldMudDestroyLandingCell(x, y)){
+      consumeMudLandingCell(x, y, tile);
+      return false;
+    }
+    board[y][x] = tile;
+    return true;
+  }
+
+  function appendMudHazardResult(summary){
+    if(!summary?.destroyed) return;
+    const count = summary.destroyed;
+    banner.text = `${banner.text ? `${banner.text} ` : ""}Mud swallowed ${count} falling tile${count === 1 ? "" : "s"}.`;
+    banner.t = performance.now();
+    playGameEventSound("turd_penalty");
+    haptic(14);
+  }
+
+  function placePieceAsAnimal(piece, animal){
+    const placedCells = [];
+    for(const [x, y] of footprintCells(piece)){
+      if(placeLandingTileWithMud(x, y, animal)) placedCells.push([x, y, animal]);
+    }
+    return { placedCells };
   }
 
   function convertNearbyAnimalsTo(piece, animal, count=1, opts={}){
@@ -3485,6 +4433,7 @@
       plural: product.plural
     });
     for(const [x,y] of footprintCells(piece)){
+      if(board[y][x] !== animal) continue;
       productMap[y][x] = token;
     }
     return token;
@@ -3519,11 +4468,15 @@
       spawnPopParticles(popped);
       banner.text = `Barn Buster popped ${popped.length} tiles.`;
       banner.t = performance.now();
-      playTone({type:"sawtooth", f1:180, f2:50, dur:0.16, gain:0.18});
+      if(!playSpecialCue("bomb", { hit:true, count:popped.length })){
+        playTone({type:"sawtooth", f1:180, f2:50, dur:0.16, gain:0.18});
+      }
     } else {
       const turdsPlaced = markFootprintOverlays(piece, POWER.TURD, 2);
       banner.text = `Barn Buster whiffed and dropped ${turdsPlaced} rude 💩.`;
       banner.t = performance.now();
+      playSpecialCue("bomb", { hit:false });
+      playGameEventSound("turd_penalty");
     }
   }
 
@@ -3577,8 +4530,10 @@
       spawnPopParticles(popped);
       banner.text = `Bunker Buster chain-blasted ${popped.length} tiles.`;
       banner.t = performance.now();
-      playTone({type:"sawtooth", f1:150, f2:46, dur:0.2, gain:0.2});
-      playTone({type:"square", f1:220, f2:82, dur:0.16, gain:0.11});
+      if(!playSpecialCue("bunker_buster", { hit:true, count:popped.length })){
+        playTone({type:"sawtooth", f1:150, f2:46, dur:0.2, gain:0.2});
+        playTone({type:"square", f1:220, f2:82, dur:0.16, gain:0.11});
+      }
       haptic(20);
       return;
     }
@@ -3588,6 +4543,8 @@
     const lowerTurds = scatterLowerHalfOverlays(POWER.TURD, 3, excluded);
     banner.text = `Bunker Buster whiffed and dropped ${footprintTurds + lowerTurds} rude 💩.`;
     banner.t = performance.now();
+    playSpecialCue("bunker_buster", { hit:false });
+    playGameEventSound("turd_penalty");
   }
 
   function missionReapLargestGroup(piece){
@@ -3603,25 +4560,27 @@
       spawnPopParticles(best.cells.map(([x,y]) => [x,y,best.animal]));
       banner.text = `Cull Comb clipped ${best.cells.length} ${TILE_LABEL[best.animal]}.`;
       banner.t = performance.now();
-      playTone({type:"triangle", f1:620, f2:260, dur:0.14, gain:0.10});
+      if(!playSpecialCue("reaper", { hit:true, animal:best.animal, count:best.cells.length })){
+        playTone({type:"triangle", f1:620, f2:260, dur:0.14, gain:0.10});
+      }
     }
     const landAnimal = chooseLandingAnimal(piece);
-    for(const [x,y] of footprintCells(piece)) board[y][x] = landAnimal;
+    placePieceAsAnimal(piece, landAnimal);
     banner.text = `Cull Comb clipped and turned into ${TILE_LABEL[landAnimal]}.`;
     banner.t = performance.now();
   }
 
   function missionMorphPiece(piece){
     const animal = chooseLandingAnimal(piece);
-    for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
+    placePieceAsAnimal(piece, animal);
     banner.text = `Mystery Crate revealed ${TILE_LABEL[animal]}.`;
     banner.t = performance.now();
-    playBarnyard(animal, 6);
+    playSpecialCue("morph", { hit:true, animal }) || playBarnyard(animal, 6);
   }
 
   function missionSeedOverlay(piece){
     const landAnimal = chooseLandingAnimal(piece);
-    for(const [x,y] of footprintCells(piece)) board[y][x] = landAnimal;
+    placePieceAsAnimal(piece, landAnimal);
     const candidates = [];
     for(const [x,y] of footprintCells(piece)){
       for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1]]){
@@ -3653,12 +4612,14 @@
     }
     banner.text = `Nest Bomber dropped ${eggsPlaced} eggs and ${turdsPlaced} turds.`;
     banner.t = performance.now();
-    playTone({type:"square", f1:500, f2:200, dur:0.10, gain:0.07});
+    if(!playSpecialCue("seeder", { hit:true, animal:landAnimal, eggs:eggsPlaced, turds:turdsPlaced })){
+      playTone({type:"square", f1:500, f2:200, dur:0.10, gain:0.07});
+    }
   }
 
   function missionBrandPiece(piece){
     const animal = chooseLandingAnimal(piece);
-    for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
+    placePieceAsAnimal(piece, animal);
     for(const [x,y] of footprintCells(piece)){
       for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
         const nx = x + dx, ny = y + dy;
@@ -3668,12 +4629,12 @@
     }
     banner.text = `Branding Iron rallied a ${GROUP_NAME[animal] || "group"} of ${TILE_LABEL[animal]}.`;
     banner.t = performance.now();
-    playBarnyard(animal, 7);
+    playSpecialCue("brand", { hit:true, animal }) || playBarnyard(animal, 7);
   }
 
   function missionFeedPiece(piece){
     const animal = chooseLandingAnimal(piece);
-    for(const [x,y] of footprintCells(piece)) board[y][x] = animal;
+    placePieceAsAnimal(piece, animal);
     const candidates = [];
     for(const [x,y] of footprintCells(piece)){
       for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1]]){
@@ -3692,7 +4653,9 @@
     }
     banner.text = `Feed Wagon sweetened the barn with ${eggsPlaced} eggs.`;
     banner.t = performance.now();
-    playTone({type:"triangle", f1:480, f2:260, dur:0.12, gain:0.07});
+    if(!playSpecialCue("feed", { hit:true, animal, eggs:eggsPlaced })){
+      playTone({type:"triangle", f1:480, f2:260, dur:0.12, gain:0.07});
+    }
   }
 
   function missionAngryWolfPiece(piece){
@@ -3712,8 +4675,10 @@
       ? `Pack Howl panicked ${panicked} animals${sprayed.turds ? ` and kicked out ${sprayed.turds} rude 💩` : ""}.`
       : "Pack Howl still scared the barn crooked.";
     banner.t = performance.now();
-    if(USE_ENHANCED_CHAOS_AUDIO) playWolfHowl("tap");
-    playTone({ type:"square", f1:260, f2:144, dur:0.16, gain:0.07 });
+    if(!playSpecialCue("pack_howl", { hit:panicked > 0, count:panicked, style:"threat" })){
+      if(USE_ENHANCED_CHAOS_AUDIO) playWolfHowl("tap");
+      playTone({ type:"square", f1:260, f2:144, dur:0.16, gain:0.07 });
+    }
     bumpMission("wolf", 1);
   }
 
@@ -3726,7 +4691,7 @@
       ? `Salt Lick coaxed ${converted} nearby animal${converted === 1 ? "" : "s"} into ${TILE_LABEL[animal]}.`
       : "Salt Lick behaved and left one polite 🥚.";
     banner.t = performance.now();
-    playBarnyard(animal, 7);
+    playSpecialCue("salt_lick", { hit:converted > 0, animal, count:converted }) || playBarnyard(animal, 7);
   }
 
   function missionRainBarrelPiece(piece){
@@ -3741,7 +4706,9 @@
       banner.text = `Rain Barrel washed ${cleared.turds} turd${cleared.turds === 1 ? "" : "s"} and ${cleared.eggs} egg${cleared.eggs === 1 ? "" : "s"}.`;
     }
     banner.t = performance.now();
-    playTone({ type:"sine", f1:360, f2:180, dur:0.15, gain:0.07 });
+    if(!playSpecialCue("rain_barrel", { hit:(cleared.eggs + cleared.turds) > 0, animal, cleared })){
+      playTone({ type:"sine", f1:360, f2:180, dur:0.15, gain:0.07 });
+    }
   }
 
   function missionRoosterCallPiece(piece){
@@ -3757,7 +4724,32 @@
     const eggsPlaced = scatterNearbyOverlays(piece, { eggs: 2, radius: 2 }).eggs;
     banner.text = `Rooster Call rallied ${rallied} chicken${rallied === 1 ? "" : "s"} and laid ${eggsPlaced} combo egg${eggsPlaced === 1 ? "" : "s"}.`;
     banner.t = performance.now();
-    playTone({ type:"square", f1:760, f2:540, dur:0.1, gain:0.07 });
+    if(!playSpecialCue("rooster_call", { hit:rallied > 0, animal, eggs:eggsPlaced })){
+      playTone({ type:"square", f1:760, f2:540, dur:0.1, gain:0.07 });
+    }
+  }
+
+  function missionEggBasketPiece(piece){
+    const animal = chooseLandingAnimal(piece);
+    placePieceAsAnimal(piece, animal);
+    const eggsPlaced = scatterNearbyOverlays(piece, { eggs: 4, radius: 2 }).eggs;
+    banner.text = `Egg Basket planted ${eggsPlaced} egg${eggsPlaced === 1 ? "" : "s"} around the ${animalWord(animal)}.`;
+    banner.t = performance.now();
+    if(!playSpecialCue("egg_basket", { hit:eggsPlaced > 0, animal, eggs:eggsPlaced })){
+      playGameEventSound("egg_bonus");
+      playTone({ type:"triangle", f1:620, f2:820, dur:0.1, gain:0.06 });
+    }
+  }
+
+  function missionMuckWagonPiece(piece){
+    const animal = chooseLandingAnimal(piece);
+    placePieceAsAnimal(piece, animal);
+    const turdsPlaced = scatterNearbyOverlays(piece, { turds: 3, radius: 2 }).turds;
+    banner.text = `Muck Wagon spread ${turdsPlaced} mud trap${turdsPlaced === 1 ? "" : "s"}. Step rude, lose a tile.`;
+    banner.t = performance.now();
+    if(!playSpecialCue("muck_wagon", { hit:turdsPlaced > 0, animal, turds:turdsPlaced })){
+      playGameEventSound("turd_penalty");
+    }
   }
 
   function missionBarnstormCratePiece(piece){
@@ -3767,8 +4759,10 @@
     const scattered = scatterNearbyOverlays(piece, { eggs: 2, turds: 1, radius: 2 });
     banner.text = `Barnstorm Crate sprayed ${scattered.eggs} 🥚, ${scattered.turds} 💩, and ${converted ? "one matching ringer" : "pure bad ideas"}.`;
     banner.t = performance.now();
-    playTone({ type:"triangle", f1:480, f2:220, dur:0.12, gain:0.07 });
-    playTone({ noise:true, dur:0.05, gain:0.03 });
+    if(!playSpecialCue("barnstorm_crate", { hit:converted > 0, animal, scattered })){
+      playTone({ type:"triangle", f1:480, f2:220, dur:0.12, gain:0.07 });
+      playTone({ noise:true, dur:0.05, gain:0.03 });
+    }
   }
 
   function missionProducePiece(piece){
@@ -3779,22 +4773,25 @@
       ? (piece.productAnimal || mission?.animal || TILE.SHEEP)
       : chooseAnimalFromCounts(counts);
 
-    for(const [x,y] of footprintCells(piece)){
-      board[y][x] = landingAnimal;
-    }
+    placePieceAsAnimal(piece, landingAnimal);
 
     if(matchedProducer){
       markProductPiece(piece, landingAnimal);
       markOneFootprintOverlay(piece, POWER.EGG);
       banner.text = `${product.specialTitle} hit ${animalWord(landingAnimal)}. It dropped an egg and tagged that group for one ${product.noun}.`;
       banner.t = performance.now();
-      playBarnyard(landingAnimal, 7);
-      playTone({type:"triangle", f1:560, f2:320, dur:0.08, gain:0.06});
+      if(!playSpecialCue("barn_goods", { hit:true, animal:landingAnimal })){
+        playBarnyard(landingAnimal, 7);
+        playTone({type:"triangle", f1:560, f2:320, dur:0.08, gain:0.06});
+      }
     } else {
       markOneFootprintOverlay(piece, POWER.TURD);
       banner.text = `${product.specialTitle} missed and turned into ${TILE_LABEL[landingAnimal]} after dropping a rude 💩.`;
       banner.t = performance.now();
-      playTone({type:"square", f1:240, f2:150, dur:0.08, gain:0.05});
+      if(!playSpecialCue("barn_goods", { hit:false, animal:landingAnimal })){
+        playTone({type:"square", f1:240, f2:150, dur:0.08, gain:0.05});
+      }
+      playGameEventSound("turd_penalty");
     }
   }
 
@@ -3813,8 +4810,8 @@
   }
 
   function herdSizeBonus(count){
-    if(count < CLEAR_THRESHOLD) return 0;
-    const step = count - CLEAR_THRESHOLD;
+    if(count < ACTIVE_CLEAR_THRESHOLD) return 0;
+    const step = count - ACTIVE_CLEAR_THRESHOLD;
     if(step <= 7) return fib(step + 3);
 
     let bonus = 55;
@@ -3825,26 +4822,30 @@
   }
 
   // ===== Cluster clearing =====
-  function findAnimalGroupsToClear(){
+  function findAnimalGroups(sourceBoard=board, minSize=ACTIVE_CLEAR_THRESHOLD){
     const seen = Array.from({length: ROWS}, () => Array(COLS).fill(false));
     const out = [];
 
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         if(seen[y][x]) continue;
-        const t = board[y][x];
+        const t = sourceBoard[y][x];
         if(!ANIMALS.includes(t)){
           seen[y][x] = true;
           continue;
         }
-        const cells = floodSameAnimal(x,y,t,seen);
-        if(cells.length >= CLEAR_THRESHOLD) out.push({ animal: t, cells });
+        const cells = floodSameAnimal(x,y,t,seen,sourceBoard);
+        if(cells.length >= minSize) out.push({ animal: t, cells });
       }
     }
     return out;
   }
 
-  function floodSameAnimal(sx,sy,animal,seen){
+  function findAnimalGroupsToClear(){
+    return findAnimalGroups(board, ACTIVE_CLEAR_THRESHOLD);
+  }
+
+  function floodSameAnimal(sx,sy,animal,seen,sourceBoard=board){
     const q = [[sx,sy]];
     const cells = [];
     seen[sy][sx] = true;
@@ -3856,7 +4857,7 @@
         const nx=x+dx, ny=y+dy;
         if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
         if(seen[ny][nx]) continue;
-        if(board[ny][nx] === animal){
+        if(sourceBoard[ny][nx] === animal){
           seen[ny][nx] = true;
           q.push([nx,ny]);
         }
@@ -4009,7 +5010,14 @@
       const clears = findAnimalGroupsToClear();
       if(clears.length === 0) break;
       cascadeDepth++;
-      const { blocked: clearedKeys, conversions } = buildClearConversions(clears);
+      const simpleGravity = SIMPLE_HERD_GRAVITY_ENABLED;
+      const clearConversionData = simpleGravity
+        ? {
+            blocked: new Set(clears.flatMap((group) => group.cells.map(([x, y]) => keyForCell(x, y)))),
+            conversions: new Map()
+          }
+        : buildClearConversions(clears);
+      const { blocked: clearedKeys, conversions } = clearConversionData;
       const clearedTileLookup = new Map();
       const clearSoundCues = [];
       for(const group of clears){
@@ -4035,6 +5043,7 @@
         consumedEggs += eggs;
         consumedTurds += turds;
         if(turds > 0) bumpMission("turds", turds);
+        if(eggs > 0) bumpMission("egg_clear", { animal, amount: 1, eggs });
         if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
         if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
         if(!bestHerd || cells.length > bestHerd.count || (cells.length === bestHerd.count && gain > bestHerd.gain)){
@@ -4082,8 +5091,8 @@
         const x = Number(xStr);
         const y = Number(yStr);
         const originalTile = clearedTileLookup.get(key) || TILE.EMPTY;
-        const convertedTile = conversions.get(key) || TILE.EMPTY;
-        if(convertedTile){
+        const convertedTile = simpleGravity ? TILE.EMPTY : (conversions.get(key) || TILE.EMPTY);
+        if(!simpleGravity && convertedTile){
           previewFx.push({
             type: "preview",
             x,
@@ -4222,10 +5231,13 @@
     if(current.kind === "MISSION_SPECIAL"){
       const entry = missionSpecialEntry(current.specialId);
       const landedLonely = !pieceTouchesSettledTiles(current);
+      beginMudHazardTracking();
       entry?.onLock?.(current);
       if((entry?.leaveLonelyTurd ?? true) && maybeDropLonelyMissionTurd(current, landedLonely)){
         banner.text += " It landed alone and left a rude 💩.";
       }
+      const mudSummary = finishMudHazardTracking();
+      appendMudHazardResult(mudSummary);
       settleBoardNow();
       bumpMission("special_use", 1);
       registerLockCycle();
@@ -4244,12 +5256,16 @@
       registerLockCycle({ skipCashout: true, skipMissionCharge: true });
       banner.text = `Reward coin settled as ${TILE_LABEL[rewardAnimal]}. Clear that pulsing group within ${REWARD_COUNTDOWN_START} settles for +${mission.cashBonus}.`;
       banner.t = performance.now();
-      playTone({type:"triangle", f1:720, f2:360, dur:0.16, gain:0.08});
+      if(!playGameEventSound("egg_bonus")){
+        playTone({type:"triangle", f1:720, f2:360, dur:0.16, gain:0.08});
+      }
       updateHUD();
       if(!gameOver) spawnNext();
       return;
     }
 
+    beginMudHazardTracking();
+    let placedCells = [];
     for(let r=0;r<current.matrix.length;r++){
       for(let c=0;c<current.matrix[r].length;c++){
         const v = current.matrix[r][c];
@@ -4257,21 +5273,29 @@
         const x = current.x + c;
         const y = current.y + r;
         if(y < 0){ gameOverNow(); return; }
-        board[y][x] = v;
+        if(placeLandingTileWithMud(x, y, v)) placedCells.push([x, y, v]);
       }
     }
 
     if(current.kind === "BLACKSHEEP"){
       const choice = chooseConversionAnimalForBlackSheep(current);
-      for(const [x,y] of footprintCells(current)) board[y][x] = choice.animal;
+      placedCells = placedCells
+        .filter(([x, y]) => board[y][x] === TILE.BLACK_SHEEP)
+        .map(([x, y]) => {
+          board[y][x] = choice.animal;
+          return [x, y, choice.animal];
+        });
       if(!choice.hadNeighbor){
         markOneFootprintOverlay(current, POWER.EGG);
         banner.text = "Black sheep landed alone, left an egg, and joined in anyway.";
         banner.t = performance.now();
       }
     }
+    const mudSummary = finishMudHazardTracking();
+    appendMudHazardResult(mudSummary);
+    if(mudSummary.destroyed > 0) settleBoardNow();
 
-    const landedCells = footprintCells(current);
+    const landedCells = placedCells.length ? placedCells.map(([x, y]) => [x, y]) : footprintCells(current);
     const settleAnimal = current.kind === "BLACKSHEEP"
       ? board[landedCells[0]?.[1] ?? 0]?.[landedCells[0]?.[0] ?? 0] ?? pieceLeadAnimal(current)
       : pieceLeadAnimal(current);
@@ -4306,7 +5330,10 @@
       current.x += dx;
       playMoveTick();
     }
-    else haptic(6);
+    else {
+      playInvalidMove();
+      haptic(6);
+    }
     draw();
   }
 
@@ -4329,7 +5356,7 @@
     }
     if(moved){
       score += moved;
-      playDropThump();
+      if(!playGameEventSound("piece_hard_drop", { distance:moved })) playDropThump();
       syncPassiveMissionProgress();
     }
     lockPiece();
@@ -4344,7 +5371,10 @@
 
   function rotate(dirCW=true){
     if(paused || !current) return false;
-    if(!current.rotates) return false;
+    if(!current.rotates){
+      playInvalidMove();
+      return false;
+    }
     const test = dirCW ? rotateCW(current.matrix) : rotateCCW(current.matrix);
     for(const k of [0,-1,1,-2,2]){
       if(!collides(current, k, 0, test)){
@@ -4356,6 +5386,7 @@
         return true;
       }
     }
+    playInvalidMove();
     draw();
     return false;
   }
@@ -4364,6 +5395,98 @@
     let y = piece.y;
     while(!collides(piece, 0, (y - piece.y) + 1)) y++;
     return y;
+  }
+
+  function pieceCellsAt(piece, targetY=piece?.y){
+    if(!piece) return [];
+    const cells = [];
+    const m = piece.matrix;
+    for(let r=0;r<m.length;r++){
+      for(let c=0;c<m[r].length;c++){
+        const tile = m[r][c];
+        if(!tile) continue;
+        const x = piece.x + c;
+        const y = targetY + r;
+        if(x < 0 || x >= COLS || y < 0 || y >= ROWS) continue;
+        cells.push([x, y, tile]);
+      }
+    }
+    return cells;
+  }
+
+  function cellKeySet(cells){
+    return new Set(cells.map(([x, y]) => keyForCell(x, y)));
+  }
+
+  function groupTouchesCellSet(group, keys){
+    return group.cells.some(([x, y]) => keys.has(keyForCell(x, y)));
+  }
+
+  function simulatedLandingBoard(piece=current){
+    if(!piece) return null;
+    const ghostY = getGhostY(piece);
+    const simulated = board.map((row) => row.slice());
+    const ghostCells = [];
+    for(const [x, y, tile] of pieceCellsAt(piece, ghostY)){
+      if(!ANIMALS.includes(tile)) continue;
+      simulated[y][x] = tile;
+      ghostCells.push([x, y]);
+    }
+    return { board: simulated, ghostY, ghostCells };
+  }
+
+  function v2HerdPreviewGroups(){
+    if(!REFRESH_V2_ENABLED) return { near: [], landing: [] };
+    const nearMin = Math.max(2, ACTIVE_CLEAR_THRESHOLD - V2_NEAR_CLEAR_MARGIN);
+    const near = findAnimalGroups(board, nearMin)
+      .filter((group) => group.cells.length < ACTIVE_CLEAR_THRESHOLD)
+      .sort((a, b) => b.cells.length - a.cells.length)
+      .slice(0, V2_HERD_HINT_MAX_GROUPS);
+
+    const landingState = current ? simulatedLandingBoard(current) : null;
+    if(!landingState || !landingState.ghostCells.length) return { near, landing: [] };
+    const ghostKeys = cellKeySet(landingState.ghostCells);
+    const landing = findAnimalGroups(landingState.board, ACTIVE_CLEAR_THRESHOLD)
+      .filter((group) => groupTouchesCellSet(group, ghostKeys))
+      .sort((a, b) => b.cells.length - a.cells.length)
+      .slice(0, V2_HERD_HINT_MAX_GROUPS);
+    return { near, landing };
+  }
+
+  function v2HerdHintLookup(groups){
+    const lookup = new Map();
+    if(!groups) return lookup;
+    for(const group of groups.near || []){
+      for(const [x, y] of group.cells){
+        lookup.set(keyForCell(x, y), { ...(lookup.get(keyForCell(x, y)) || {}), herdCandidate:true });
+      }
+    }
+    for(const group of groups.landing || []){
+      for(const [x, y] of group.cells){
+        lookup.set(keyForCell(x, y), { ...(lookup.get(keyForCell(x, y)) || {}), landingCandidate:true });
+      }
+    }
+    return lookup;
+  }
+
+  function tileThreatenedByWolf(x, y){
+    if(!REFRESH_V2_ENABLED) return false;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx = x + dx;
+      const ny = y + dy;
+      if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if(board[ny][nx] === TILE.WOLF) return true;
+    }
+    return false;
+  }
+
+  function v2TileState(x, y, hintLookup=null, extra={}){
+    if(!REFRESH_V2_ENABLED) return extra;
+    return {
+      ...(hintLookup?.get(keyForCell(x, y)) || {}),
+      scared: tileThreatenedByWolf(x, y),
+      ...extra
+    };
   }
 
   // ===== Particles =====
@@ -4464,13 +5587,16 @@
     const rect = stageEl.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const compact = isCompactUI();
-    pad = compact ? 8 : 14;
+    pad = FARM_BOARD_RENDERER_ENABLED ? (compact ? 15 : 18) : (compact ? 8 : 14);
 
-    const topReserve = compact ? Math.floor(18 * dpr) : 0;
-    const bottomReserve = compact ? Math.floor(16 * dpr) : Math.floor(14 * dpr);
+    const topReserve = compact ? Math.floor((FARM_BOARD_RENDERER_ENABLED ? 6 : 18) * dpr) : 0;
+    const bottomReserve = compact ? Math.floor((FARM_BOARD_RENDERER_ENABLED ? 4 : 16) * dpr) : Math.floor((FARM_BOARD_RENDERER_ENABLED ? 6 : 14) * dpr);
 
-    const targetW = Math.max(220, Math.floor(rect.width * dpr) - Math.floor((compact ? 10 : 8) * dpr));
-    const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((compact ? 2 : 8) * dpr));
+    const usableWidth = REFRESH_V2_ENABLED
+      ? Math.min(rect.width, Math.max(260, window.innerWidth - 58), compact ? 360 : 440)
+      : rect.width;
+    const targetW = Math.max(220, Math.floor(usableWidth * dpr) - Math.floor((FARM_BOARD_RENDERER_ENABLED ? 0 : (compact ? 10 : 8)) * dpr));
+    const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((FARM_BOARD_RENDERER_ENABLED ? 0 : (compact ? 2 : 8)) * dpr));
 
     const padPx = pad*2*dpr;
     const cellByW = Math.floor((targetW - padPx) / COLS);
@@ -4624,13 +5750,714 @@
     ctx.restore();
   }
 
+  function drawEggGlyph(cx, cy, size){
+    const s = size;
+    ctx.save();
+    const grad = ctx.createRadialGradient(cx - s * 0.12, cy - s * 0.18, s * 0.05, cx, cy, s * 0.42);
+    grad.addColorStop(0, "#fff8cf");
+    grad.addColorStop(0.52, "#ffe279");
+    grad.addColorStop(1, "#d99a28");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, s * 0.31, s * 0.42, 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(96, 59, 10, 0.42)";
+    ctx.lineWidth = Math.max(1, s * 0.05);
+    ctx.stroke();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#fffbe3";
+    ctx.beginPath();
+    ctx.ellipse(cx - s * 0.1, cy - s * 0.16, s * 0.09, s * 0.13, 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function overlayMarkerGeometry(gx, gy, size=cell){
+    const markerSize = Math.max(12, size * 0.38);
+    return {
+      cx: gx + size * 0.25,
+      cy: gy + size * 0.74,
+      size: markerSize
+    };
+  }
+
+  function drawPowerMarker(cx, cy, size, power, opts={}){
+    const egg = power === POWER.EGG;
+    const halo = egg ? "rgba(255, 216, 77, 0.28)" : "rgba(126, 71, 36, 0.3)";
+    ctx.save();
+    ctx.globalAlpha *= opts.aboveTiles ? 0.96 : 0.78;
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.52, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha *= opts.aboveTiles ? 1 : 0.92;
+    if(egg) drawEggGlyph(cx, cy, size);
+    else drawTurdGlyph(cx, cy + size * 0.02, size * 0.86);
+    ctx.restore();
+  }
+
+  function isVectorAnimalTile(tile){
+    return ANIMALS.includes(tile) || tile === TILE.WOLF || tile === TILE.BLACK_SHEEP;
+  }
+
+  function tokenScaleForState(state={}){
+    const activeLift = state.active ? 0.035 * Math.sin(performance.now() / 115) : 0;
+    if(state.ghost) return 0.92;
+    if(state.clearing) return 0.84;
+    return (state.active ? 1.04 : 1) + activeLift;
+  }
+
+  function tokenAlphaForState(state={}){
+    if(state.ghost) return 0.38;
+    if(state.clearing) return 0.74;
+    return 1;
+  }
+
+  function drawTokenShadow(cx, cy, s, state={}){
+    if(state.ghost) return;
+    ctx.save();
+    ctx.globalAlpha = state.active ? 0.26 : 0.16;
+    ctx.fillStyle = "#0c1308";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + s * 0.24, s * 0.3, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTokenBase(cx, cy, s, meta, state={}){
+    const fill = ctx.createRadialGradient(cx - s*0.16, cy - s*0.18, s*0.07, cx, cy, s*0.42);
+    fill.addColorStop(0, meta.accent);
+    fill.addColorStop(0.38, meta.base);
+    fill.addColorStop(1, meta.shade);
+
+    ctx.save();
+    ctx.globalAlpha *= state.ghost ? 0.72 : 1;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + s * 0.02, s * 0.31, s * 0.27, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if(!state.ghost){
+      ctx.globalAlpha *= 0.16;
+      ctx.fillStyle = "#fff8df";
+      ctx.beginPath();
+      ctx.ellipse(cx - s * 0.1, cy - s * 0.12, s * 0.13, s * 0.08, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawTokenEyes(cx, cy, s, opts={}){
+    const {
+      dx = s * 0.1,
+      y = -s * 0.05,
+      r = s * 0.028,
+      ink = "#1a110d",
+      scared = false
+    } = opts;
+    ctx.save();
+    ctx.fillStyle = scared ? "#fff8dc" : ink;
+    ctx.beginPath();
+    ctx.arc(cx - dx, cy + y, scared ? r * 1.65 : r, 0, Math.PI * 2);
+    ctx.arc(cx + dx, cy + y, scared ? r * 1.65 : r, 0, Math.PI * 2);
+    ctx.fill();
+    if(scared){
+      ctx.fillStyle = ink;
+      ctx.beginPath();
+      ctx.arc(cx - dx, cy + y, r * 0.62, 0, Math.PI * 2);
+      ctx.arc(cx + dx, cy + y, r * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawTokenModifierBadges(cx, cy, s, state={}){
+    if(!state.bonus && !state.muddy && !state.scared) return;
+    ctx.save();
+    if(state.bonus || state.muddy){
+      const marker = overlayMarkerGeometry(cx - s / 2, cy - s / 2, s);
+      drawPowerMarker(marker.cx, marker.cy, marker.size, state.bonus ? POWER.EGG : POWER.TURD, { aboveTiles:true });
+    }
+    if(state.scared){
+      ctx.fillStyle = "#f8f2d8";
+      ctx.font = `900 ${Math.floor(s * 0.18)}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("!", cx + s * 0.31, cy - s * 0.28);
+    }
+    ctx.restore();
+  }
+
+  function renderSheepToken(targetCtx, x, y, size, state={}){
+    const s = size;
+    const meta = VECTOR_TOKEN_META[state.blackSheep ? TILE.BLACK_SHEEP : TILE.SHEEP];
+    drawTokenBase(x, y + s * 0.03, s * 0.72, meta, state);
+    ctx.save();
+    const woolFill = state.blackSheep ? "#242b35" : "#fff6dc";
+    const woolShade = state.blackSheep ? "#171c24" : "#eadfc0";
+    const woolStroke = state.blackSheep ? "rgba(8, 10, 14, 0.42)" : "rgba(116, 93, 59, 0.22)";
+    const faceFill = state.blackSheep ? "#e5d9bb" : "#2b2724";
+    const eyeFill = state.blackSheep ? "#201b16" : "#fff9e8";
+    const puffs = [
+      [-0.26,-0.05,0.13], [-0.19,-0.21,0.14], [-0.03,-0.28,0.15],
+      [0.15,-0.24,0.14], [0.29,-0.08,0.13], [-0.28,0.12,0.13],
+      [-0.11,0.07,0.18], [0.08,0.05,0.18], [0.26,0.12,0.13],
+      [-0.12,0.25,0.12], [0.08,0.27,0.12]
+    ];
+    ctx.lineWidth = Math.max(1, s * 0.026);
+    puffs.forEach(([dx, dy, r], index)=>{
+      ctx.fillStyle = index % 3 === 0 ? woolShade : woolFill;
+      ctx.strokeStyle = woolStroke;
+      ctx.beginPath();
+      ctx.ellipse(x + s*dx, y + s*dy, s*r, s*r*0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.fillStyle = faceFill;
+    ctx.beginPath();
+    ctx.ellipse(x + s*0.17, y + s*0.03, s*0.12, s*0.15, -0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x - s*0.18, y + s*0.31, s*0.04, s*0.025, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s*0.09, y + s*0.32, s*0.04, s*0.025, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = eyeFill;
+    ctx.beginPath();
+    ctx.arc(x + s*0.2, y - s*0.01, s*0.018, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    void targetCtx;
+  }
+
+  function renderGoatToken(targetCtx, x, y, size, state={}){
+    const s = size;
+    const meta = VECTOR_TOKEN_META[TILE.GOAT];
+    drawTokenBase(x, y + s * 0.02, s * 0.78, meta, state);
+    ctx.save();
+    const outline = "rgba(80, 50, 27, 0.38)";
+    ctx.lineWidth = Math.max(1, s * 0.026);
+    ctx.fillStyle = "#f0dbc0";
+    ctx.strokeStyle = outline;
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.1, y - s*0.2);
+    ctx.lineTo(x - s*0.34, y - s*0.46);
+    ctx.lineTo(x - s*0.24, y - s*0.12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + s*0.1, y - s*0.2);
+    ctx.lineTo(x + s*0.34, y - s*0.46);
+    ctx.lineTo(x + s*0.24, y - s*0.12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = meta.base;
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.24, y - s*0.06);
+    ctx.lineTo(x - s*0.43, y + s*0.01);
+    ctx.lineTo(x - s*0.21, y + s*0.1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + s*0.24, y - s*0.06);
+    ctx.lineTo(x + s*0.43, y + s*0.01);
+    ctx.lineTo(x + s*0.21, y + s*0.1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = meta.base;
+    ctx.strokeStyle = outline;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s*0.28);
+    ctx.lineTo(x + s*0.24, y - s*0.11);
+    ctx.lineTo(x + s*0.18, y + s*0.17);
+    ctx.lineTo(x + s*0.04, y + s*0.31);
+    ctx.lineTo(x - s*0.17, y + s*0.19);
+    ctx.lineTo(x - s*0.23, y - s*0.11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#f1d2a5";
+    ctx.beginPath();
+    ctx.ellipse(x + s*0.02, y + s*0.13, s*0.13, s*0.09, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = meta.accent;
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.02, y + s*0.28);
+    ctx.lineTo(x + s*0.11, y + s*0.28);
+    ctx.lineTo(x + s*0.04, y + s*0.45);
+    ctx.closePath();
+    ctx.fill();
+    drawTokenEyes(x, y, s, { dx:s*0.1, y:-s*0.03, r:s*0.025, ink:meta.ink, scared: state.scared });
+    ctx.fillStyle = meta.ink;
+    ctx.beginPath();
+    ctx.ellipse(x + s*0.02, y + s*0.15, s*0.026, s*0.018, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    void targetCtx;
+  }
+
+  function renderChickenToken(targetCtx, x, y, size, state={}){
+    const s = size;
+    const meta = VECTOR_TOKEN_META[TILE.CHICKEN];
+    drawTokenBase(x, y, s, meta, state);
+    ctx.save();
+    ctx.fillStyle = meta.accent;
+    for(const [dx, dy, r] of [[-0.11, -0.32, 0.06], [0, -0.4, 0.075], [0.12, -0.32, 0.06]]){
+      ctx.beginPath();
+      ctx.arc(x + s*dx, y + s*dy, s*r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#f07a22";
+    ctx.beginPath();
+    ctx.moveTo(x + s*0.19, y - s*0.03);
+    ctx.lineTo(x + s*0.42, y + s*0.04);
+    ctx.lineTo(x + s*0.19, y + s*0.12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(111, 74, 25, 0.28)";
+    ctx.lineWidth = Math.max(1, s * 0.025);
+    ctx.stroke();
+    ctx.fillStyle = "#fff5bf";
+    ctx.beginPath();
+    ctx.ellipse(x - s*0.08, y + s*0.08, s*0.12, s*0.18, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    drawTokenEyes(x, y, s, { dx:s*0.075, y:-s*0.08, r:s*0.024, ink:meta.ink, scared: state.scared });
+    ctx.restore();
+    void targetCtx;
+  }
+
+  function renderCowToken(targetCtx, x, y, size, state={}){
+    const s = size;
+    const meta = VECTOR_TOKEN_META[TILE.COW];
+    drawTokenBase(x, y, s, meta, state);
+    ctx.save();
+    ctx.fillStyle = meta.shade;
+    ctx.beginPath();
+    ctx.ellipse(x - s*0.16, y - s*0.02, s*0.1, s*0.08, -0.35, 0, Math.PI * 2);
+    ctx.ellipse(x + s*0.18, y + s*0.08, s*0.12, s*0.09, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#e8d7aa";
+    ctx.lineWidth = Math.max(2, s*0.035);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.18, y - s*0.24);
+    ctx.lineTo(x - s*0.28, y - s*0.34);
+    ctx.moveTo(x + s*0.18, y - s*0.24);
+    ctx.lineTo(x + s*0.28, y - s*0.34);
+    ctx.stroke();
+    ctx.fillStyle = "#e8c9b4";
+    ctx.beginPath();
+    ctx.ellipse(x, y + s*0.13, s*0.17, s*0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    drawTokenEyes(x, y, s, { dx:s*0.1, y:-s*0.07, r:s*0.024, ink:meta.ink, scared: state.scared });
+    ctx.restore();
+    void targetCtx;
+  }
+
+  function renderPigToken(targetCtx, x, y, size, state={}){
+    const s = size;
+    const meta = VECTOR_TOKEN_META[TILE.PIG];
+    drawTokenBase(x, y, s, meta, state);
+    ctx.save();
+    ctx.fillStyle = meta.base;
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.28, y - s*0.18);
+    ctx.lineTo(x - s*0.4, y - s*0.28);
+    ctx.lineTo(x - s*0.34, y - s*0.04);
+    ctx.moveTo(x + s*0.28, y - s*0.18);
+    ctx.lineTo(x + s*0.4, y - s*0.28);
+    ctx.lineTo(x + s*0.34, y - s*0.04);
+    ctx.fill();
+    ctx.fillStyle = meta.accent;
+    ctx.beginPath();
+    ctx.ellipse(x, y + s*0.08, s*0.18, s*0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = meta.ink;
+    ctx.beginPath();
+    ctx.arc(x - s*0.055, y + s*0.08, s*0.018, 0, Math.PI * 2);
+    ctx.arc(x + s*0.055, y + s*0.08, s*0.018, 0, Math.PI * 2);
+    ctx.fill();
+    drawTokenEyes(x, y, s, { dx:s*0.1, y:-s*0.08, r:s*0.024, ink:meta.ink, scared: state.scared });
+    ctx.restore();
+    void targetCtx;
+  }
+
+  function renderWolfToken(targetCtx, x, y, size, state={}){
+    const s = size;
+    const meta = VECTOR_TOKEN_META[TILE.WOLF];
+    drawTokenBase(x, y, s, meta, state);
+    ctx.save();
+    ctx.fillStyle = meta.shade;
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.22, y - s*0.2);
+    ctx.lineTo(x - s*0.34, y - s*0.42);
+    ctx.lineTo(x - s*0.08, y - s*0.27);
+    ctx.moveTo(x + s*0.22, y - s*0.2);
+    ctx.lineTo(x + s*0.34, y - s*0.42);
+    ctx.lineTo(x + s*0.08, y - s*0.27);
+    ctx.fill();
+    ctx.fillStyle = meta.accent;
+    ctx.beginPath();
+    ctx.moveTo(x, y + s*0.03);
+    ctx.lineTo(x + s*0.16, y + s*0.11);
+    ctx.lineTo(x, y + s*0.18);
+    ctx.lineTo(x - s*0.16, y + s*0.11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#17100c";
+    ctx.lineWidth = Math.max(1.4, s*0.025);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.16, y - s*0.08);
+    ctx.lineTo(x - s*0.04, y - s*0.035);
+    ctx.moveTo(x + s*0.16, y - s*0.08);
+    ctx.lineTo(x + s*0.04, y - s*0.035);
+    ctx.moveTo(x - s*0.08, y + s*0.18);
+    ctx.quadraticCurveTo(x, y + s*0.25, x + s*0.12, y + s*0.18);
+    ctx.stroke();
+    ctx.restore();
+    void targetCtx;
+  }
+
+  const VECTOR_TOKEN_RENDERERS = {
+    [TILE.SHEEP]: renderSheepToken,
+    [TILE.GOAT]: renderGoatToken,
+    [TILE.CHICKEN]: renderChickenToken,
+    [TILE.COW]: renderCowToken,
+    [TILE.PIG]: renderPigToken,
+    [TILE.WOLF]: renderWolfToken,
+    [TILE.BLACK_SHEEP]: (targetCtx, x, y, size, state={}) => renderSheepToken(targetCtx, x, y, size, { ...state, blackSheep: true })
+  };
+
+  function drawVectorAnimalToken(tile, gx, gy, size, state={}){
+    const renderer = VECTOR_TOKEN_RENDERERS[tile];
+    if(!renderer) return false;
+    const cx = gx + size / 2;
+    const cy = gy + size / 2;
+    const scale = tokenScaleForState(state);
+    const alpha = tokenAlphaForState(state);
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.translate(-cx, -cy);
+    drawTokenShadow(cx, cy, size, state);
+    renderer(ctx, cx, cy, size * 0.92, state);
+    drawTokenModifierBadges(cx, cy, size, state);
+    ctx.restore();
+    return true;
+  }
+
+  function drawFarmCellState(gx, gy, state={}, opts={}){
+    const {
+      missionTile = false,
+      specialMeta = null
+    } = opts;
+    const inset = Math.max(2.5, cell * 0.07);
+    const x = gx + inset;
+    const y = gy + inset;
+    const w = cell - inset * 2;
+    const h = cell - inset * 2;
+    const r = Math.max(6, cell * 0.12);
+    const active = state.active || state.falling;
+    const ghost = !!state.ghost;
+    const clearing = !!state.clearing;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 125);
+
+    ctx.save();
+    if(!active && !ghost && !clearing){
+      ctx.restore();
+      return;
+    }
+
+    if(!ghost){
+      ctx.globalAlpha = active ? 0.14 : 0.08;
+      roundRectFill(x + cell*0.02, y + cell*0.05, w, h, r, "#0b1207");
+    }
+
+    let fill = "rgba(255, 246, 206, 0.045)";
+    let stroke = "rgba(239, 226, 171, 0.28)";
+    let lineWidth = Math.max(1, cell * 0.018);
+    let dashed = false;
+
+    if(ghost){
+      fill = "rgba(255, 235, 173, 0.065)";
+      stroke = "rgba(255, 231, 172, 0.74)";
+      lineWidth = Math.max(1.3, cell * 0.028);
+      dashed = true;
+    } else if(clearing){
+      fill = `rgba(255, 212, 117, ${0.12 + pulse * 0.1})`;
+      stroke = `rgba(255, 235, 173, ${0.56 + pulse * 0.26})`;
+      lineWidth = Math.max(1.6, cell * 0.034);
+    } else if(active){
+      fill = "rgba(255, 232, 153, 0.1)";
+      stroke = "rgba(255, 230, 157, 0.64)";
+      lineWidth = Math.max(1.5, cell * 0.032);
+    }
+
+    ctx.globalAlpha = 1;
+    roundRectFill(x, y, w, h, r, fill);
+    ctx.strokeStyle = missionTile && !ghost
+      ? "rgba(255, 214, 117, 0.78)"
+      : stroke;
+    ctx.lineWidth = missionTile && !ghost ? Math.max(lineWidth, cell * 0.034) : lineWidth;
+    if(dashed) ctx.setLineDash([Math.max(4, cell * 0.16), Math.max(3, cell * 0.1)]);
+    roundRectStroke(x, y, w, h, r);
+    if(dashed) ctx.setLineDash([]);
+
+    if(specialMeta){
+      const badge = Math.max(8, cell * 0.18);
+      ctx.globalAlpha = 0.88;
+      roundRectFill(gx + cell - badge - inset, gy + inset, badge, badge, Math.max(3, badge * 0.22), specialMeta.accent);
+      ctx.fillStyle = "#20140c";
+      ctx.font = `900 ${Math.floor(badge * 0.68)}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(specialMeta.badge, gx + cell - badge/2 - inset, gy + inset + badge/2 + 1);
+    }
+    ctx.restore();
+  }
+
+  function drawFarmBoardSurface(px){
+    const outer = Math.max(12, cell * 0.24);
+    const boardW = COLS * cell;
+    const boardH = ROWS * cell;
+    const frame = ctx.createLinearGradient(0, 0, 0, H);
+    frame.addColorStop(0, "#8a5a2e");
+    frame.addColorStop(0.45, "#5a371e");
+    frame.addColorStop(1, "#2f1e12");
+
+    roundRectFill(0, 0, W, H, 22, "#1f140c");
+    ctx.save();
+    ctx.globalAlpha = 0.94;
+    roundRectFill(px - outer, px - outer, boardW + outer * 2, boardH + outer * 2, 22, frame);
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = "#f6d49a";
+    ctx.lineWidth = Math.max(1, cell * 0.03);
+    for(let x=0; x<=COLS; x++){
+      const gx = px - outer * 0.5 + x * cell;
+      ctx.beginPath();
+      ctx.moveTo(gx, px - outer * 0.7);
+      ctx.lineTo(gx, px + boardH + outer * 0.7);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.36;
+    ctx.lineWidth = Math.max(2, cell * 0.055);
+    roundRectStroke(px - outer + 2, px - outer + 2, boardW + outer * 2 - 4, boardH + outer * 2 - 4, 20);
+    ctx.restore();
+
+    ctx.save();
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const gx = px + x*cell;
+        const gy = px + y*cell;
+        const cellGrad = ctx.createLinearGradient(gx, gy, gx, gy + cell);
+        const checker = (x + y) % 2;
+        cellGrad.addColorStop(0, checker ? "#6f8a49" : "#789553");
+        cellGrad.addColorStop(0.62, checker ? "#536d38" : "#5f7a42");
+        cellGrad.addColorStop(1, checker ? "#435b31" : "#4c6537");
+        roundRectFill(gx+2, gy+2, cell-4, cell-4, Math.max(8, cell * 0.14), cellGrad);
+        ctx.globalAlpha = 0.16;
+        ctx.strokeStyle = "#d9e3a6";
+        ctx.lineWidth = Math.max(1, cell * 0.018);
+        for(let blade=0; blade<3; blade++){
+          const bx = gx + cell * (0.25 + blade * 0.18);
+          const by = gy + cell * (0.35 + ((x*7 + y*5 + blade*3) % 5) * 0.08);
+          ctx.beginPath();
+          ctx.moveTo(bx, by + cell*0.08);
+          ctx.quadraticCurveTo(bx + cell*0.03, by, bx + cell*0.08, by - cell*0.07);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 0.54;
+        ctx.strokeStyle = "rgba(239, 226, 171, 0.22)";
+        ctx.lineWidth = Math.max(1, cell * 0.022);
+        roundRectStroke(gx+2, gy+2, cell-4, cell-4, Math.max(8, cell * 0.14));
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = "rgba(245, 225, 177, 0.7)";
+    ctx.lineWidth = Math.max(2, cell * 0.04);
+    for(let y=1; y<ROWS; y+=3){
+      const gy = px + y * cell;
+      ctx.beginPath();
+      ctx.moveTo(px + cell * 0.08, gy);
+      ctx.lineTo(px + boardW - cell * 0.08, gy);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawFarmTile(x,y,t,px,withEmoji,state={}){
+    const gx = px + x*cell;
+    const gy = px + y*cell;
+    const specialMeta = SPECIAL_TILE_META[t];
+    const missionTile = MISSION_TILES.has(t);
+    const base = TILE_COLOR[t] || "#ddd";
+    const r = Math.max(9, cell * 0.2);
+
+    if(withEmoji && VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(t)){
+      drawFarmCellState(gx, gy, state, { missionTile, specialMeta });
+      drawVectorAnimalToken(t, gx, gy, cell, state);
+      return;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 0.32;
+    roundRectFill(gx + cell*0.12, gy + cell*0.16, cell*0.78, cell*0.74, r, "#140b07");
+    ctx.globalAlpha = 1;
+
+    const face = ctx.createLinearGradient(gx, gy, gx, gy + cell);
+    face.addColorStop(0, "#fff3d5");
+    face.addColorStop(0.18, base);
+    face.addColorStop(1, "#6f4931");
+    roundRectFill(gx+3, gy+2, cell-6, cell-7, r, face);
+
+    ctx.globalAlpha = 0.18;
+    roundRectFill(gx+7, gy+7, cell-14, cell-16, Math.max(7, r-3), "#fff8df");
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = missionTile ? "rgba(255, 209, 102, 0.98)" : "rgba(48, 26, 16, 0.58)";
+    ctx.lineWidth = Math.max(1.5, cell * (missionTile ? 0.07 : 0.045));
+    roundRectStroke(gx+3, gy+2, cell-6, cell-7, r);
+
+    if(specialMeta){
+      ctx.globalAlpha = 0.18;
+      roundRectFill(gx+6, gy+5, cell-12, cell-13, Math.max(7, r-4), specialMeta.accent);
+      ctx.globalAlpha = 0.98;
+      const badge = Math.max(8, cell * 0.2);
+      roundRectFill(gx + cell - badge - cell*0.08, gy + cell*0.08, badge, badge, Math.max(3, badge*0.22), specialMeta.accent);
+      ctx.fillStyle = "#1b120d";
+      ctx.font = `900 ${Math.floor(cell*0.2)}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(specialMeta.badge, gx + cell - badge/2 - cell*0.08, gy + cell*0.08 + badge/2 + 1);
+    }
+
+    if(withEmoji && t === TILE.CASHOUT){
+      drawCashoutCoin(gx, gy);
+      ctx.restore();
+      return;
+    }
+
+    if(withEmoji && t === TILE.SEEDER_TURD){
+      drawTurdGlyph(gx + cell/2, gy + cell/2 + 1, cell * 0.5);
+      ctx.restore();
+      return;
+    }
+
+    if(withEmoji){
+      ctx.font = `${Math.floor(cell*0.58)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji"`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = "#1a0e08";
+      ctx.fillText(TILE_LABEL[t] || "?", gx + cell/2 + 1, gy + cell/2 + 2);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
+      ctx.fillText(TILE_LABEL[t] || "?", gx + cell/2, gy + cell/2);
+    }
+    ctx.restore();
+  }
+
+  function drawV2FarmOverlay(px, aboveTiles=false){
+    ctx.save();
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const p = overlay[y][x];
+        if(p === POWER.NONE) continue;
+        const hasTile = board[y][x] !== TILE.EMPTY;
+        if(aboveTiles !== hasTile) continue;
+
+        const gx = px + x*cell;
+        const gy = px + y*cell;
+        const marker = overlayMarkerGeometry(gx, gy, cell);
+        drawPowerMarker(marker.cx, marker.cy, marker.size, p, { aboveTiles });
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawHerdCellGroup(px, group, opts={}){
+    const {
+      fill = "rgba(255, 209, 102, 0.10)",
+      stroke = "rgba(255, 209, 102, 0.72)",
+      lineWidth = Math.max(2, cell * 0.045),
+      label = ""
+    } = opts;
+    if(!group?.cells?.length) return;
+
+    ctx.save();
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    let sx = 0;
+    let sy = 0;
+    for(const [x, y] of group.cells){
+      const gx = px + x*cell;
+      const gy = px + y*cell;
+      sx += gx + cell/2;
+      sy += gy + cell/2;
+      roundRectFill(gx + cell*0.09, gy + cell*0.09, cell*0.82, cell*0.82, Math.max(6, cell*0.13), fill);
+      roundRectStroke(gx + cell*0.09, gy + cell*0.09, cell*0.82, cell*0.82, Math.max(6, cell*0.13));
+    }
+    if(label){
+      const cx = sx / group.cells.length;
+      const cy = sy / group.cells.length;
+      ctx.globalAlpha = 0.96;
+      roundRectFill(cx - cell*0.62, cy - cell*0.22, cell*1.24, cell*0.44, cell*0.2, "rgba(35, 20, 11, 0.82)");
+      ctx.fillStyle = "#ffe39a";
+      ctx.font = `900 ${Math.floor(cell*0.18)}px system-ui, -apple-system, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, cx, cy + 1);
+    }
+    ctx.restore();
+  }
+
+  function drawV2HerdHints(px, groups=null){
+    if(!REFRESH_V2_ENABLED) return;
+    const { near, landing } = groups || v2HerdPreviewGroups();
+    near.forEach((group) => {
+      const left = ACTIVE_CLEAR_THRESHOLD - group.cells.length;
+      drawHerdCellGroup(px, group, {
+        fill: "rgba(255, 255, 255, 0.035)",
+        stroke: "rgba(255, 240, 185, 0.42)",
+        lineWidth: Math.max(1.2, cell * 0.022),
+        label: left <= 2 ? `${left} more` : ""
+      });
+    });
+    landing.forEach((group) => {
+      drawHerdCellGroup(px, group, {
+        fill: "rgba(255, 209, 102, 0.1)",
+        stroke: "rgba(255, 226, 139, 0.74)",
+        lineWidth: Math.max(1.7, cell * 0.034),
+        label: `${group.cells.length} herd`
+      });
+    });
+  }
+
   function drawFloatingTile(gx, gy, tile, opts={}){
     const {
       alpha = 1,
-      scale = 1
+      scale = 1,
+      state = {}
     } = opts;
     const specialMeta = SPECIAL_TILE_META[tile];
     const missionTile = MISSION_TILES.has(tile);
+
+    if(FARM_BOARD_RENDERER_ENABLED && VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(tile)){
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(gx + cell/2, gy + cell/2);
+      ctx.scale(scale, scale);
+      ctx.translate(-(gx + cell/2), -(gy + cell/2));
+      drawFarmCellState(gx, gy, state);
+      drawVectorAnimalToken(tile, gx, gy, cell, state);
+      ctx.restore();
+      return;
+    }
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -4696,7 +6523,7 @@
         const scale = 1 - t * 0.72;
         const alpha = 0.85 - t * 0.85;
         const gy = px + fx.y * cell - t * cell * 0.08;
-        drawFloatingTile(px + fx.x * cell, gy, fx.tile, { alpha, scale });
+        drawFloatingTile(px + fx.x * cell, gy, fx.tile, { alpha, scale, state:{ clearing:true } });
         continue;
       }
       if(fx.type === "preview"){
@@ -4748,13 +6575,17 @@
         ctx.stroke();
         ctx.restore();
 
-        drawFloatingTile(gx, gy, fx.tile, { alpha: 0.28 + (1 - t) * 0.26, scale: 0.96 });
+        drawFloatingTile(gx, gy, fx.tile, { alpha: 0.28 + (1 - t) * 0.26, scale: 0.96, state:{ active:true } });
       }
     }
     ctx.restore();
   }
 
   function drawOverlay(px, aboveTiles=false){
+    if(FARM_BOARD_RENDERER_ENABLED){
+      drawV2FarmOverlay(px, aboveTiles);
+      return;
+    }
     ctx.save();
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
@@ -4810,7 +6641,11 @@
     ctx.restore();
   }
 
-  function drawTile(x,y,t,px,withEmoji){
+  function drawTile(x,y,t,px,withEmoji,state={}){
+    if(FARM_BOARD_RENDERER_ENABLED){
+      drawFarmTile(x, y, t, px, withEmoji, state);
+      return;
+    }
     const gx = px + x*cell;
     const gy = px + y*cell;
     const specialMeta = SPECIAL_TILE_META[t];
@@ -4901,9 +6736,35 @@
         const x = piece.x + c + dx;
         const y = piece.y + r + dy;
         if(y < 0) continue;
-        drawTile(x,y,v,px,true);
+        drawTile(x,y,v,px,true, { active: dx === 0 && dy === 0, falling: true });
       }
     }
+  }
+
+  function drawV2DropLane(piece, px){
+    if(!FARM_BOARD_RENDERER_ENABLED || !piece) return;
+    const ghostY = getGhostY(piece);
+    if(ghostY <= piece.y) return;
+    ctx.save();
+    const seen = new Set();
+    for(const [x, y, tile] of pieceCellsAt(piece, piece.y)){
+      if(!tile) continue;
+      const top = Math.max(0, y + 1);
+      const bottom = ghostY + (y - piece.y);
+      if(bottom <= top) continue;
+      const key = `${x}:${top}:${bottom}`;
+      if(seen.has(key)) continue;
+      seen.add(key);
+      const gx = px + x*cell + cell*0.34;
+      const gy = px + top*cell + cell*0.08;
+      const h = (bottom - top + 1)*cell - cell*0.16;
+      const lane = ctx.createLinearGradient(0, gy, 0, gy + h);
+      lane.addColorStop(0, "rgba(255, 231, 164, 0.04)");
+      lane.addColorStop(1, "rgba(255, 209, 102, 0.16)");
+      ctx.globalAlpha = 1;
+      roundRectFill(gx, gy, cell*0.32, h, cell*0.16, lane);
+    }
+    ctx.restore();
   }
 
   function drawShadow(piece, dx, dy, px){
@@ -4920,12 +6781,31 @@
         const gx = px + x*cell;
         const gy = px + y*cell;
 
-        ctx.globalAlpha = 0.12;
-        roundRectFill(gx+3, gy+3, cell-6, cell-6, 10, "#000");
-        ctx.globalAlpha = 0.22;
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = Math.max(1, Math.floor(cell*0.055));
-        roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
+        if(FARM_BOARD_RENDERER_ENABLED){
+          ctx.globalAlpha = 1;
+          drawFarmCellState(gx, gy, { ghost:true });
+          if(VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(v)){
+            drawVectorAnimalToken(v, gx, gy, cell, { ghost:true });
+          }
+          if(!(VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(v))){
+            ctx.globalAlpha = 0.16;
+            roundRectFill(gx+4, gy+5, cell-8, cell-10, Math.max(9, cell*0.2), "#120905");
+            ctx.globalAlpha = 0.68;
+            ctx.strokeStyle = "rgba(255, 223, 139, 0.74)";
+            ctx.lineWidth = Math.max(1.5, Math.floor(cell*0.04));
+            ctx.setLineDash([Math.max(4, cell * 0.16), Math.max(3, cell * 0.1)]);
+            roundRectStroke(gx+5, gy+4, cell-10, cell-10, Math.max(9, cell*0.2));
+            ctx.setLineDash([]);
+          }
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.globalAlpha = 0.12;
+          roundRectFill(gx+3, gy+3, cell-6, cell-6, 10, "#000");
+          ctx.globalAlpha = 0.22;
+          ctx.strokeStyle = "rgba(255,255,255,0.55)";
+          ctx.lineWidth = Math.max(1, Math.floor(cell*0.055));
+          roundRectStroke(gx+3, gy+3, cell-6, cell-6, 10);
+        }
       }
     }
     ctx.restore();
@@ -5443,28 +7323,36 @@
 
   function draw(){
     ctx.clearRect(0,0,W,H);
-    roundRectFill(0,0,W,H,18, "#050507");
-
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const px = pad*dpr;
+    const herdHintGroups = REFRESH_V2_ENABLED ? v2HerdPreviewGroups() : null;
+    const herdHintLookup = REFRESH_V2_ENABLED ? v2HerdHintLookup(herdHintGroups) : null;
 
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
-        const gx = px + x*cell;
-        const gy = px + y*cell;
-        ctx.globalAlpha = 0.2;
-        ctx.fillStyle = "#f5f7fb";
-        ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
-        ctx.globalAlpha = 1;
+    if(FARM_BOARD_RENDERER_ENABLED){
+      drawFarmBoardSurface(px);
+    } else {
+      roundRectFill(0,0,W,H,18, "#050507");
+
+      for(let y=0;y<ROWS;y++){
+        for(let x=0;x<COLS;x++){
+          const gx = px + x*cell;
+          const gy = px + y*cell;
+          ctx.globalAlpha = 0.2;
+          ctx.fillStyle = "#f5f7fb";
+          ctx.fillRect(gx+2, gy+2, cell-4, cell-4);
+          ctx.globalAlpha = 1;
+        }
       }
     }
+
+    drawV2HerdHints(px, herdHintGroups);
 
     drawOverlay(px, false);
 
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         const t = board[y][x];
-        if(t !== TILE.EMPTY) drawTile(x,y,t,px,true);
+        if(t !== TILE.EMPTY) drawTile(x,y,t,px,true, v2TileState(x, y, herdHintLookup));
       }
     }
 
@@ -5476,6 +7364,7 @@
 
     if(current && !paused){
       const gy = getGhostY(current);
+      drawV2DropLane(current, px);
       drawShadow(current, 0, gy-current.y, px);
     }
     if(current) drawPiece(current,0,0,px);
@@ -5654,6 +7543,7 @@
     gesture = null;
   });
   window.addEventListener("pointerdown", unlockAudioSilently, {passive:true});
+  window.addEventListener("pointerup", safeResumeAudioFromGesture, {passive:true});
   window.addEventListener("touchstart", unlockAudioSilently, {passive:true});
   window.addEventListener("click", unlockAudioSilently, {passive:true});
   document.addEventListener("visibilitychange", () => {
@@ -5665,6 +7555,10 @@
   if(USE_IOS_AUDIO_RESUME_FIXES){
     window.addEventListener("pageshow", nudgeAudioWake, {passive:true});
     window.addEventListener("focus", nudgeAudioWake, {passive:true});
+    window.addEventListener("pagehide", () => {
+      audioPrimeOnResume = false;
+      pendingAudioResume = null;
+    }, {passive:true});
   }
 
   // ===== Keyboard (non-touch) =====
@@ -5707,13 +7601,49 @@
     mo.observe(document.documentElement, {subtree:true, childList:true, characterData:true});
   }
 
+  function applyRefreshV2Shell(){
+    document.documentElement.classList.toggle("refreshV2", REFRESH_V2_ENABLED);
+    document.body.classList.toggle("refreshV2", REFRESH_V2_ENABLED);
+    if(!REFRESH_V2_ENABLED) return;
+    const subtitle = document.querySelector(".title .sub");
+    if(subtitle) subtitle.textContent = `Build ${ACTIVE_CLEAR_THRESHOLD}+ herds. Gravity makes chains.`;
+  }
+
   // ===== Tighten the on-page help line without touching the rest of the app =====
   function patchHelpLine(){
     const helpPrimary = document.querySelector("#help > div:first-child");
-    if(!helpPrimary) return;
-    helpPrimary.innerHTML = USE_NEW_TOUCH_CONTROLS
-      ? "<b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · tap Next = swap"
-      : "<b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · double tap or hold = swap";
+    if(helpPrimary){
+      helpPrimary.innerHTML = USE_NEW_TOUCH_CONTROLS
+        ? "<b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · tap Next = swap"
+        : "<b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · double tap or hold = swap";
+    }
+    if(REFRESH_V2_ENABLED){
+      const helpFoldByTitle = (title) => Array.from(document.querySelectorAll(".helpFold"))
+        .find((fold) => fold.querySelector("summary")?.textContent?.trim() === title);
+      const coreFold = helpFoldByTitle("Core Loop")?.querySelector(".helpFoldBody");
+      if(coreFold){
+        coreFold.innerHTML = `
+          <div class="helpMiniDiagram" aria-hidden="true">
+            <span>🐑</span><span>🐑</span><span>🐑</span><span>+</span><span>⬇</span><span>=</span><span>🪙</span>
+          </div>
+          <p class="helpText">Make <b>${ACTIVE_CLEAR_THRESHOLD}+</b> matching animals touch. That clears a herd for coins.</p>
+          <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
+          <p class="helpText">🥚 boosts a herd. 💩 muddies the payout. The barn is not subtle.</p>
+        `;
+      }
+      const missionFold = helpFoldByTitle("Missions")?.querySelector(".helpFoldBody");
+      if(missionFold){
+        missionFold.innerHTML = `
+          <p class="helpText">The strip above the board shows one tiny job. Finish it, then cash the reward herd.</p>
+          <p class="helpText">Early missions stay simple. Wolf nonsense arrives later, because manners.</p>
+          <p class="helpText">Special pieces, when a mission has them, always appear in the real <b>Next</b> tray.</p>
+        `;
+      }
+      const scoringFold = helpFoldByTitle("Scoring And Multipliers")?.querySelector(".helpFoldBody .helpText");
+      if(scoringFold){
+        scoringFold.innerHTML = `Herds of <b>${ACTIVE_CLEAR_THRESHOLD}+</b> earn size bonuses: +2, +3, +5, +8, +13, and so on.`;
+      }
+    }
   }
 
   function syncSwapHints(){
@@ -5732,6 +7662,9 @@
   // ===== Settings toggle (simple) =====
   function syncSoundBtn(){
     if(soundToggle) soundToggle.textContent = soundOn ? "ON" : "OFF";
+    if(goofyToggle) goofyToggle.textContent = goofyAnimalSounds ? "ON" : "OFF";
+    if(sfxVolumeInput) sfxVolumeInput.value = String(Math.round(sfxVolume * 100));
+    if(sfxVolumeValueEl) sfxVolumeValueEl.textContent = `${Math.round(sfxVolume * 100)}%`;
   }
   if(gear){
     gear.addEventListener("click", openSettings);
@@ -5750,7 +7683,7 @@
   }
   if(wolfHowlButton){
     wolfHowlButton.addEventListener("click", () => {
-      playWolfHowl("tap");
+      playWolfHowl({ style:"tap", intensity:0.9, source:"badge", fromGesture:true, animateBadge:true });
     });
   }
   if(closeModal){
@@ -5863,15 +7796,19 @@
     nextCardEl.addEventListener("click", holdCurrent);
   }
   if(soundToggle){
+    let lastSoundToggleTap = 0;
     const onTap = (e) => {
       e.preventDefault();
+      const now = performance.now();
+      if(now - lastSoundToggleTap < 380) return;
+      lastSoundToggleTap = now;
       soundOn = !soundOn;
       saveSoundPref();
       syncMasterGain();
       if(soundOn){
         unlockAudioSilently();
         setTimeout(() => {
-          playRotateTick();
+          playGameEventSound("ui_button_tap") || playRotateTick();
           playMoveTick();
         }, 90);
       }
@@ -5880,6 +7817,36 @@
     };
     soundToggle.addEventListener("click", onTap, {passive:false});
     soundToggle.addEventListener("touchend", onTap, {passive:false});
+  }
+  if(sfxVolumeInput){
+    sfxVolumeInput.addEventListener("input", () => {
+      sfxVolume = clamp(Number(sfxVolumeInput.value) / 100, 0, 1);
+      saveSfxVolumePref();
+      syncMasterGain();
+      if(audioDirector?.syncVolumes) audioDirector.syncVolumes();
+      syncSoundBtn();
+    });
+    sfxVolumeInput.addEventListener("change", () => {
+      safeResumeAudioFromGesture();
+      playGameEventSound("ui_button_tap");
+    });
+  }
+  if(goofyToggle){
+    let lastGoofyToggleTap = 0;
+    const onTap = (e) => {
+      e.preventDefault();
+      const now = performance.now();
+      if(now - lastGoofyToggleTap < 380) return;
+      lastGoofyToggleTap = now;
+      goofyAnimalSounds = !goofyAnimalSounds;
+      saveGoofyAnimalPref();
+      safeResumeAudioFromGesture();
+      syncSoundBtn();
+      if(goofyAnimalSounds) animalVoice(TILE.PIG, "toggle", 0.8);
+      else playGameEventSound("ui_button_tap");
+    };
+    goofyToggle.addEventListener("click", onTap, {passive:false});
+    goofyToggle.addEventListener("touchend", onTap, {passive:false});
   }
 
   // ===== Game loop =====
@@ -5975,13 +7942,19 @@
     spawnNext();
     rememberShareSnapshot();
     updateHUD();
-    openMissionBriefing();
+    if(V2_ONBOARDING_ENABLED){
+      showToast(`Build ${ACTIVE_CLEAR_THRESHOLD}+ connected animals. Gravity handles chains.`, 2600);
+      playGameEventSound("mission_start");
+    } else {
+      openMissionBriefing();
+    }
     draw();
   }
 
   // ===== Init =====
   function init(){
     injectViewportCSS();
+    applyRefreshV2Shell();
     patchHelpLine();
     syncSwapHints();
     installToastObserver();
@@ -6016,7 +7989,12 @@
     syncSoundBtn();
     updateGameOverStats();
     refreshLeaderboard({ force: true });
-    openMissionBriefing();
+    if(V2_ONBOARDING_ENABLED){
+      showToast(`Build ${ACTIVE_CLEAR_THRESHOLD}+ connected animals.`, 2400);
+      playGameEventSound("mission_start");
+    } else {
+      openMissionBriefing();
+    }
 
     fitCanvasToViewport();
     const ro = new ResizeObserver(() => fitCanvasToViewport());
