@@ -113,7 +113,7 @@
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings (v0.34-v2)</h2>
+      <h2>Settings (v0.35-v2)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -135,9 +135,20 @@
           </div>
         </div>
         <label class="rangeControl">
-          <span id="sfxVolumeValue" class="rangeValue">80%</span>
-          <input id="sfxVolume" type="range" min="0" max="100" value="82" />
+          <span id="sfxVolumeValue" class="rangeValue">65%</span>
+          <input id="sfxVolume" type="range" min="0" max="100" value="65" />
         </label>
+      </div>
+
+      <div class="row">
+        <div class="rowLeft">
+          <div class="icon">🔔</div>
+          <div>
+            <div class="rowTitle">Test Sound</div>
+            <div class="rowSub">Tap once if Safari needs a wake-up</div>
+          </div>
+        </div>
+        <button id="testSoundButton" class="toggleBtn">Test</button>
       </div>
 
       <div class="row">
@@ -297,10 +308,9 @@
         <details class="helpFold">
           <summary>Scoring And Multipliers</summary>
           <div class="helpFoldBody">
-            <p class="helpText">Herds earn size bonuses: +2, +3, +5, +8, +13, and so on. Once that herd bonus reaches <b>+55</b>, it slows into +10, +15, +20 steps.</p>
-            <p class="helpText">Chain clears add a separate combo payout that starts at <b>+5</b> for x2 and keeps climbing from there.</p>
-            <p class="helpText">🥚 doubles that herd once per egg. 2 eggs = x4. 3 eggs = x8.</p>
-            <p class="helpText">💩 halves that herd once per turd. 2 turds = ÷4. Eggs and turds stack together.</p>
+            <p class="helpText">Each animal in a cleared herd earns coins. Bigger herds add a modest size bonus.</p>
+            <p class="helpText">🥚 adds a capped bonus. 💩 trims the payout. No egg jackpots from outer space.</p>
+            <p class="helpText">Chains add a separate bounded combo bonus. Angry Wolves is the rare big payout.</p>
           </div>
         </details>
 
@@ -324,6 +334,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=0.34-v2"></script>
+  <script src="game.js?v=0.35-v2-score-stable"></script>
 </body>
 </html>

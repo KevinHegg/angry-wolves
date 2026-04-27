@@ -1,5 +1,360 @@
 # Rollback Plan
 
+This file covers the current mission-special pass and the planned V2 barnyard-core refresh work.
+
+## V2 Barnyard-Core Planning Branch
+
+- Branch: `refresh/v2-barnyard-core`
+- Baseline SHA: `969747d137b0640c22d39ce9291a3f084010328a`
+- Baseline file: [REFRESH_V2_BASELINE.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_BASELINE.md)
+- Planning file: [REFRESH_V2_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_PLAN.md)
+
+This setup step does not change gameplay. It creates a safe planning branch and records the baseline before any V2 implementation.
+
+### V2 Stability + Tuning Pass
+
+Files changed for the scoring, ghost, and audio reliability pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+- [refresh-assets/stability-tuning-pass/](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/stability-tuning-pass/)
+
+What this pass changes:
+
+- V2 scoring moves from egg/turd exponentials to bounded linear modifiers.
+- V2 score submissions are tagged with `GAME_MODE = "v2-prototype"` and `GAME_VERSION = "v0.35-v2-score-stable"` so prototype scores do not mix with the standard public board.
+- The V2 ghost landing footprint and drop lane are quieter via named ghost/drop-lane constants near the top of [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- Audio settings now default SFX volume to `DEFAULT_SFX_VOLUME = 0.65` instead of accidentally reading missing storage as `0`.
+- Settings now includes a small `Test Sound` button.
+- Debug helpers: `?debugScore=1`, `?audioDebug=1`, and `?audioReset=1`.
+
+To revert only V2 scoring:
+
+- Restore `GAME_MODE`, `GAME_VERSION`, `chainBonusForDepth`, `herdSizeBonus`, and the herd scoring block in `resolveBoard` from the prior version of [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- Remove the V2 scoring constants: `V2_HERD_SCORE_PER_TILE`, `V2_HERD_SCORE_EXTRA_PER_TILE`, `V2_EGG_MULTIPLIER_PER_EGG`, `V2_EGG_MULTIPLIER_CAP_EGGS`, `V2_TURD_PENALTY_PER_TURD`, `V2_TURD_PENALTY_CAP_TURDS`, `V2_TURD_MIN_MULTIPLIER`, `V2_CHAIN_BONUS_BASE`, `V2_CHAIN_BONUS_STEP`, and `V2_CHAIN_BONUS_CAP`.
+- Or temporarily open/play with `?v1=1` to bypass the V2 scoring path entirely.
+
+To revert only ghost/drop-lane tuning:
+
+- Restore the prior values for `tokenAlphaForState`, ghost handling in `drawTokenBase`, ghost handling in `drawFarmCellState`, and `drawV2DropLane`.
+- Or tune only the constants `V2_GHOST_TOKEN_ALPHA`, `V2_GHOST_TOKEN_BASE_ALPHA`, `V2_GHOST_CELL_FILL`, `V2_GHOST_CELL_STROKE`, `V2_GHOST_CELL_LINE_WIDTH`, `V2_DROP_LANE_TOP_ALPHA`, and `V2_DROP_LANE_BOTTOM_ALPHA`.
+
+To revert only audio settings/debug changes:
+
+- Remove the `Test Sound` row from [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html).
+- Remove `testSoundButton`, `AUDIO_DEBUG`, `AUDIO_RESET`, `DEFAULT_SFX_VOLUME`, `resetAudioPrefsIfRequested`, `audioDebugLog`, `ensureAudibleSfxDefaultIfMissing`, `playAudioTestCueFromGesture`, and the related event listener changes from [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- Restore `loadSfxVolumePref` to the previous behavior only if the missing-storage `0%` default is intentionally desired.
+
+### Setup Verification On 2026-04-26
+
+- Verified current branch: `refresh/v2-barnyard-core`.
+- Verified current `HEAD`: `969747d137b0640c22d39ce9291a3f084010328a`.
+- Verified source materials are present: `REFRESH_BRIEF.pdf`, `REFRESH_BRIEF_IMAGE2.pdf`, refresh screenshots, and V2 concept/reference images in `refresh-assets/`.
+- This verification step updates documentation only and does not add gameplay edits.
+- Note: the working tree now includes later uncommitted V2 prototype changes from follow-up exploration. The rollback baseline remains the SHA above.
+
+### Planned V2 Safety Switches
+
+These flags live near the existing top-of-file switches in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js):
+
+- `REFRESH_V2_ENABLED`
+- `SIMPLE_HERD_GRAVITY_ENABLED`
+- `FARM_BOARD_RENDERER_ENABLED`
+- `VECTOR_ANIMAL_TOKENS_ENABLED`
+- `HUMOR_AUDIO_ENABLED`
+- `V2_ONBOARDING_ENABLED`
+
+Expected rollback behavior:
+
+- Open the current branch with `?v1=1` or `?v2=0` to force the current v0.27 path without editing code.
+- Set `REFRESH_V2_DEFAULT_ENABLED = false` in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js) to make the current v0.27 path the default again.
+- Set `REFRESH_V2_ENABLED = false` to keep the current v0.27 game path reachable if the default/query helper is removed later.
+- Keep V2 subflags dependent on `REFRESH_V2_ENABLED` so partial experiments do not leak into normal play.
+- Do not delete the current resolver, renderer, mission, or audio paths until their V2 replacements have passed mobile and desktop testing.
+- If a deployed branch needs both versions available, prefer a temporary query/local override for V2 testing while defaulting to the current game.
+
+### V2 Prototype Pass 1
+
+Files changed for the first playable V2 prototype:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+- [refresh-assets/11-v2-prototype-main.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/11-v2-prototype-main.png)
+- [refresh-assets/12-legacy-v1-reference.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/12-legacy-v1-reference.png)
+
+Verification note on 2026-04-26:
+
+- The first playable V2 prototype is already present in the current working tree.
+- `node --check game.js` and `git diff --check` pass.
+- The current working tree also includes later V2 visual, audio, onboarding, and review-prep changes layered on top of the first prototype. Use the feature flags below to isolate each subsystem for review.
+
+What the V2 flags currently gate:
+
+- `REFRESH_V2_ENABLED`: master V2 mode, currently defaulted on for this feature branch.
+- `SIMPLE_HERD_GRAVITY_ENABLED`: disables perimeter conversion and uses clean vanish -> straight gravity -> recheck chains.
+- `FARM_BOARD_RENDERER_ENABLED`: enables the larger warm board, physical token rendering, stronger ghost/drop-lane clarity, and secondary egg/turd treatment.
+- `VECTOR_ANIMAL_TOKENS_ENABLED`: enables the V2 canvas vector animal token set; currently on when V2 is on.
+- `HUMOR_AUDIO_ENABLED`: enables the V2 `AudioDirector`, procedural animal voices, event SFX grammar, and wolf/mission cues.
+- `V2_ONBOARDING_ENABLED`: skips the heavy mission briefing and starts with a small toast plus thin mission strip.
+
+To revert only the simple herd resolver:
+
+- Set `SIMPLE_HERD_GRAVITY_ENABLED = false`.
+- This restores the perimeter-conversion chain path while leaving the V2 layout visible.
+
+To revert only the larger board / farm rendering:
+
+- Set `FARM_BOARD_RENDERER_ENABLED = false`.
+- This restores the dark/glassy canvas renderer while leaving V2 mission/threshold behavior available.
+
+To revert only the vector animal token art:
+
+- Set `VECTOR_ANIMAL_TOKENS_ENABLED = false`, or open with `?vectorAnimals=0`.
+- This keeps the warm farm board while restoring emoji/glyph tile contents for animal pieces.
+
+To revert only the V2 onboarding behavior:
+
+- Set `V2_ONBOARDING_ENABLED = false`.
+- This brings back the mission briefing before play.
+
+To revert the V2 board dimensions and threshold:
+
+- Set `REFRESH_V2_DEFAULT_ENABLED = false`, or open with `?v1=1`.
+- If keeping V2 enabled but tuning only, adjust `V2_COLS`, `V2_ROWS`, and `V2_CLEAR_THRESHOLD` near the top of [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- For quick threshold testing without editing code, open with `?herdThreshold=8`, `?herdThreshold=9`, or `?herdThreshold=10`.
+
+### V2 Visual Language Pass
+
+Files changed for the barnyard tabletop visual pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css)
+- [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+- [refresh-assets/13-v2-vector-tokens-main.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/13-v2-vector-tokens-main.png)
+- [refresh-assets/14-v2-emoji-fallback.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/14-v2-emoji-fallback.png)
+- [refresh-assets/15-v2-legacy-renderer-fallback.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/15-v2-legacy-renderer-fallback.png)
+- [refresh-assets/16-v2-inapp-renderer-check.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/16-v2-inapp-renderer-check.png)
+
+Verification note on 2026-04-26:
+
+- The V2 visual language pass is already present in the current working tree.
+- Rendering strategy is canvas vector tokens, not SVG symbols, so the existing board canvas remains the single rendering surface.
+- `FARM_BOARD_RENDERER_ENABLED` and `VECTOR_ANIMAL_TOKENS_ENABLED` both default on when V2 is enabled.
+- `node --check game.js` and `git diff --check` pass with this visual path present.
+
+What this pass adds:
+
+- `FARM_BOARD_RENDERER_ENABLED` now draws a warm top-down pasture board with wood framing, muted grass cells, subtle texture, drop-lane clarity, and secondary egg/turd treatment.
+- `VECTOR_ANIMAL_TOKENS_ENABLED` now draws reusable canvas vector tokens for sheep, goats, chickens, cows, pigs, wolves, and black sheep.
+- Active, ghost, herd-candidate, clearing, scared, egg-modified, and muddy token states are rendered in the V2 path.
+- V2 canvas sizing now uses a mobile width guard so the board remains large without spilling horizontally.
+
+To revert only the V2 farm/tabletop board surface:
+
+- Set `FARM_BOARD_RENDERER_ENABLED = false`, or open with `?farmBoard=0`.
+- The simple V2 resolver, V2 board dimensions, and compact mission strip remain available, but the canvas returns to the legacy dark tile renderer.
+
+To revert only vector animals:
+
+- Set `VECTOR_ANIMAL_TOKENS_ENABLED = false`, or open with `?vectorAnimals=0`.
+- This preserves the warm board and V2 UI shell while returning animal contents to emoji/glyph rendering.
+
+To revert both visual experiments while keeping V2 mechanics:
+
+- Set both `FARM_BOARD_RENDERER_ENABLED = false` and `VECTOR_ANIMAL_TOKENS_ENABLED = false`.
+
+To revert the full V2 visual pass:
+
+- Open with `?v1=1` or `?v2=0`, or set `REFRESH_V2_DEFAULT_ENABLED = false`.
+- If code revert is needed, revert this visual-pass commit only after confirming no later V2 work depends on the token renderer helpers.
+
+### V2 Cell Styling And Opening Pace Cleanup
+
+Files changed for this cleanup/tuning pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+
+What this pass changes:
+
+- Removes the circular/medallion-style animal token frame in the V2 vector renderer.
+- Moves settled, active, ghost, herd-preview, and clearing emphasis onto the square cell treatment.
+- Reduces V2 herd-preview line weight and active-piece background layering.
+- Splits fall timing into legacy and V2 constants so the old game can keep its original opening speed.
+- Slows V2 opening fall speed from `650ms` to `800ms`, roughly 23% slower.
+- Blends V2 base fall speed back toward the legacy `650ms` base over `24` effective ramp locks so later-game pace stays close to the prior curve.
+- Adds V2 opening ramp grace: `6` settled pieces before normal speed ramp if no herd has cleared, or `3` settled pieces after the first herd clears.
+
+To revert only the V2 cell styling cleanup:
+
+- Restore the previous `drawTokenBase`, `drawFarmTile`, `drawFarmCellState`, `drawFloatingTile`, `drawPiece`, `drawShadow`, `drawHerdCellGroup`, and `drawV2HerdHints` implementations in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- Or open with `?vectorAnimals=0` to bypass the V2 animal token rendering while keeping the V2 board surface.
+- Or open with `?farmBoard=0` to bypass the full V2 farm-board renderer.
+
+To revert only the opening pace tuning:
+
+- Change `V2_BASE_FALL_MS` from `800` back to `650`.
+- Remove `V2_SETTLED_BASE_FALL_MS` / `V2_BASE_FALL_BLEND_LOCKS` and have `baseFallMsForPace()` return the single base value.
+- Set `V2_OPENING_RAMP_GRACE_LOCKS` and `V2_POST_HERD_RAMP_GRACE_LOCKS` to `0`, or have `speedRampLockCount()` return `locks` whenever V2 is enabled.
+- Legacy timing remains `LEGACY_BASE_FALL_MS = 650`.
+
+### V2 Humor Audio Pass
+
+Files changed for the audio redesign pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html)
+- [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css)
+- [AUDIO_DESIGN.md](/Users/kevinhegg/Documents/angry-wolves/AUDIO_DESIGN.md)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+
+Verification note on 2026-04-26:
+
+- The V2 humor audio pass is already present in the current working tree.
+- `HUMOR_AUDIO_ENABLED` defaults on only when V2 is enabled, and `?humorAudio=0` bypasses `AudioDirector` while leaving the older procedural helpers active.
+- The implementation remains procedural Web Audio only: no new assets, no dependencies, and no silent-switch bypass.
+- `node --check game.js` and `git diff --check` pass with this audio path present.
+
+What this pass adds:
+
+- `AudioDirector` with lightweight SFX buses, event recipes, cooldowns, random pitch variation, and optional haptic pairings.
+- Public helpers `animalVoice(type, event, intensity)`, `playGameEventSound(eventName, payload)`, and `safeResumeAudioFromGesture()`.
+- Procedural cartoon voices for sheep, goats, chickens, cows, pigs, and wolves.
+- V2 event sounds for UI, movement, rotation, invalid moves, hard drops, settles, near-herds, herd clears, chains, mission progress/completion, special pieces, wolf havoc, and Angry Wolves completion.
+- Settings controls for SFX volume and goofy animal voices.
+- Additional iPhone Safari resume nudges on gesture, `visibilitychange`, `pageshow`, `focus`, and `pagehide` cleanup, without bypassing silent mode.
+
+To revert only the V2 humor audio director:
+
+- Open with `?humorAudio=0`, or set `HUMOR_AUDIO_ENABLED = false` in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- This keeps the older procedural helpers active and bypasses `AudioDirector`.
+
+To revert only the new settings controls:
+
+- Remove the `SFX Volume` and `Goofy Animals` rows from [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html).
+- Remove `.audioVolumeRow`, `.rangeControl`, `.rangeValue`, and `.rangeControl input[type="range"]` from [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css).
+- Remove the `sfxVolumeInput`, `sfxVolumeValueEl`, and `goofyToggle` DOM bindings plus their event listeners from [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+
+To revert only the iPhone audio lifecycle additions:
+
+- Remove the `pointerup` resume listener and the `pagehide` cleanup added in this pass.
+- Keep `USE_IOS_AUDIO_RESUME_FIXES` available for the earlier audio-resume behavior.
+
+To revert the long Angry Wolves howl only:
+
+- In `playWolfHowl`, remove the `angry_wolves_complete` dispatch for `style === "angry_victory"` or shorten the `wolfVoice("angry_victory")` recipe in `createAudioDirector`.
+
+To revert the full audio pass:
+
+- Set `HUMOR_AUDIO_ENABLED = false` first and verify the game remains playable.
+- Then revert the audio-pass commit, including [AUDIO_DESIGN.md](/Users/kevinhegg/Documents/angry-wolves/AUDIO_DESIGN.md), after confirming no later V2 work depends on `AudioDirector`.
+
+### V2 Onboarding And Mission Presentation Pass
+
+Files changed for this onboarding pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html)
+- [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+
+What this pass adds:
+
+- A first-run V2 onboarding mission: `Sheep Sweep — clear 9 sheep` at the current V2 threshold, with no mission specials.
+- A small V2 mission deck: `Sheep Sweep`, `Barn Mixer`, `Egg Money`, `Mud Season`, `Wolf Alert`, and rare `Angry Wolves`.
+- New V2 mission types for species variety and egg-herd clears.
+- Short active mission strip copy using `Mission Name — goal hint`.
+- V2 help ordering that puts controls first, core loop second, and missions/specials third.
+- A `?resetOnboarding=1` dev/testing shortcut to replay the first-run teaching mission.
+
+Verification note on 2026-04-26:
+
+- The onboarding path is gated by `V2_ONBOARDING_ENABLED`, which only defaults on when V2 is enabled.
+- `?resetOnboarding=1` clears the V2 onboarding/run counters so the first-run mission can be replayed safely during review.
+- `Wolf Alert` and `Angry Wolves` stay out of the first-run pool through `minRunsStarted` gates.
+- `Angry Wolves` completion still routes through the long `angry_wolves_complete` howl when the reward group ends the run.
+- `node --check game.js` and `git diff --check` passed with this onboarding path present.
+
+To revert only the first-run onboarding behavior:
+
+- Set `V2_ONBOARDING_ENABLED = false` to restore the mission briefing path.
+- Or remove the `v2OnboardingSeen`, `markV2OnboardingSeen`, `v2RunsStarted`, `bumpV2RunsStarted`, and `v2MissionPool` helpers from [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js) and have `newMission()` draw directly from `ACTIVE_MISSION_DEFS`.
+
+To revert only the V2 mission deck:
+
+- Replace `V2_MISSION_DEFS` in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js) with the previous one-mission `Barnyard Warmup` deck.
+- Remove the `variety` and `egg_clear` mission handling from `bumpMission`, `missionObjectiveLabel`, `missionActiveStatusText`, and `compactMissionProgress`.
+
+To revert only the active mission strip copy:
+
+- Change `missionDisplayLabel()` back to the previous parenthetical format for V2.
+
+To revert only the help changes:
+
+- Restore the previous help section order in [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html).
+- Remove `.helpMiniDiagram` from [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css).
+- Remove the V2 Core Loop / Missions rewrite inside `patchHelpLine()` in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+
+To revert only wolf/Angry Wolves onboarding timing:
+
+- Remove or lower the `minRunsStarted` gates on `v2_wolf_alert` and `angry_wolves`.
+- To disable Angry Wolves entirely, set `USE_ANGRY_WOLVES_MISSION = false`.
+
+### V2 Review / Playtest Prep
+
+Files added or updated for review prep:
+
+- [REFRESH_V2_PLAYTEST.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_PLAYTEST.md)
+- [REFRESH_V2_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_PLAN.md)
+- [ANGRY_WOLVES_CONTEXT.md](/Users/kevinhegg/Documents/angry-wolves/ANGRY_WOLVES_CONTEXT.md)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md)
+- [refresh-assets/17-v2-review-first-run-board.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/17-v2-review-first-run-board.png)
+- [refresh-assets/18-v2-review-played-board.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/18-v2-review-played-board.png)
+- [refresh-assets/19-v2-review-mobile-390x844.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/19-v2-review-mobile-390x844.png)
+- [refresh-assets/20-v2-review-mobile-430x932.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/20-v2-review-mobile-430x932.png)
+- [refresh-assets/22-v2-review-current-first-run.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/22-v2-review-current-first-run.png)
+- [refresh-assets/23-v2-review-current-played-board.png](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/23-v2-review-current-played-board.png)
+- [REFRESH_V2_REVIEW_CURRENT_DIFF.patch](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_REVIEW_CURRENT_DIFF.patch)
+
+What this prep adds:
+
+- A review checklist covering iPhone Safari, desktop browser, audio, mechanics clarity, leaderboard regression, known issues, and tuning questions.
+- Fresh V2 screenshots for in-app review and CDP mobile-emulated 390/430 CSS-pixel phone viewports.
+- No intentional gameplay, scoring, leaderboard, or audio behavior changes.
+
+Verification note on 2026-04-26:
+
+- The current in-app browser was on `http://localhost:8000/index.html?resetOnboarding=1&review=clean`.
+- Captured fresh current-review board screenshots `22` and `23` in [refresh-assets](/Users/kevinhegg/Documents/angry-wolves/refresh-assets).
+- Regenerated [REFRESH_V2_REVIEW_CURRENT_DIFF.patch](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_REVIEW_CURRENT_DIFF.patch) from the current working tree.
+- `node --check game.js` and `git diff --check` passed.
+
+To revert only this review prep:
+
+- Remove [REFRESH_V2_PLAYTEST.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_PLAYTEST.md), [REFRESH_V2_REVIEW_CURRENT_DIFF.patch](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_REVIEW_CURRENT_DIFF.patch), and the `17` through `20`, `22`, and `23` review screenshots from [refresh-assets](/Users/kevinhegg/Documents/angry-wolves/refresh-assets).
+- Remove this review-prep section from [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md).
+- Optionally remove the matching context/status note from [REFRESH_V2_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_PLAN.md) and [ANGRY_WOLVES_CONTEXT.md](/Users/kevinhegg/Documents/angry-wolves/ANGRY_WOLVES_CONTEXT.md).
+
+### Revert Only V2 Planning Docs
+
+Remove these files if this planning setup needs to be backed out:
+
+- [REFRESH_V2_BASELINE.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_BASELINE.md)
+- [REFRESH_V2_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/REFRESH_V2_PLAN.md)
+
+Then remove this V2 section from [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves/ROLLBACK_PLAN.md).
+
+### Revert Entire V2 Branch
+
+The safest full rollback is to leave `refresh/v2-barnyard-core` unmerged and return to the approved branch or `main`.
+
+If V2 implementation has already begun, first set all V2 flags to `false`, verify the current game path still works, then either revert the V2 commits or abandon the branch.
+
+## Mission-First Specials / UX Pass
+
 This pass is isolated on branch `codex/mission-first-specials-pass` and is designed to roll back by config first, code revert second.
 
 ## Files Changed

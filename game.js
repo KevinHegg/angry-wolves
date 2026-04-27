@@ -38,6 +38,9 @@
   const VECTOR_ANIMAL_TOKENS_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("vectorAnimals", true);
   const HUMOR_AUDIO_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("humorAudio", true);
   const V2_ONBOARDING_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("v2Onboarding", true);
+  const DEBUG_SCORE = runtimeFlag("debugScore", false);
+  const AUDIO_DEBUG = runtimeFlag("audioDebug", false);
+  const AUDIO_RESET = runtimeFlag("audioReset", false);
 
   const LEGACY_COLS = 10;
   const LEGACY_ROWS = 13;
@@ -51,6 +54,24 @@
   const BIG_GROUP_THRESHOLD = REFRESH_V2_ENABLED ? 11 : 13;
   const V2_NEAR_CLEAR_MARGIN = 2;
   const V2_HERD_HINT_MAX_GROUPS = 3;
+  const V2_HERD_SCORE_PER_TILE = 5;
+  const V2_HERD_SCORE_EXTRA_PER_TILE = 8;
+  const V2_EGG_MULTIPLIER_PER_EGG = 0.2;
+  const V2_EGG_MULTIPLIER_CAP_EGGS = 4;
+  const V2_TURD_PENALTY_PER_TURD = 0.18;
+  const V2_TURD_PENALTY_CAP_TURDS = 3;
+  const V2_TURD_MIN_MULTIPLIER = 0.55;
+  const V2_CHAIN_BONUS_BASE = 18;
+  const V2_CHAIN_BONUS_STEP = 9;
+  const V2_CHAIN_BONUS_CAP = 120;
+  const V2_GHOST_TOKEN_ALPHA = 0.24;
+  const V2_GHOST_TOKEN_BASE_ALPHA = 0.52;
+  const V2_GHOST_CELL_FILL = "rgba(234, 222, 176, 0.035)";
+  const V2_GHOST_CELL_STROKE = "rgba(238, 226, 184, 0.42)";
+  const V2_GHOST_CELL_LINE_WIDTH = 0.018;
+  const V2_DROP_LANE_TOP_ALPHA = 0.015;
+  const V2_DROP_LANE_BOTTOM_ALPHA = 0.055;
+  const DEFAULT_SFX_VOLUME = 0.65;
 
   const LEGACY_BASE_FALL_MS = 650;
   const V2_BASE_FALL_MS = 800;
@@ -98,9 +119,9 @@
   const RUN_END_REVEAL_MIN_MS = 4600;
   const SHARE_GRID_COLS = 6;
   const SHARE_GRID_ROWS = 6;
-  const GAME_MODE = "standard";
+  const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.34-v2" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.35-v2-score-stable" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -389,6 +410,7 @@
   const sfxVolumeInput = document.getElementById("sfxVolume");
   const sfxVolumeValueEl = document.getElementById("sfxVolumeValue");
   const goofyToggle = document.getElementById("goofyToggle");
+  const testSoundButton = document.getElementById("testSoundButton");
   const gameOverBackdrop = document.getElementById("gameOverBackdrop");
   const restartButton = document.getElementById("restartButton");
   const shareButton = document.getElementById("shareButton");
@@ -1056,7 +1078,9 @@
   // ===== Audio (silent unlock, no popups) =====
   let audioCtx = null;
   let masterGain = null;
+  resetAudioPrefsIfRequested();
   let soundOn = loadSoundPref();
+  let sfxVolumePrefWasStored = hasStoredSfxVolumePref();
   let sfxVolume = loadSfxVolumePref();
   let goofyAnimalSounds = loadGoofyAnimalPref();
   let audioUnlocked = false;
@@ -1065,6 +1089,43 @@
   let ambienceClock = 0;
   let audioDirector = null;
 
+  function storedSfxVolumeRaw(){
+    try{
+      return localStorage.getItem("aw_sfx_volume");
+    }catch{
+      return null;
+    }
+  }
+  function hasStoredSfxVolumePref(){
+    return storedSfxVolumeRaw() !== null;
+  }
+  function audioDebugLog(label, data={}){
+    if(!AUDIO_DEBUG) return;
+    try{
+      console.log("[Angry Wolves audio]", label, {
+        soundOn,
+        sfxVolume,
+        goofyAnimalSounds,
+        audioState: audioCtx?.state || "none",
+        unlocked: audioUnlocked,
+        storedSfxVolume: storedSfxVolumeRaw(),
+        ...data
+      });
+    }catch{}
+  }
+  function resetAudioPrefsIfRequested(){
+    if(!AUDIO_RESET) return;
+    try{
+      localStorage.setItem("aw_sound", "1");
+      localStorage.setItem("aw_sfx_volume", String(DEFAULT_SFX_VOLUME));
+      localStorage.setItem("aw_goofy_animals", "1");
+      console.log("[Angry Wolves audio] audioReset restored defaults", {
+        soundOn: true,
+        sfxVolume: DEFAULT_SFX_VOLUME,
+        goofyAnimalSounds: true
+      });
+    }catch{}
+  }
   function loadSoundPref(){
     try{
       const v = localStorage.getItem("aw_sound");
@@ -1075,10 +1136,12 @@
   }
   function loadSfxVolumePref(){
     try{
-      const v = Number(localStorage.getItem("aw_sfx_volume"));
-      return Number.isFinite(v) ? clamp(v, 0, 1) : 0.82;
+      const raw = storedSfxVolumeRaw();
+      if(raw === null || raw === "") return DEFAULT_SFX_VOLUME;
+      const v = Number(raw);
+      return Number.isFinite(v) ? clamp(v, 0, 1) : DEFAULT_SFX_VOLUME;
     }catch{
-      return 0.82;
+      return DEFAULT_SFX_VOLUME;
     }
   }
   function loadGoofyAnimalPref(){
@@ -1097,6 +1160,7 @@
   function saveSfxVolumePref(){
     try{
       localStorage.setItem("aw_sfx_volume", String(sfxVolume));
+      sfxVolumePrefWasStored = true;
     }catch{}
   }
   function saveGoofyAnimalPref(){
@@ -1107,15 +1171,18 @@
   function ensureAudio(){
     if(audioCtx) return;
     try{
+      audioDebugLog("ensureAudio:create");
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
       masterGain.gain.value = soundOn ? sfxVolume : 0.0;
       masterGain.connect(audioCtx.destination);
       audioCtx.onstatechange = () => {
         if(audioCtx?.state === "running") audioUnlocked = true;
+        audioDebugLog("statechange");
       };
       if(HUMOR_AUDIO_ENABLED) audioDirector = createAudioDirector();
     }catch{
+      audioDebugLog("ensureAudio:failed");
       audioCtx = null; masterGain = null;
     }
   }
@@ -1146,11 +1213,13 @@
       audioUnlocked = true;
       if(prime) primeAudioContext();
       audioPrimeOnResume = false;
+      audioDebugLog("resume:already-running", { prime });
       return Promise.resolve(true);
     }
     if(audioCtx.state === "closed") return Promise.resolve(false);
     if(prime) audioPrimeOnResume = true;
     if(pendingAudioResume) return pendingAudioResume;
+    audioDebugLog("resume:attempt", { prime });
     const resumeCall = typeof audioCtx.resume === "function" ? audioCtx.resume() : Promise.resolve();
     pendingAudioResume = Promise.resolve(resumeCall)
       .then(() => {
@@ -1159,9 +1228,13 @@
           audioUnlocked = true;
           if(audioPrimeOnResume) primeAudioContext();
         }
+        audioDebugLog("resume:result", { running });
         return running;
       })
-      .catch(() => false)
+      .catch((err) => {
+        audioDebugLog("resume:error", { message: err?.message || String(err || "") });
+        return false;
+      })
       .finally(() => {
         audioPrimeOnResume = false;
         pendingAudioResume = null;
@@ -1177,6 +1250,7 @@
       if(USE_IOS_AUDIO_RESUME_FIXES){
         resumeAudioContext({ prime:false });
       }
+      audioDebugLog("prepare:not-running");
       return false;
     }
     return true;
@@ -1195,6 +1269,58 @@
   function unlockAudioSilently(){
     safeResumeAudioFromGesture();
   }
+  function ensureAudibleSfxDefaultIfMissing(){
+    const raw = storedSfxVolumeRaw();
+    const missing = raw === null || raw === "" || raw === "null" || raw === "undefined";
+    const invalid = raw !== null && raw !== "" && !Number.isFinite(Number(raw));
+    if(!missing && !invalid) return false;
+    sfxVolume = DEFAULT_SFX_VOLUME;
+    saveSfxVolumePref();
+    syncMasterGain();
+    syncSoundBtn();
+    audioDebugLog("sfx:restored-default", { reason: missing ? "missing" : "invalid" });
+    return true;
+  }
+  function playAudioTestCueFromGesture(){
+    if(!soundOn){
+      showToast("Sound is off.", 1300);
+      audioDebugLog("test:blocked-sound-off");
+      return;
+    }
+    ensureAudibleSfxDefaultIfMissing();
+    if(sfxVolume <= 0){
+      showToast("SFX volume is 0%. Raise it to hear the barn.", 1800);
+      audioDebugLog("test:blocked-volume-zero");
+      return;
+    }
+    let played = false;
+    const resumePromise = safeResumeAudioFromGesture();
+    const playCue = (source) => {
+      if(played) return;
+      if(!prepareAudioPlayback()){
+        audioDebugLog("test:not-ready", { source });
+        return;
+      }
+      played = true;
+      audioDebugLog("test:play", { source });
+      playGameEventSound("ui_button_tap");
+      animalVoice(TILE.PIG, "toggle", 0.82);
+      showToast(`Test sound: ${Math.round(sfxVolume * 100)}%`, 1200);
+    };
+    playCue("gesture");
+    Promise.resolve(resumePromise).then((running) => {
+      if(running) playCue("resume");
+      else if(!played){
+        showToast("Safari is still waking audio. Tap Test again.", 1800);
+        audioDebugLog("test:resume-not-running");
+      }
+    });
+  }
+  audioDebugLog("settings-loaded", {
+    sfxVolumePrefWasStored,
+    audioReset: AUDIO_RESET,
+    defaultSfxVolume: DEFAULT_SFX_VOLUME
+  });
 
   function playTone({type="sine", f1=220, f2=110, dur=0.12, gain=0.16, noise=false}){
     if(!prepareAudioPlayback()) return;
@@ -4806,11 +4932,27 @@
 
   function chainBonusForDepth(depth){
     if(depth <= 1) return 0;
+    if(REFRESH_V2_ENABLED){
+      const comboSteps = depth - 1;
+      const stairStep = Math.max(0, depth - 2);
+      return Math.min(
+        V2_CHAIN_BONUS_CAP,
+        Math.round(comboSteps * V2_CHAIN_BONUS_BASE + ((stairStep * (stairStep + 1)) / 2) * V2_CHAIN_BONUS_STEP)
+      );
+    }
     return fib(depth + 3);
+  }
+
+  function herdBaseScore(count){
+    if(!REFRESH_V2_ENABLED) return count;
+    return count * V2_HERD_SCORE_PER_TILE;
   }
 
   function herdSizeBonus(count){
     if(count < ACTIVE_CLEAR_THRESHOLD) return 0;
+    if(REFRESH_V2_ENABLED){
+      return Math.max(0, count - ACTIVE_CLEAR_THRESHOLD) * V2_HERD_SCORE_EXTRA_PER_TILE;
+    }
     const step = count - ACTIVE_CLEAR_THRESHOLD;
     if(step <= 7) return fib(step + 3);
 
@@ -4819,6 +4961,92 @@
       bonus += 5 * (extra + 1);
     }
     return bonus;
+  }
+
+  function herdEggMultiplier(eggs){
+    if(!REFRESH_V2_ENABLED) return Math.pow(2, Math.max(0, eggs|0));
+    return 1 + Math.min(Math.max(0, eggs|0), V2_EGG_MULTIPLIER_CAP_EGGS) * V2_EGG_MULTIPLIER_PER_EGG;
+  }
+
+  function herdTurdMultiplier(turds){
+    if(!REFRESH_V2_ENABLED) return 1 / Math.pow(2, Math.max(0, turds|0));
+    const penalty = Math.min(Math.max(0, turds|0), V2_TURD_PENALTY_CAP_TURDS) * V2_TURD_PENALTY_PER_TURD;
+    return Math.max(V2_TURD_MIN_MULTIPLIER, 1 - penalty);
+  }
+
+  function scoreHerdClear(count, eggs=0, turds=0){
+    const base = herdBaseScore(count);
+    const sizeBonus = herdSizeBonus(count);
+    const beforeModifiers = base + sizeBonus;
+    if(!REFRESH_V2_ENABLED){
+      const afterEggs = eggs ? Math.floor(beforeModifiers * Math.pow(2, Math.max(0, eggs|0))) : beforeModifiers;
+      const total = turds ? Math.max(1, Math.floor(afterEggs / Math.pow(2, Math.max(0, turds|0)))) : afterEggs;
+      return {
+        count,
+        base,
+        sizeBonus,
+        eggs,
+        turds,
+        eggMultiplier: herdEggMultiplier(eggs),
+        turdMultiplier: herdTurdMultiplier(turds),
+        eggBonus: Math.max(0, afterEggs - beforeModifiers),
+        turdPenalty: Math.max(0, afterEggs - total),
+        total
+      };
+    }
+    const eggMultiplier = herdEggMultiplier(eggs);
+    const turdMultiplier = herdTurdMultiplier(turds);
+    const afterEggs = beforeModifiers * eggMultiplier;
+    const total = Math.max(1, Math.round(afterEggs * turdMultiplier));
+    return {
+      count,
+      base,
+      sizeBonus,
+      eggs,
+      turds,
+      eggMultiplier,
+      turdMultiplier,
+      eggBonus: Math.round(afterEggs - beforeModifiers),
+      turdPenalty: Math.max(0, Math.round(afterEggs - total)),
+      total
+    };
+  }
+
+  function debugScoreBreakdown(kind, data){
+    if(!DEBUG_SCORE) return;
+    try{
+      console.log("[Angry Wolves score]", kind, data);
+    }catch{}
+  }
+
+  function debugScoreSamples(){
+    if(!DEBUG_SCORE) return;
+    try{
+      const rows = [
+        ["9 herd, clean", scoreHerdClear(9, 0, 0)],
+        ["12 herd, clean", scoreHerdClear(12, 0, 0)],
+        ["9 herd, 1 egg", scoreHerdClear(9, 1, 0)],
+        ["9 herd, 3 eggs", scoreHerdClear(9, 3, 0)],
+        ["12 herd, 2 eggs, 1 turd", scoreHerdClear(12, 2, 1)]
+      ].map(([label, row]) => ({
+        label,
+        base: row.base,
+        sizeBonus: row.sizeBonus,
+        eggs: row.eggs,
+        eggMultiplier: row.eggMultiplier,
+        turds: row.turds,
+        turdMultiplier: row.turdMultiplier,
+        total: row.total
+      }));
+      console.table(rows);
+      console.log("[Angry Wolves score] chain samples", {
+        x2: chainBonusForDepth(2),
+        x3: chainBonusForDepth(3),
+        x4: chainBonusForDepth(4),
+        normalMissionMin: 80,
+        angryWolves: Math.round(900 * 0.6)
+      });
+    }catch{}
   }
 
   // ===== Cluster clearing =====
@@ -5026,29 +5254,31 @@
 
       for(const group of clears){
         const { animal, cells } = group;
-        let gain = cells.length;
-
-        const herdBonus = herdSizeBonus(cells.length);
-        if(herdBonus > 0){
-          gain += herdBonus;
-          bumpMission("big_group", 1);
-        }
-        bumpMission("large_clear", { size: cells.length });
-
         let eggs=0, turds=0;
         for(const [x,y] of cells){
           if(overlay[y][x] === POWER.EGG) eggs++;
           if(overlay[y][x] === POWER.TURD) turds++;
         }
+
+        const scoreBreakdown = scoreHerdClear(cells.length, eggs, turds);
+        const gain = scoreBreakdown.total;
+        if(scoreBreakdown.sizeBonus > 0){
+          bumpMission("big_group", 1);
+        }
+        bumpMission("large_clear", { size: cells.length });
+
         consumedEggs += eggs;
         consumedTurds += turds;
         if(turds > 0) bumpMission("turds", turds);
         if(eggs > 0) bumpMission("egg_clear", { animal, amount: 1, eggs });
-        if(eggs)  gain = Math.floor(gain * Math.pow(2, eggs));
-        if(turds) gain = Math.max(1, Math.floor(gain / Math.pow(2, turds)));
         if(!bestHerd || cells.length > bestHerd.count || (cells.length === bestHerd.count && gain > bestHerd.gain)){
           bestHerd = { animal, count: cells.length, gain };
         }
+        debugScoreBreakdown("herd-clear", {
+          animal: animalWord(animal),
+          chainDepth: cascadeDepth,
+          ...scoreBreakdown
+        });
         const clearedReward = cells.some(([x,y]) => rewardMap[y][x]);
         if(clearedReward){
           rewardEarned = true;
@@ -5074,7 +5304,7 @@
         bumpMission("clears", 1);
         if(gameOver) break;
         const chainTag = cascadeDepth > 1 ? `Chain ${fmtChain(cascadeDepth)}! ` : "";
-        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚x${eggs}`:""}${turds?` 💩x${turds}`:""}`;
+        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚+${scoreBreakdown.eggBonus}`:""}${turds?` 💩-${scoreBreakdown.turdPenalty}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -5165,6 +5395,7 @@
     );
     const chainBonus = chainBonusForDepth(cascadeDepth);
     if(chainBonus > 0){
+      debugScoreBreakdown("chain-bonus", { chainDepth: cascadeDepth, chainBonus });
       score += chainBonus;
       totalGain += chainBonus;
       playChainBonusSting(cascadeDepth);
@@ -5808,7 +6039,7 @@
   }
 
   function tokenAlphaForState(state={}){
-    if(state.ghost) return 0.38;
+    if(state.ghost) return V2_GHOST_TOKEN_ALPHA;
     if(state.clearing) return 0.74;
     return 1;
   }
@@ -5831,7 +6062,7 @@
     fill.addColorStop(1, meta.shade);
 
     ctx.save();
-    ctx.globalAlpha *= state.ghost ? 0.72 : 1;
+    ctx.globalAlpha *= state.ghost ? V2_GHOST_TOKEN_BASE_ALPHA : 1;
     ctx.fillStyle = fill;
     ctx.beginPath();
     ctx.ellipse(cx, cy + s * 0.02, s * 0.31, s * 0.27, 0, 0, Math.PI * 2);
@@ -6181,9 +6412,9 @@
     let dashed = false;
 
     if(ghost){
-      fill = "rgba(255, 235, 173, 0.065)";
-      stroke = "rgba(255, 231, 172, 0.74)";
-      lineWidth = Math.max(1.3, cell * 0.028);
+      fill = V2_GHOST_CELL_FILL;
+      stroke = V2_GHOST_CELL_STROKE;
+      lineWidth = Math.max(1, cell * V2_GHOST_CELL_LINE_WIDTH);
       dashed = true;
     } else if(clearing){
       fill = `rgba(255, 212, 117, ${0.12 + pulse * 0.1})`;
@@ -6759,8 +6990,8 @@
       const gy = px + top*cell + cell*0.08;
       const h = (bottom - top + 1)*cell - cell*0.16;
       const lane = ctx.createLinearGradient(0, gy, 0, gy + h);
-      lane.addColorStop(0, "rgba(255, 231, 164, 0.04)");
-      lane.addColorStop(1, "rgba(255, 209, 102, 0.16)");
+      lane.addColorStop(0, `rgba(238, 224, 177, ${V2_DROP_LANE_TOP_ALPHA})`);
+      lane.addColorStop(1, `rgba(229, 207, 145, ${V2_DROP_LANE_BOTTOM_ALPHA})`);
       ctx.globalAlpha = 1;
       roundRectFill(gx, gy, cell*0.32, h, cell*0.16, lane);
     }
@@ -6788,11 +7019,11 @@
             drawVectorAnimalToken(v, gx, gy, cell, { ghost:true });
           }
           if(!(VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(v))){
-            ctx.globalAlpha = 0.16;
+            ctx.globalAlpha = 0.1;
             roundRectFill(gx+4, gy+5, cell-8, cell-10, Math.max(9, cell*0.2), "#120905");
-            ctx.globalAlpha = 0.68;
-            ctx.strokeStyle = "rgba(255, 223, 139, 0.74)";
-            ctx.lineWidth = Math.max(1.5, Math.floor(cell*0.04));
+            ctx.globalAlpha = 0.34;
+            ctx.strokeStyle = "rgba(238, 226, 184, 0.5)";
+            ctx.lineWidth = Math.max(1, Math.floor(cell*0.026));
             ctx.setLineDash([Math.max(4, cell * 0.16), Math.max(3, cell * 0.1)]);
             roundRectStroke(gx+5, gy+4, cell-10, cell-10, Math.max(9, cell*0.2));
             ctx.setLineDash([]);
@@ -7639,9 +7870,14 @@
           <p class="helpText">Special pieces, when a mission has them, always appear in the real <b>Next</b> tray.</p>
         `;
       }
-      const scoringFold = helpFoldByTitle("Scoring And Multipliers")?.querySelector(".helpFoldBody .helpText");
+      const scoringFold = helpFoldByTitle("Scoring And Multipliers")?.querySelector(".helpFoldBody");
       if(scoringFold){
-        scoringFold.innerHTML = `Herds of <b>${ACTIVE_CLEAR_THRESHOLD}+</b> earn size bonuses: +2, +3, +5, +8, +13, and so on.`;
+        scoringFold.innerHTML = `
+          <p class="helpText">Each animal in a cleared herd is worth <b>${V2_HERD_SCORE_PER_TILE}</b> coins. Bigger-than-${ACTIVE_CLEAR_THRESHOLD} herds add a modest size bonus.</p>
+          <p class="helpText">🥚 adds +${Math.round(V2_EGG_MULTIPLIER_PER_EGG * 100)}% each, capped at ${Math.round((1 + V2_EGG_MULTIPLIER_CAP_EGGS * V2_EGG_MULTIPLIER_PER_EGG) * 100)}%. No egg jackpots from outer space.</p>
+          <p class="helpText">💩 shaves the payout, but it will not erase the whole herd.</p>
+          <p class="helpText">Chains add a separate bounded combo bonus. Angry Wolves is the rare big payout.</p>
+        `;
       }
     }
   }
@@ -7685,6 +7921,18 @@
     wolfHowlButton.addEventListener("click", () => {
       playWolfHowl({ style:"tap", intensity:0.9, source:"badge", fromGesture:true, animateBadge:true });
     });
+  }
+  if(testSoundButton){
+    let lastTestSoundTap = 0;
+    const onTap = (e) => {
+      e.preventDefault();
+      const now = performance.now();
+      if(now - lastTestSoundTap < 360) return;
+      lastTestSoundTap = now;
+      playAudioTestCueFromGesture();
+    };
+    testSoundButton.addEventListener("click", onTap, {passive:false});
+    testSoundButton.addEventListener("touchend", onTap, {passive:false});
   }
   if(closeModal){
     closeModal.addEventListener("click", closeSettings);
@@ -7803,14 +8051,17 @@
       if(now - lastSoundToggleTap < 380) return;
       lastSoundToggleTap = now;
       soundOn = !soundOn;
+      if(soundOn){
+        ensureAudibleSfxDefaultIfMissing();
+      }
       saveSoundPref();
       syncMasterGain();
       if(soundOn){
         unlockAudioSilently();
-        setTimeout(() => {
-          playGameEventSound("ui_button_tap") || playRotateTick();
-          playMoveTick();
-        }, 90);
+        if(!playGameEventSound("ui_button_tap")) playRotateTick();
+        Promise.resolve(safeResumeAudioFromGesture()).then((running) => {
+          if(running) playMoveTick();
+        });
       }
       syncSoundBtn();
       // if user turns it ON, it will unlock on the next touch
@@ -7825,6 +8076,7 @@
       syncMasterGain();
       if(audioDirector?.syncVolumes) audioDirector.syncVolumes();
       syncSoundBtn();
+      audioDebugLog("sfx:input");
     });
     sfxVolumeInput.addEventListener("change", () => {
       safeResumeAudioFromGesture();
@@ -7989,6 +8241,7 @@
     syncSoundBtn();
     updateGameOverStats();
     refreshLeaderboard({ force: true });
+    debugScoreSamples();
     if(V2_ONBOARDING_ENABLED){
       showToast(`Build ${ACTIVE_CLEAR_THRESHOLD}+ connected animals.`, 2400);
       playGameEventSound("mission_start");
