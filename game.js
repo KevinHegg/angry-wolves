@@ -1413,6 +1413,7 @@
       piece_move: 34,
       piece_rotate: 54,
       piece_invalid: 140,
+      barnyard_contact_chaos: 110,
       herd_near: 900,
       mission_progress: 120,
       reward_countdown: 160,
@@ -1587,6 +1588,48 @@
       }
     }
 
+    function sheepBleat(id, heft, delay=0){
+      const black = id === "black_sheep";
+      const top = black ? 360 : 535;
+      const mid = black ? 260 : 390;
+      tone({ type:"triangle", f1:top, f2:mid, dur:0.13 + heft * 0.025, gain:0.05 * heft, bus:"animal", delay, pitchJitter:34, filter:{ type:"bandpass", freq:black ? 420 : 640, q:0.7 } });
+      tone({ type:"sine", f1:mid * 0.96, f2:mid * 0.72, dur:0.14, gain:0.028 * heft, bus:"animal", delay:delay + 0.065, pitchJitter:44 });
+      tone({ type:"triangle", f1:top * 0.84, f2:mid * 0.78, dur:0.07, gain:0.024 * heft, bus:"animal", delay:delay + 0.135, pitchJitter:38 });
+    }
+
+    function goatYodel(heft, delay=0){
+      sequence([
+        { f:315, f2:430, d:0.052, g:0.038 * heft, type:"triangle" },
+        { f:620, f2:710, d:0.058, g:0.044 * heft, type:"square" },
+        { f:420, f2:285, d:0.07, g:0.034 * heft, type:"triangle" }
+      ], { bus:"animal", step:0.052, delay, pitchJitter:26 });
+      tone({ type:"square", f1:520, f2:260, dur:0.105, gain:0.026 * heft, bus:"animal", delay:delay + 0.09, pitchJitter:28, filter:{ type:"bandpass", freq:980, q:1.1 } });
+    }
+
+    function chickenClucks(heft, delay=0){
+      noise({ dur:0.032, gain:0.024 * heft, bus:"animal", delay, filter:{ type:"bandpass", freq:1800, q:1.15 } });
+      sequence([
+        { f:930, d:0.028, g:0.038 * heft, type:"square" },
+        { f:760, d:0.027, g:0.032 * heft, type:"square" },
+        { f:1040, d:0.027, g:0.032 * heft, type:"triangle" },
+        { f:690, d:0.032, g:0.026 * heft, type:"square" }
+      ], { bus:"animal", step:0.031, delay:delay + 0.012, pitchJitter:30 });
+      noise({ dur:0.028, gain:0.016 * heft, bus:"animal", delay:delay + 0.108, filter:{ type:"bandpass", freq:1350, q:1.05 } });
+    }
+
+    function cowMoo(heft, delay=0){
+      tone({ type:"sawtooth", f1:128, f2:78, dur:0.2 + heft * 0.045, gain:0.064 * heft, bus:"animal", delay, pitchJitter:7, filter:{ type:"lowpass", freq:500, q:0.65 } });
+      tone({ type:"sine", f1:88, f2:62, dur:0.24 + heft * 0.045, gain:0.05 * heft, bus:"animal", delay:delay + 0.016, pitchJitter:5 });
+      tone({ type:"triangle", f1:154, f2:104, dur:0.13, gain:0.024 * heft, bus:"animal", delay:delay + 0.09, pitchJitter:8, filter:{ type:"lowpass", freq:440, q:0.7 } });
+    }
+
+    function pigOink(heft, delay=0){
+      noise({ dur:0.048, gain:0.036 * heft, bus:"animal", delay, filter:{ type:"bandpass", freq:720, q:1.45 } });
+      tone({ type:"square", f1:215, f2:285, dur:0.065, gain:0.046 * heft, bus:"animal", delay:delay + 0.016, pitchJitter:26 });
+      tone({ type:"triangle", f1:285, f2:180, dur:0.065, gain:0.036 * heft, bus:"animal", delay:delay + 0.072, pitchJitter:26 });
+      noise({ dur:0.034, gain:0.022 * heft, bus:"animal", delay:delay + 0.125, filter:{ type:"bandpass", freq:520, q:1.2 } });
+    }
+
     function animalVoice(animal, event="chirp", intensity=1, opts={}){
       const id = AUDIO_ANIMAL_NAMES[animal] || animal;
       const delay = opts.delay || 0;
@@ -1600,28 +1643,45 @@
         return true;
       }
       if(id === "cow"){
-        tone({ type:"sawtooth", f1:118, f2:76, dur:0.18 + heft * 0.04, gain:0.072 * heft, bus:"animal", delay, pitchJitter:7, filter:{ type:"lowpass", freq:520, q:0.7 } });
-        tone({ type:"sine", f1:84, f2:62, dur:0.22 + heft * 0.04, gain:0.045 * heft, bus:"animal", delay:delay + 0.018, pitchJitter:5 });
+        cowMoo(heft, delay);
       } else if(id === "pig"){
-        noise({ dur:0.045, gain:0.035 * heft, bus:"animal", delay, filter:{ type:"bandpass", freq:640, q:1.4 } });
-        tone({ type:"square", f1:245, f2:170, dur:0.07, gain:0.052 * heft, bus:"animal", delay:delay + 0.018, pitchJitter:24 });
-        tone({ type:"triangle", f1:205, f2:260, dur:0.045, gain:0.032 * heft, bus:"animal", delay:delay + 0.082, pitchJitter:26 });
+        pigOink(heft, delay);
       } else if(id === "sheep" || id === "black_sheep"){
-        tone({ type:"triangle", f1:id === "black_sheep" ? 330 : 460, f2:id === "black_sheep" ? 230 : 330, dur:0.15 + heft * 0.025, gain:0.052 * heft, bus:"animal", delay, pitchJitter:30 });
-        tone({ type:"sine", f1:id === "black_sheep" ? 250 : 380, f2:id === "black_sheep" ? 190 : 280, dur:0.13, gain:0.026 * heft, bus:"animal", delay:delay + 0.04, pitchJitter:40 });
+        sheepBleat(id, heft, delay);
       } else if(id === "goat"){
-        tone({ type:"triangle", f1:310, f2:570, dur:0.1, gain:0.052 * heft, bus:"animal", delay, pitchJitter:22 });
-        tone({ type:"square", f1:430, f2:260, dur:0.12, gain:0.036 * heft, bus:"animal", delay:delay + 0.07, pitchJitter:30, filter:{ type:"bandpass", freq:880, q:0.8 } });
+        goatYodel(heft, delay);
       } else if(id === "chicken"){
-        noise({ dur:0.038, gain:0.028 * heft, bus:"animal", delay, filter:{ type:"bandpass", freq:1500, q:1.1 } });
-        sequence([
-          { f:830, d:0.034, g:0.04 * heft, type:"square" },
-          { f:690, d:0.034, g:0.034 * heft, type:"square" },
-          { f:940, d:0.03, g:0.032 * heft, type:"triangle" }
-        ], { bus:"animal", step:0.035, delay:delay + 0.02, pitchJitter:28 });
+        chickenClucks(heft, delay);
       } else {
         tone({ type:"triangle", f1:300, f2:210, dur:0.08, gain:0.04 * heft, bus:"animal", delay });
       }
+      return true;
+    }
+
+    function barnyardContactChaos(payload={}){
+      const settleAnimal = payload.animal;
+      const neighbors = Array.isArray(payload.neighbors) ? payload.neighbors : [];
+      const contactCount = Math.max(0, payload.contactCount || 0);
+      const voices = [];
+      if(ANIMALS.includes(settleAnimal)) voices.push(settleAnimal);
+      for(const animal of neighbors){
+        if(ANIMALS.includes(animal) && !voices.includes(animal)) voices.push(animal);
+        if(voices.length >= 3) break;
+      }
+      if(!voices.length) return false;
+      const bump = clamp(0.86 + contactCount * 0.055, 0.9, 1.28);
+      barnThump(bump);
+      noise({ dur:0.052, gain:0.022 + Math.min(4, contactCount) * 0.004, bus:"animal", delay:0.02, filter:{ type:"bandpass", freq:980, q:0.75 } });
+      voices.forEach((animal, index) => {
+        animalVoice(animal, index === 0 ? "bump" : "panic", 0.68 + index * 0.09, { delay:0.028 + index * 0.052 });
+      });
+      if(voices.length > 1){
+        sequence([
+          { f:300, f2:250, d:0.045, g:0.024, type:"triangle" },
+          { f:420, f2:360, d:0.045, g:0.022, type:"square" }
+        ], { bus:"animal", step:0.046, delay:0.11, pitchJitter:18 });
+      }
+      haptic(10 + Math.min(14, voices.length * 4 + contactCount));
       return true;
     }
 
@@ -1664,6 +1724,7 @@
         barnThump(0.9);
         if(animal) animalVoice(animal, "settle", 0.68, { delay:0.035 });
       },
+      barnyard_contact_chaos: (payload={}) => barnyardContactChaos(payload),
       piece_swap: () => {
         sequence([392, 554], { bus:"piece", type:"triangle", step:0.045, gain:0.04, pitchJitter:12 });
         woodTick(0.05, 0.024);
@@ -1904,6 +1965,15 @@
     } else {
       playTone({type:"sine", f1:240, f2:120, dur:0.12 + heft * 0.04, gain:0.10});
     }
+  }
+
+  function playBarnyardContactChaos(contactChaos, settleAnimal){
+    if(!contactChaos?.neighborAnimals?.length) return false;
+    return HUMOR_AUDIO_ENABLED && playGameEventSound("barnyard_contact_chaos", {
+      animal: settleAnimal,
+      neighbors: contactChaos.neighborAnimals,
+      contactCount: contactChaos.contactCount || 0
+    });
   }
 
   function playLevelUpJingle(){
@@ -4117,7 +4187,8 @@
     }
     if(advanceRewardCountdown()) return true;
     if(opts.settleAnimal && ANIMALS.includes(opts.settleAnimal)){
-      playBarnyard(opts.settleAnimal, 4, "settle");
+      const playedContactChaos = playBarnyardContactChaos(opts.contactChaos, opts.settleAnimal);
+      if(!playedContactChaos) playBarnyard(opts.settleAnimal, 4, "settle");
     }
     if(opts.playLockTick !== false) playLockTick();
     if(!summary?.groupsCleared) maybePlayNearHerdMurmur();
@@ -4237,6 +4308,18 @@
       }
     }
     return counts;
+  }
+
+  function touchingAnimalSummary(piece){
+    const counts = touchingAnimalCounts(piece);
+    const entries = ANIMALS
+      .map((animal) => ({ animal, count: counts.get(animal) || 0 }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count);
+    return {
+      contactCount: entries.reduce((total, entry) => total + entry.count, 0),
+      neighborAnimals: entries.map((entry) => entry.animal)
+    };
   }
 
   function chooseAnimalFromCounts(counts){
@@ -5495,6 +5578,7 @@
       return;
     }
 
+    const contactChaos = touchingAnimalSummary(current);
     beginMudHazardTracking();
     let placedCells = [];
     for(let r=0;r<current.matrix.length;r++){
@@ -5533,7 +5617,7 @@
 
     registerLockCycle();
     const summary = resolveBoard();
-    finishLockResolution(summary, { settleAnimal, hapticMs:10 });
+    finishLockResolution(summary, { settleAnimal, contactChaos, hapticMs: contactChaos.contactCount ? 14 : 10 });
   }
 
   function holdCurrent(){
