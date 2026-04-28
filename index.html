@@ -70,18 +70,45 @@
       </aside>
 
       <main id="stage">
-        <div id="stageMissionBar" class="stageMissionBar" aria-hidden="true">
-          <div class="stageMissionMeta">
-            <span id="stageMissionTitle" class="stageMissionTitle">Mission warming up</span>
-            <span id="stageMissionProgressText" class="stageMissionProgressText">0 / 0</span>
+        <div id="stageMissionBar" class="stageMissionBar" aria-label="Mission progress">
+          <button id="missionDrawerToggle" class="missionDrawerToggle" type="button" aria-label="Show mission details" aria-expanded="false">▾</button>
+          <div class="stageMissionContent">
+            <div class="stageMissionMeta">
+              <span id="stageMissionTitle" class="stageMissionTitle">Mission warming up</span>
+              <span id="stageMissionProgressText" class="stageMissionProgressText">0 / 0</span>
+            </div>
+            <div class="missionMeter stageMissionMeter">
+              <span id="stageMissionMeterFill" class="missionMeterFill"></span>
+              <span id="stageMissionMeterLabel" class="missionMeterLabel"></span>
+            </div>
+            <div id="stageRunActions" class="stageRunActions hidden" aria-label="Run actions">
+              <button id="stageResultsButton" class="stageRunIcon" aria-label="Show endgame results">📊</button>
+              <button id="stageStartButton" class="stageRunStart" aria-label="Start a new run">Start New Run</button>
+            </div>
           </div>
-          <div class="missionMeter stageMissionMeter">
-            <span id="stageMissionMeterFill" class="missionMeterFill"></span>
-            <span id="stageMissionMeterLabel" class="missionMeterLabel"></span>
-          </div>
-          <div id="stageRunActions" class="stageRunActions hidden" aria-label="Run actions">
-            <button id="stageResultsButton" class="stageRunIcon" aria-label="Show endgame results">📊</button>
-            <button id="stageStartButton" class="stageRunStart" aria-label="Start a new run">Start New Run</button>
+          <div id="missionDrawer" class="missionDrawer hidden" aria-live="polite">
+            <div class="missionDrawerHeader">
+              <div>
+                <div id="missionDrawerEyebrow" class="missionDrawerEyebrow">Mission ledger</div>
+                <h3 id="missionDrawerTitle" class="missionDrawerTitle">Mission warming up</h3>
+              </div>
+              <button id="missionDrawerHelpButton" class="missionDrawerHelpButton" type="button" aria-label="Open help">?</button>
+            </div>
+            <p id="missionDrawerBody" class="missionDrawerBody">The barn is quiet. It will not stay that way.</p>
+            <div class="missionDrawerFacts">
+              <div>
+                <span>Goal</span>
+                <strong id="missionDrawerObjective">Start dropping pieces</strong>
+              </div>
+              <div>
+                <span>Reward</span>
+                <strong id="missionDrawerReward">+0 coins</strong>
+              </div>
+            </div>
+            <p id="missionDrawerRule" class="missionDrawerRule">Finish the tiny job. Then cash the reward herd.</p>
+            <div id="missionDrawerSpecialInfo" class="missionDrawerSpecialInfo">Mission specials show up in the real Next queue.</div>
+            <div id="missionDrawerSpecials" class="missionBriefSpecialGrid missionDrawerSpecialGrid"></div>
+            <button id="missionDrawerActionButton" class="missionDrawerActionButton" type="button">Start</button>
           </div>
         </div>
         <canvas id="c"></canvas>
@@ -106,7 +133,7 @@
       <div>
         <b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · tap Next = swap
       </div>
-      <div class="legend">🥚 x2 · <span class="danger">💩 ÷2</span> · Space/F = slam</div>
+      <div class="legend">🥚 bonus · <span class="danger">💩 mud</span> · Space/F = slam</div>
     </footer>
   </div>
 
@@ -293,7 +320,8 @@
             </div>
             <p class="helpText">Make <b>9+</b> matching animals touch. That clears a herd for coins.</p>
             <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
-            <p class="helpText">🥚 boosts a herd. 💩 muddies the payout. The barn is not subtle.</p>
+            <p class="helpText">🥚 boosts a herd. The brown 💩 marker is mud; it trims payout.</p>
+            <p class="helpText">Empty mud eats one falling tile, then disappears.</p>
           </div>
         </details>
 
@@ -309,7 +337,7 @@
           <summary>Scoring And Multipliers</summary>
           <div class="helpFoldBody">
             <p class="helpText">Each animal in a cleared herd earns coins. Bigger herds add a modest size bonus.</p>
-            <p class="helpText">🥚 adds a capped bonus. 💩 trims the payout. No egg jackpots from outer space.</p>
+            <p class="helpText">🥚 adds a capped bonus. Mud markers trim the payout. No egg jackpots from outer space.</p>
             <p class="helpText">Chains add a separate bounded combo bonus. Angry Wolves is the rare big payout.</p>
           </div>
         </details>
@@ -325,7 +353,7 @@
         <details class="helpFold">
           <summary>Mission Specials</summary>
           <div class="helpFoldBody">
-            <p class="helpText">The mission brief shows this run's two gold-frame specials before you start. They still arrive through the real <b>Next</b> queue, so if one is in Next you can swap it, hold it, or duck it.</p>
+            <p class="helpText">Mission specials are taught in the brief and still arrive through the real <b>Next</b> queue, so you can swap, hold, or dodge them.</p>
             <div id="helpMissionSpecials" class="helpSpecialList"></div>
           </div>
         </details>
@@ -334,6 +362,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=0.35-v2-score-stable"></script>
+  <script src="game.js?v=0.36-v2-9x12-mission-drawer"></script>
 </body>
 </html>

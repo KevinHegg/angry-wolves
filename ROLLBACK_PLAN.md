@@ -449,6 +449,21 @@ This focused follow-up pass touches the same four files but can be backed out pi
 - iPhone audio lifecycle changes:
   Set `USE_IOS_AUDIO_RESUME_FIXES = false` to remove the added `pageshow` / `focus` / visible-resume nudges and the safe pre-play resume attempt. Existing sound enable/disable behavior remains.
 
+## Revert V2 Mission Drawer / 9x12 / Wolf Mud Pass
+
+This pass touches [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html), [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css), and [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+
+- Revert only the board geometry:
+  Change `V2_COLS` from `9` back to `8` and restore the prior `GAME_VERSION` string. This keeps the rest of V2 intact but separates score/leaderboard metadata again.
+- Revert only the mission drawer:
+  Remove the `missionDrawer*` markup/styles and restore the V2 startup branch in `init()` / `restart()` to the previous toast-or-briefing behavior. The legacy mission briefing modal is still preserved.
+- Revert only the mobile top offset:
+  Set `--v2-mobile-browser-offset: 0px` in the mobile `body.refreshV2` CSS block and remove the V2 `#app` margin-top/min-height overrides.
+- Revert only Angry Wolf mud fallback:
+  Change `wolvesExplode()` back to using `scatterNearbyOverlays()` / `markOneFootprintOverlay()` and remove `placeMudTrapsForPiece()`. This restores the previous opportunistic mud placement.
+- Revert only debug screenshot helpers:
+  Remove the `debugBoard=empty`, `debugBoard=mud_lane`, and `debugBoard=wolf_hit` cases from `applyDebugBoardPreset()`. All helpers are query-gated and off by default.
+
 ## Full Feature Revert
 
 Fastest safe option:
