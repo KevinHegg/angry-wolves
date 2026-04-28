@@ -6343,26 +6343,70 @@
     ctx.restore();
   }
 
-  function overlayMarkerGeometry(gx, gy, size=cell){
-    const markerSize = Math.max(12, size * 0.38);
+  function overlayMarkerGeometry(gx, gy, size=cell, power=POWER.EGG, opts={}){
+    const centeredMudTrap = REFRESH_V2_ENABLED && power === POWER.TURD && !opts.aboveTiles;
+    const markerSize = centeredMudTrap
+      ? Math.max(18, size * 0.66)
+      : Math.max(12, size * 0.38);
     return {
-      cx: gx + size * 0.25,
-      cy: gy + size * 0.74,
+      cx: centeredMudTrap ? gx + size * 0.5 : gx + size * 0.25,
+      cy: centeredMudTrap ? gy + size * 0.5 : gy + size * 0.74,
       size: markerSize
     };
   }
 
+  function drawMudSplatGlyph(cx, cy, size){
+    const s = size;
+    ctx.save();
+    ctx.globalAlpha *= 0.98;
+    ctx.fillStyle = "rgba(47, 28, 15, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + s * 0.1, s * 0.5, s * 0.2, 0.05, 0, Math.PI * 2);
+    ctx.fill();
+
+    const spots = [
+      [0, 0, 0.34, 0.24, 0.12],
+      [-0.27, -0.06, 0.18, 0.13, -0.38],
+      [0.25, -0.04, 0.19, 0.12, 0.32],
+      [-0.14, 0.2, 0.22, 0.12, 0.18],
+      [0.13, 0.18, 0.2, 0.12, -0.24],
+      [-0.34, 0.18, 0.09, 0.06, 0.42],
+      [0.36, 0.16, 0.1, 0.06, -0.36],
+      [-0.18, -0.29, 0.08, 0.05, 0],
+      [0.2, -0.27, 0.07, 0.05, 0]
+    ];
+
+    ctx.fillStyle = "#6b3b20";
+    for(const [dx, dy, rx, ry, rot] of spots){
+      ctx.beginPath();
+      ctx.ellipse(cx + s * dx, cy + s * dy, s * rx, s * ry, rot, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha *= 0.28;
+    ctx.fillStyle = "#f1b26b";
+    ctx.beginPath();
+    ctx.ellipse(cx - s * 0.12, cy - s * 0.08, s * 0.16, s * 0.07, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawPowerMarker(cx, cy, size, power, opts={}){
     const egg = power === POWER.EGG;
-    const halo = egg ? "rgba(255, 216, 77, 0.28)" : "rgba(126, 71, 36, 0.3)";
+    const mudTrap = !egg && REFRESH_V2_ENABLED && !opts.aboveTiles;
+    const halo = egg
+      ? "rgba(255, 216, 77, 0.28)"
+      : (mudTrap ? "rgba(92, 54, 28, 0.2)" : "rgba(126, 71, 36, 0.3)");
     ctx.save();
-    ctx.globalAlpha *= opts.aboveTiles ? 0.96 : 0.78;
+    ctx.globalAlpha *= opts.aboveTiles ? 0.96 : (mudTrap ? 0.9 : 0.78);
     ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.52, 0, Math.PI * 2);
+    if(mudTrap) ctx.ellipse(cx, cy + size * 0.04, size * 0.56, size * 0.38, 0, 0, Math.PI * 2);
+    else ctx.arc(cx, cy, size * 0.52, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha *= opts.aboveTiles ? 1 : 0.92;
     if(egg) drawEggGlyph(cx, cy, size);
+    else if(mudTrap) drawMudSplatGlyph(cx, cy, size);
     else drawTurdGlyph(cx, cy + size * 0.02, size * 0.86);
     ctx.restore();
   }
@@ -6445,7 +6489,8 @@
     if(!state.bonus && !state.muddy && !state.scared) return;
     ctx.save();
     if(state.bonus || state.muddy){
-      const marker = overlayMarkerGeometry(cx - s / 2, cy - s / 2, s);
+      const power = state.bonus ? POWER.EGG : POWER.TURD;
+      const marker = overlayMarkerGeometry(cx - s / 2, cy - s / 2, s, power, { aboveTiles:true });
       drawPowerMarker(marker.cx, marker.cy, marker.size, state.bonus ? POWER.EGG : POWER.TURD, { aboveTiles:true });
     }
     if(state.scared){
@@ -6943,7 +6988,7 @@
 
         const gx = px + x*cell;
         const gy = px + y*cell;
-        const marker = overlayMarkerGeometry(gx, gy, cell);
+        const marker = overlayMarkerGeometry(gx, gy, cell, p, { aboveTiles });
         drawPowerMarker(marker.cx, marker.cy, marker.size, p, { aboveTiles });
       }
     }
@@ -8199,7 +8244,7 @@
           </div>
           <p class="helpText">Make <b>${ACTIVE_CLEAR_THRESHOLD}+</b> matching animals touch. That clears a herd for coins.</p>
           <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
-          <p class="helpText">🥚 boosts a herd. The brown 💩 marker is mud; it trims payout.</p>
+          <p class="helpText">🥚 boosts a herd. Brown splats are mud; they trim payout.</p>
           <p class="helpText">Empty mud eats one falling tile, then disappears.</p>
         `;
       }
