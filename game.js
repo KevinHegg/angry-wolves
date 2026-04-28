@@ -136,7 +136,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-9x12-hud-turds" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-ios-audio-share" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -1125,6 +1125,10 @@
   let pendingAudioResume = null;
   let ambienceClock = 0;
   let audioDirector = null;
+  let audioDebugPanelEl = null;
+  let lastAudioResumeAttempt = "none";
+  let lastAudioSoundEvent = "none";
+  let lastAudioError = "";
 
   function storedSfxVolumeRaw(){
     try{
@@ -1137,6 +1141,12 @@
     return storedSfxVolumeRaw() !== null;
   }
   function audioDebugLog(label, data={}){
+    if(label){
+      if(label.startsWith("resume:")) lastAudioResumeAttempt = label;
+      if(label.startsWith("test:") || label.startsWith("sfx:")) lastAudioSoundEvent = label;
+    }
+    if(data?.message) lastAudioError = data.message;
+    syncAudioDebugPanel();
     if(!AUDIO_DEBUG) return;
     try{
       console.log("[Angry Wolves audio]", label, {
@@ -1148,6 +1158,31 @@
         storedSfxVolume: storedSfxVolumeRaw(),
         ...data
       });
+    }catch{}
+  }
+  function syncAudioDebugPanel(){
+    if(!AUDIO_DEBUG) return;
+    try{
+      if(!audioDebugPanelEl){
+        audioDebugPanelEl = document.createElement("div");
+        audioDebugPanelEl.setAttribute("aria-live", "polite");
+        audioDebugPanelEl.style.cssText = [
+          "position:fixed",
+          "left:8px",
+          "right:8px",
+          "bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)",
+          "z-index:9999",
+          "padding:5px 7px",
+          "border-radius:8px",
+          "background:rgba(0,0,0,0.72)",
+          "color:#ffe39a",
+          "font:700 10px/1.25 system-ui,-apple-system,sans-serif",
+          "pointer-events:none",
+          "text-align:left"
+        ].join(";");
+        document.body.appendChild(audioDebugPanelEl);
+      }
+      audioDebugPanelEl.textContent = `audio ${soundOn ? "on" : "off"} · ${Math.round((sfxVolume || 0) * 100)}% · ${audioCtx?.state || "none"} · resume ${lastAudioResumeAttempt} · sound ${lastAudioSoundEvent}${lastAudioError ? ` · ${lastAudioError}` : ""}`;
     }catch{}
   }
   function resetAudioPrefsIfRequested(){
@@ -1206,6 +1241,11 @@
     }catch{}
   }
   function ensureAudio(){
+    if(audioCtx?.state === "closed"){
+      audioCtx = null;
+      masterGain = null;
+      audioDirector = null;
+    }
     if(audioCtx) return;
     try{
       audioDebugLog("ensureAudio:create");
@@ -1218,8 +1258,9 @@
         audioDebugLog("statechange");
       };
       if(HUMOR_AUDIO_ENABLED) audioDirector = createAudioDirector();
-    }catch{
-      audioDebugLog("ensureAudio:failed");
+    }catch(err){
+      lastAudioError = err?.message || "AudioContext failed";
+      audioDebugLog("ensureAudio:failed", { message:lastAudioError });
       audioCtx = null; masterGain = null;
     }
   }
@@ -1253,7 +1294,13 @@
       audioDebugLog("resume:already-running", { prime });
       return Promise.resolve(true);
     }
-    if(audioCtx.state === "closed") return Promise.resolve(false);
+    if(audioCtx.state === "closed"){
+      audioCtx = null;
+      masterGain = null;
+      audioDirector = null;
+      ensureAudio();
+      if(!audioCtx) return Promise.resolve(false);
+    }
     if(prime) audioPrimeOnResume = true;
     if(pendingAudioResume) return pendingAudioResume;
     audioDebugLog("resume:attempt", { prime });
@@ -1318,18 +1365,24 @@
     audioDebugLog("sfx:restored-default", { reason: missing ? "missing" : "invalid" });
     return true;
   }
+  function restoreAudibleSfxDefault(reason="explicit-test"){
+    sfxVolume = DEFAULT_SFX_VOLUME;
+    saveSfxVolumePref();
+    syncMasterGain();
+    syncSoundBtn();
+    audioDebugLog("sfx:restored-default", { reason });
+  }
   function playAudioTestCueFromGesture(){
     if(!soundOn){
-      showToast("Sound is off.", 1300);
-      audioDebugLog("test:blocked-sound-off");
-      return;
+      soundOn = true;
+      saveSoundPref();
+      audioDebugLog("test:enabled-sound");
     }
     ensureAudibleSfxDefaultIfMissing();
     if(sfxVolume <= 0){
-      showToast("SFX volume is 0%. Raise it to hear the barn.", 1800);
-      audioDebugLog("test:blocked-volume-zero");
-      return;
+      restoreAudibleSfxDefault("explicit-test-volume-zero");
     }
+    syncSoundBtn();
     let played = false;
     const resumePromise = safeResumeAudioFromGesture();
     const playCue = (source) => {
@@ -1929,7 +1982,9 @@
     ensureAudio();
     if(!audioDirector && audioCtx && masterGain) audioDirector = createAudioDirector();
     if(!audioDirector) return false;
-    return audioDirector.playGameEventSound(eventName, payload);
+    const played = audioDirector.playGameEventSound(eventName, payload);
+    if(played) audioDebugLog(`sfx:${eventName}`);
+    return played;
   }
 
   function animalVoice(type, event="chirp", intensity=1){
@@ -2822,7 +2877,8 @@
   function shareTextBody(){
     const lines = [
       shareBragLine(),
-      `Mission: ${mission?.title ?? "Barn Trouble"}`
+      `Mission: ${mission?.title ?? "Barn Trouble"}`,
+      `Play: ${shareUrl()}`
     ];
     const leaderboardLine = shareLeaderboardLine();
     if(leaderboardLine) lines.push(leaderboardLine);
@@ -7969,6 +8025,7 @@
     const totalScore = groupScore + missionBonus;
     const title = `Angry Wolves · ${mission?.title ?? "Barn Trouble"}`;
     const text = shareTextBody();
+    const url = shareUrl();
 
     if(shareButton) shareButton.disabled = true;
     try{
@@ -7981,11 +8038,14 @@
 
         const shareAttempts = [];
         if(file && (!navigator.canShare || navigator.canShare({ files: [file] }))){
+          shareAttempts.push(() => navigator.share({ title, text, url, files: [file] }));
           shareAttempts.push(() => navigator.share({ title, text, files: [file] }));
+          shareAttempts.push(() => navigator.share({ title, url, files: [file] }));
           shareAttempts.push(() => navigator.share({ title, files: [file] }));
         }
+        shareAttempts.push(() => navigator.share({ title, text, url }));
         shareAttempts.push(() => navigator.share({ title, text }));
-        shareAttempts.push(() => navigator.share({ title, text, url: shareUrl() }));
+        shareAttempts.push(() => navigator.share({ title, url }));
 
         for(const attempt of shareAttempts){
           try{
@@ -8380,21 +8440,30 @@
     }
   }
   if(wolfHowlButton){
-    wolfHowlButton.addEventListener("click", () => {
+    let lastWolfHowlTap = 0;
+    const onHowlTap = (e) => {
+      if(e?.cancelable) e.preventDefault();
+      const now = performance.now();
+      if(now - lastWolfHowlTap < 420) return;
+      lastWolfHowlTap = now;
       playWolfHowl({ style:"tap", intensity:0.9, source:"badge", fromGesture:true, animateBadge:true });
-    });
+    };
+    wolfHowlButton.addEventListener("pointerdown", onHowlTap, {passive:false});
+    wolfHowlButton.addEventListener("touchstart", onHowlTap, {passive:false});
+    wolfHowlButton.addEventListener("click", onHowlTap, {passive:false});
   }
   if(testSoundButton){
     let lastTestSoundTap = 0;
     const onTap = (e) => {
-      e.preventDefault();
+      if(e?.cancelable) e.preventDefault();
       const now = performance.now();
-      if(now - lastTestSoundTap < 360) return;
+      if(now - lastTestSoundTap < 420) return;
       lastTestSoundTap = now;
       playAudioTestCueFromGesture();
     };
+    testSoundButton.addEventListener("pointerdown", onTap, {passive:false});
+    testSoundButton.addEventListener("touchstart", onTap, {passive:false});
     testSoundButton.addEventListener("click", onTap, {passive:false});
-    testSoundButton.addEventListener("touchend", onTap, {passive:false});
   }
   if(closeModal){
     closeModal.addEventListener("click", closeSettings);
