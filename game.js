@@ -136,7 +136,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-ios-audio-hard-reset" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.37-v2-iphone-audio-test" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
