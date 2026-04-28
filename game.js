@@ -136,7 +136,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-ios-audio-share" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-safari-audio-frame" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -384,6 +384,7 @@
 
   // ===== DOM =====
   const appEl = document.getElementById("app");
+  const buildVersionEl = document.getElementById("buildVersion");
   const stageEl = document.getElementById("stage");
   const hudEl = document.getElementById("hud");
   const stageMissionBarEl = document.getElementById("stageMissionBar");
@@ -1185,6 +1186,17 @@
       audioDebugPanelEl.textContent = `audio ${soundOn ? "on" : "off"} · ${Math.round((sfxVolume || 0) * 100)}% · ${audioCtx?.state || "none"} · resume ${lastAudioResumeAttempt} · sound ${lastAudioSoundEvent}${lastAudioError ? ` · ${lastAudioError}` : ""}`;
     }catch{}
   }
+  function configureAudioSession(){
+    try{
+      const session = navigator.audioSession;
+      if(session && session.type !== "ambient"){
+        session.type = "ambient";
+        audioDebugLog("audio-session:ambient");
+      }
+    }catch(err){
+      audioDebugLog("audio-session:error", { message: err?.message || String(err || "") });
+    }
+  }
   function resetAudioPrefsIfRequested(){
     if(!AUDIO_RESET) return;
     try{
@@ -1248,6 +1260,7 @@
     }
     if(audioCtx) return;
     try{
+      configureAudioSession();
       audioDebugLog("ensureAudio:create");
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
@@ -1372,6 +1385,34 @@
     syncSoundBtn();
     audioDebugLog("sfx:restored-default", { reason });
   }
+  function playAudioTestTone(){
+    if(!prepareAudioPlayback()) return false;
+    const t0 = audioCtx.currentTime;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+    g.connect(masterGain);
+
+    const lead = audioCtx.createOscillator();
+    lead.type = "triangle";
+    lead.frequency.setValueAtTime(740, t0);
+    lead.frequency.exponentialRampToValueAtTime(460, t0 + 0.3);
+    lead.connect(g);
+    lead.start(t0);
+    lead.stop(t0 + 0.34);
+
+    const low = audioCtx.createOscillator();
+    low.type = "sine";
+    low.frequency.setValueAtTime(220, t0 + 0.04);
+    low.frequency.exponentialRampToValueAtTime(170, t0 + 0.28);
+    low.connect(g);
+    low.start(t0 + 0.04);
+    low.stop(t0 + 0.32);
+
+    audioDebugLog("test:direct-tone");
+    return true;
+  }
   function playAudioTestCueFromGesture(){
     if(!soundOn){
       soundOn = true;
@@ -1393,6 +1434,7 @@
       }
       played = true;
       audioDebugLog("test:play", { source });
+      playAudioTestTone();
       playGameEventSound("ui_button_tap");
       animalVoice(TILE.PIG, "toggle", 0.82);
       showToast(`Test sound: ${Math.round(sfxVolume * 100)}%`, 1200);
@@ -8355,6 +8397,7 @@
   function applyRefreshV2Shell(){
     document.documentElement.classList.toggle("refreshV2", REFRESH_V2_ENABLED);
     document.body.classList.toggle("refreshV2", REFRESH_V2_ENABLED);
+    if(buildVersionEl) buildVersionEl.textContent = GAME_VERSION;
     if(!REFRESH_V2_ENABLED) return;
     const subtitle = document.querySelector(".title .sub");
     if(subtitle) subtitle.textContent = `Build ${ACTIVE_CLEAR_THRESHOLD}+ herds. Gravity makes chains.`;
@@ -8758,7 +8801,6 @@
     patchHelpLine();
     syncSwapHints();
     installToastObserver();
-    ensureAudio();
     syncMasterGain();
     renderHelpSpecials();
 

@@ -13,6 +13,7 @@
   --surface-stroke: rgba(255,255,255,0.11);
   --surface-shadow: 0 10px 24px rgba(0,0,0,0.30);
   --v2-mobile-browser-offset: 0px;
+  --v2-app-radius: 28px;
 }
 
 html,body{
@@ -40,6 +41,10 @@ html,body{
   /* safe-area for iPhone notch */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.buildVersion{
+  display:none;
 }
 
 #hud{
@@ -2083,6 +2088,7 @@ body.refreshV2{
 body.refreshV2 #app{
   height:100vh;
   min-height:100vh;
+  box-sizing:border-box;
   background:
     radial-gradient(850px 620px at 50% 0%, rgba(133, 92, 46, 0.36), transparent 62%),
     linear-gradient(180deg, #2a1d10 0%, #0d0905 100%);
@@ -2294,6 +2300,24 @@ body.refreshV2 .stageCopyright{
   display:none;
 }
 
+body.refreshV2 .buildVersion{
+  display:block;
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 5px);
+  z-index:1;
+  color:rgba(245, 231, 190, 0.32);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:0.1em;
+  line-height:1;
+  text-align:center;
+  text-transform:uppercase;
+  pointer-events:none;
+  text-shadow:0 1px 2px rgba(0,0,0,0.6);
+}
+
 @media (min-width: 761px){
   body.refreshV2 #app{
     width:min(430px, calc(100vw - 28px));
@@ -2307,7 +2331,8 @@ body.refreshV2 .stageCopyright{
 
 @media (max-width: 760px){
   body.refreshV2{
-    --v2-mobile-browser-offset: 38px;
+    --v2-mobile-browser-offset: 118px;
+    --v2-mobile-browser-offset: clamp(108px, 14svh, 152px);
     overflow-x:hidden;
     overflow-y:hidden;
   }
@@ -2318,6 +2343,15 @@ body.refreshV2 .stageCopyright{
     min-height:calc(100svh - var(--v2-mobile-browser-offset));
     min-height:calc(100dvh - var(--v2-mobile-browser-offset));
     margin-top:var(--v2-mobile-browser-offset);
+    margin-left:auto;
+    margin-right:auto;
+    width:calc(100% - 16px);
+    max-width:430px;
+    border:1px solid rgba(238, 204, 137, 0.2);
+    border-radius:var(--v2-app-radius);
+    box-shadow:
+      0 18px 58px rgba(0,0,0,0.5),
+      inset 0 0 0 1px rgba(255,245,220,0.04);
     overflow:hidden;
     padding-top:env(safe-area-inset-top);
   }
