@@ -2,6 +2,63 @@
 
 This file covers the current mission-special pass and the planned V2 barnyard-core refresh work.
 
+## V2 Mission Ladder Operationalization Pass
+
+Files changed for the mission ladder pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves-mission-ladder/game.js)
+- [index.html](/Users/kevinhegg/Documents/angry-wolves-mission-ladder/index.html)
+- [MISSION_LADDER_V2.md](/Users/kevinhegg/Documents/angry-wolves-mission-ladder/MISSION_LADDER_V2.md)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves-mission-ladder/ROLLBACK_PLAN.md)
+- [refresh-assets/mission-ladder-v2/](/Users/kevinhegg/Documents/angry-wolves-mission-ladder/refresh-assets/mission-ladder-v2/)
+
+What this pass changes:
+
+- Adds `V2_MISSION_LADDER_ENABLED`, enabled by default for V2 and disabled with `?missionLadder=0`.
+- Adds `V2_CHAINED_MISSIONS_ENABLED`, enabled by default with the ladder and disabled with `?chainedMissions=0`.
+- Preserves the prior V2 mission deck as `LEGACY_V2_MISSION_DEFS`.
+- Adds the new ladder deck in `LADDER_V2_MISSION_DEFS`.
+- Adds chained jobs: cashing a reward starts the next job instead of ending the run.
+- Missing a reward countdown now resets the job streak and starts the next job when chained missions are enabled.
+- Adds flat capped job streak bonuses: +0, +20, +40, then +60 cap.
+- Adds mission progress types for animal-herd clears, mud cleaned, and wolf events.
+- Updates Muck Wagon and Barn Goods misses to create mud traps instead of generic turd penalties in V2 ladder play.
+- Updates V2 leaderboard metadata to include mission/job fields and `GAME_VERSION = "v0.37-v2-mission-ladder"`.
+
+To disable only the new mission ladder:
+
+- Open the game with `?missionLadder=0`.
+- Or set `V2_MISSION_LADDER_ENABLED = false` in [game.js](/Users/kevinhegg/Documents/angry-wolves-mission-ladder/game.js).
+- This uses `LEGACY_V2_MISSION_DEFS` while leaving V2 board, renderer, audio, and scoring intact.
+
+To disable only chained missions:
+
+- Open the game with `?chainedMissions=0`.
+- Or set `V2_CHAINED_MISSIONS_ENABLED = false`.
+- This keeps the ladder deck but returns reward cashout/miss behavior to the prior one-job run structure.
+
+To remove only the streak bonus:
+
+- Set `V2_STREAK_BONUS_CAP = 0` and change `V2_STREAK_BONUS_BY_STREAK` to `[0]`.
+- Or leave the constants and have `missionStreakBonus()` return `0`.
+
+To revert mission copy only:
+
+- Restore the mission objects in `LADDER_V2_MISSION_DEFS`.
+- Restore special copy in `SHARED_MISSION_SPECIAL_LIBRARY` and `missionBriefSpecialLines`.
+- The old V2 deck remains in `LEGACY_V2_MISSION_DEFS` for reference.
+
+To revert debug helpers:
+
+- Remove or ignore `?debugMissionFlow=1`, `?debugMissionTier=...`, `?debugMissionState=...`, and `?debugNoLeaderboard=1`.
+- The existing debug helpers remain query-gated and off by default.
+
+To revert the entire pass:
+
+- Revert the mission ladder commit once approved/committed, or apply the safety patch generated before this pass if needed.
+- For immediate runtime rollback without code changes, open with `?missionLadder=0&chainedMissions=0`.
+- For full V2 rollback, open with `?v1=1` or `?v2=0`.
+
 ## V2 Barnyard-Core Planning Branch
 
 - Branch: `refresh/v2-barnyard-core`
