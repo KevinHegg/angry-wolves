@@ -978,6 +978,23 @@ canvas{
   font-weight: 900;
   min-width: 64px;
 }
+.toggleBtn.isTesting,
+.toggleBtn:active{
+  transform:translateY(1px) scale(0.98);
+}
+.toggleBtn.isTesting{
+  background:linear-gradient(180deg, rgba(255, 209, 102, 0.42), rgba(255, 209, 102, 0.18));
+  border-color:rgba(255, 209, 102, 0.66);
+  box-shadow:0 0 0 3px rgba(255, 209, 102, 0.15);
+}
+.toggleBtn.isSuccess{
+  background:linear-gradient(180deg, rgba(125, 211, 252, 0.34), rgba(125, 211, 252, 0.14));
+  border-color:rgba(125, 211, 252, 0.58);
+}
+.toggleBtn.isError{
+  background:linear-gradient(180deg, rgba(255, 107, 107, 0.34), rgba(255, 107, 107, 0.14));
+  border-color:rgba(255, 107, 107, 0.58);
+}
 .closeBtn{
   margin-top: 12px;
   width:100%;
@@ -2307,8 +2324,8 @@ body.refreshV2 .buildVersion{
   right:0;
   bottom:calc(env(safe-area-inset-bottom, 0px) + 5px);
   z-index:1;
-  color:rgba(245, 231, 190, 0.32);
-  font-size:9px;
+  color:rgba(245, 231, 190, 0.22);
+  font-size:8px;
   font-weight:800;
   letter-spacing:0.1em;
   line-height:1;
@@ -2357,6 +2374,9 @@ body.refreshV2 .buildVersion{
   }
 
   body.refreshV2 #stage{
+    width:100%;
+    margin-left:0;
+    margin-right:0;
     min-height:calc(100svh - var(--v2-mobile-browser-offset) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 94px);
     min-height:calc(100dvh - var(--v2-mobile-browser-offset) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 94px);
     padding-top:31px;

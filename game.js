@@ -136,7 +136,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-safari-audio-frame" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-ios-audio-hard-reset" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -1127,6 +1127,9 @@
   let ambienceClock = 0;
   let audioDirector = null;
   let audioDebugPanelEl = null;
+  let mediaTestAudio = null;
+  let testSoundFeedbackTimer = 0;
+  let testToneDataUri = "";
   let lastAudioResumeAttempt = "none";
   let lastAudioSoundEvent = "none";
   let lastAudioError = "";
@@ -1195,6 +1198,92 @@
       }
     }catch(err){
       audioDebugLog("audio-session:error", { message: err?.message || String(err || "") });
+    }
+  }
+  function resetAudioGraph(reason="manual-reset"){
+    if(audioCtx){
+      try{
+        audioCtx.onstatechange = null;
+        const closeResult = typeof audioCtx.close === "function" ? audioCtx.close() : null;
+        if(closeResult?.catch) closeResult.catch(() => {});
+      }catch{}
+    }
+    audioCtx = null;
+    masterGain = null;
+    audioDirector = null;
+    pendingAudioResume = null;
+    audioPrimeOnResume = false;
+    audioUnlocked = false;
+    audioDebugLog("audio:hard-reset", { reason });
+  }
+  function hardResetAudioFromGesture(reason="test-button"){
+    resetAudioGraph(reason);
+    ensureAudio();
+    syncMasterGain();
+    return resumeAudioContext({ prime:true });
+  }
+  function wavTestToneDataUri(){
+    if(testToneDataUri) return testToneDataUri;
+    const sampleRate = 22050;
+    const duration = 0.38;
+    const samples = Math.floor(sampleRate * duration);
+    const dataBytes = samples * 2;
+    const buffer = new ArrayBuffer(44 + dataBytes);
+    const view = new DataView(buffer);
+    const writeString = (offset, value) => {
+      for(let i=0; i<value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+    };
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + dataBytes, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, "data");
+    view.setUint32(40, dataBytes, true);
+    for(let i=0; i<samples; i++){
+      const t = i / sampleRate;
+      const env = Math.min(1, i / 800) * Math.min(1, (samples - i) / 1600);
+      const sweep = 520 + 280 * (1 - t / duration);
+      const sample = Math.sin(Math.PI * 2 * sweep * t) * env * 0.55;
+      view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, sample)) * 32767, true);
+    }
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const chunk = 0x8000;
+    for(let i=0; i<bytes.length; i+=chunk){
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    testToneDataUri = `data:audio/wav;base64,${btoa(binary)}`;
+    return testToneDataUri;
+  }
+  function playMediaElementTestBeep(){
+    try{
+      configureAudioSession();
+      if(!mediaTestAudio){
+        mediaTestAudio = new Audio();
+        mediaTestAudio.preload = "auto";
+        mediaTestAudio.setAttribute("playsinline", "");
+        mediaTestAudio.setAttribute("webkit-playsinline", "");
+      }
+      mediaTestAudio.pause();
+      mediaTestAudio.src = wavTestToneDataUri();
+      mediaTestAudio.currentTime = 0;
+      mediaTestAudio.volume = clamp(Math.max(0.35, sfxVolume), 0, 1);
+      mediaTestAudio.load();
+      const playPromise = mediaTestAudio.play();
+      audioDebugLog("test:media-play-attempt");
+      return Promise.resolve(playPromise)
+        .then(() => audioDebugLog("test:media-played"))
+        .catch((err) => audioDebugLog("test:media-error", { message: err?.message || String(err || "") }));
+    }catch(err){
+      audioDebugLog("test:media-error", { message: err?.message || String(err || "") });
+      return Promise.resolve(false);
     }
   }
   function resetAudioPrefsIfRequested(){
@@ -1385,6 +1474,25 @@
     syncSoundBtn();
     audioDebugLog("sfx:restored-default", { reason });
   }
+  function setTestSoundFeedback(label="Test", tone="", duration=0){
+    if(!testSoundButton) return;
+    if(testSoundFeedbackTimer){
+      clearTimeout(testSoundFeedbackTimer);
+      testSoundFeedbackTimer = 0;
+    }
+    testSoundButton.textContent = label;
+    testSoundButton.classList.remove("isTesting", "isSuccess", "isError");
+    if(tone === "testing") testSoundButton.classList.add("isTesting");
+    if(tone === "success") testSoundButton.classList.add("isSuccess");
+    if(tone === "error") testSoundButton.classList.add("isError");
+    if(duration > 0){
+      testSoundFeedbackTimer = window.setTimeout(() => {
+        testSoundButton.textContent = "Test";
+        testSoundButton.classList.remove("isTesting", "isSuccess", "isError");
+        testSoundFeedbackTimer = 0;
+      }, duration);
+    }
+  }
   function playAudioTestTone(){
     if(!prepareAudioPlayback()) return false;
     const t0 = audioCtx.currentTime;
@@ -1414,6 +1522,7 @@
     return true;
   }
   function playAudioTestCueFromGesture(){
+    setTestSoundFeedback("Testing", "testing", 1800);
     if(!soundOn){
       soundOn = true;
       saveSoundPref();
@@ -1425,7 +1534,8 @@
     }
     syncSoundBtn();
     let played = false;
-    const resumePromise = safeResumeAudioFromGesture();
+    const mediaPromise = playMediaElementTestBeep();
+    const resumePromise = hardResetAudioFromGesture("test-button");
     const playCue = (source) => {
       if(played) return;
       if(!prepareAudioPlayback()){
@@ -1438,14 +1548,19 @@
       playGameEventSound("ui_button_tap");
       animalVoice(TILE.PIG, "toggle", 0.82);
       showToast(`Test sound: ${Math.round(sfxVolume * 100)}%`, 1200);
+      setTestSoundFeedback("Sent", "success", 1250);
     };
     playCue("gesture");
     Promise.resolve(resumePromise).then((running) => {
       if(running) playCue("resume");
       else if(!played){
         showToast("Safari is still waking audio. Tap Test again.", 1800);
+        setTestSoundFeedback("Retry", "error", 1400);
         audioDebugLog("test:resume-not-running");
       }
+    });
+    Promise.resolve(mediaPromise).then(() => {
+      if(!played) setTestSoundFeedback("Media", "success", 1250);
     });
   }
   audioDebugLog("settings-loaded", {
