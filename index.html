@@ -10,7 +10,7 @@
   <title>Angry Wolves</title>
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="styles.css?v=0.36-v2-mobile-drawer" />
+  <link rel="stylesheet" href="styles.css?v=0.36-v2-herd-pill-layer" />
 </head>
 <body>
   <div id="app">
@@ -133,14 +133,14 @@
       <div>
         <b>Touch:</b> tap side = ←/→ · drag = steer/drop · swipe ↑ left/right = ↺/↻ · tap Next = swap
       </div>
-      <div class="legend">🥚 bonus · <span class="danger">mud splat</span> · Space/F = slam</div>
+      <div class="legend">🥚 bonus · 💩 trims coins · <span class="danger">mud splat</span> eats tiles</div>
     </footer>
   </div>
 
   <!-- Settings modal -->
   <div id="modalBackdrop" class="modalBackdrop hidden">
     <div class="modal">
-      <h2>Settings (v0.35-v2)</h2>
+      <h2>Settings (v0.36-v2)</h2>
 
       <div class="row">
         <div class="rowLeft">
@@ -320,8 +320,8 @@
             </div>
             <p class="helpText">Make <b>9+</b> matching animals touch. That clears a herd for coins.</p>
             <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
-            <p class="helpText">🥚 boosts a herd. Brown splats are mud; they trim payout.</p>
-            <p class="helpText">Empty mud eats one falling tile, then disappears.</p>
+            <p class="helpText">🥚 boosts a herd. 💩 turds trim herd coins.</p>
+            <p class="helpText">Wolf mud splats eat one falling tile, then disappear.</p>
           </div>
         </details>
 
@@ -337,7 +337,7 @@
           <summary>Scoring And Multipliers</summary>
           <div class="helpFoldBody">
             <p class="helpText">Each animal in a cleared herd earns coins. Bigger herds add a modest size bonus.</p>
-            <p class="helpText">🥚 adds a capped bonus. Mud markers trim the payout. No egg jackpots from outer space.</p>
+            <p class="helpText">🥚 adds a capped bonus. 💩 turds trim the payout. No egg jackpots from outer space.</p>
             <p class="helpText">Chains add a separate bounded combo bonus. Angry Wolves is the rare big payout.</p>
           </div>
         </details>
@@ -362,6 +362,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=0.36-v2-mud-splat"></script>
+  <script src="game.js?v=0.36-v2-herd-pill-layer"></script>
 </body>
 </html>

@@ -85,6 +85,7 @@
   const V2_GHOST_CELL_LINE_WIDTH = 0.018;
   const V2_DROP_LANE_TOP_ALPHA = 0.015;
   const V2_DROP_LANE_BOTTOM_ALPHA = 0.055;
+  const V2_BOARD_CELL_NUDGE_PX = 1;
   const DEFAULT_SFX_VOLUME = 0.65;
 
   const LEGACY_BASE_FALL_MS = 650;
@@ -135,7 +136,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-9x12-mission-drawer" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.36-v2-9x12-hud-turds" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -167,14 +168,14 @@
   });
   const TUNED_CLUTTER_TUNING = Object.freeze({
     startEggs: 9,
-    startTurds: 6,
+    startTurds: 9,
     restockEggChance: 0.58,
     restockTurdChance: 0.46,
     maxEggRestock: 4,
     maxTurdRestock: 3,
     eggSoftCap: 15,
-    turdSoftCap: 10,
-    totalSoftCap: 21,
+    turdSoftCap: 12,
+    totalSoftCap: 24,
     chaosOverflowAllowance: 3
   });
   const ACTIVE_CLUTTER_TUNING = USE_TUNED_CLUTTER_SPAWNS ? TUNED_CLUTTER_TUNING : LEGACY_CLUTTER_TUNING;
@@ -212,7 +213,7 @@
     CRATE: 26,
   };
 
-  const POWER = { NONE:0, EGG:1, TURD:2 };
+  const POWER = { NONE:0, EGG:1, TURD:2, MUD:3 };
   const ANIMALS = [TILE.SHEEP, TILE.GOAT, TILE.CHICKEN, TILE.COW, TILE.PIG];
 
   const TILE_LABEL = {
@@ -382,6 +383,7 @@
   };
 
   // ===== DOM =====
+  const appEl = document.getElementById("app");
   const stageEl = document.getElementById("stage");
   const hudEl = document.getElementById("hud");
   const stageMissionBarEl = document.getElementById("stageMissionBar");
@@ -690,9 +692,9 @@
     },
     rain_barrel: {
       title: "Rain Barrel",
-      desc: () => "2x2 bucket. Washes up to 4 nearby egg or mud markers away.",
-      short: "Cleans nearby eggs and mud.",
-      help: "2x2 bucket. It washes up to 4 nearby egg or mud markers. If clean, it drops 1 egg.",
+      desc: () => "2x2 bucket. Washes up to 4 nearby eggs, turds, or mud traps.",
+      short: "Cleans nearby eggs, turds, and mud.",
+      help: "2x2 bucket. It washes up to 4 nearby eggs, turds, or mud traps. If clean, it drops 1 egg.",
       tile: TILE.RAIN,
       specKey: "RAIN_O",
       onLock: missionRainBarrelPiece,
@@ -720,9 +722,9 @@
     },
     muck_wagon: {
       title: "Muck Wagon",
-      desc: () => "Mud zigzag. Turns useful, then spreads three mud traps nearby.",
-      short: "Spreads mud traps nearby.",
-      help: "Becomes the touched animal and splashes 3 mud traps nearby. Empty mud eats one falling tile, then disappears.",
+      desc: () => "Poop zigzag. Turns useful, then drops three turds nearby.",
+      short: "Drops turds nearby.",
+      help: "Becomes the touched animal and drops 3 turds nearby. Turds trim herd payouts.",
       tile: TILE.SEEDER_TURD,
       specKey: "MUCK_WAGON_Z",
       onLock: missionMuckWagonPiece,
@@ -730,9 +732,9 @@
     },
     barnstorm_crate: {
       title: "Barnstorm Crate",
-      desc: () => "Gold-frame zigzag. Turns useful, then sprays a tight pocket of eggs, mud, and bad ideas.",
-      short: "Local spray of eggs, mud, and chaos.",
-      help: "Gold-frame zigzag. It turns into the touched animal, then sprays a local patch of eggs, mud, and matching nonsense.",
+      desc: () => "Gold-frame zigzag. Turns useful, then sprays a tight pocket of eggs, turds, and bad ideas.",
+      short: "Local spray of eggs, turds, and chaos.",
+      help: "Gold-frame zigzag. It turns into the touched animal, then sprays a local patch of eggs, turds, and matching nonsense.",
       tile: TILE.CRATE,
       specKey: "CRATE_S",
       onLock: missionBarnstormCratePiece,
@@ -742,13 +744,13 @@
       title: "Barn Goods",
       desc: ({ animal=null } = {}) => {
         if(!animal){
-          return "Producer crate. Hit the matching animal, drop an egg, and tag that herd for one good. Misses leave mud.";
+          return "Producer crate. Hit the matching animal, drop an egg, and tag that herd for one good. Misses leave a turd.";
         }
         const product = productInfoForAnimal(animal);
-        return `${product.specialTitle} hits the right producer, drops an egg, and tags that group for goods. Misses leave mud.`;
+        return `${product.specialTitle} hits the right producer, drops an egg, and tags that group for goods. Misses leave a turd.`;
       },
       short: "Hit the right producer for goods.",
-      help: "Hit the right producer to tag 1 good and drop 1 egg. Miss: drops 1 mud marker.",
+      help: "Hit the right producer to tag 1 good and drop 1 egg. Miss: drops 1 turd.",
       tile: TILE.WOOL,
       specKey: "PRODUCE_O",
       onLock: missionProducePiece,
@@ -760,7 +762,7 @@
       title: "Bunker Buster",
       desc: () => "2x2 square. Precise chain blast. Whiffs still leave a nasty calling card.",
       short: "Precise chain blast.",
-      help: "2x2 square. Hit: chain-blasts the touched cluster. Whiff: drops 4 mud markers.",
+      help: "2x2 square. Hit: chain-blasts the touched cluster. Whiff: drops 4 turds.",
       tile: TILE.BUNKER,
       specKey: "BUNKER_O",
       onLock: missionBunkerBlast,
@@ -993,7 +995,7 @@
       bonus: 130,
       hint: `${ACTIVE_CLEAR_THRESHOLD * 2} pigs`,
       objective: `Clear ${ACTIVE_CLEAR_THRESHOLD * 2} pigs`,
-      brief: "Egg Basket helps. Muck Wagon makes mud.",
+      brief: "Egg Basket helps. Muck Wagon drops turds.",
       specialEvery: 4.8,
       specials: [{ id: "egg_basket", weight: 2 }, { id: "muck_wagon", weight: 1 }],
       weight: 1.55
@@ -1008,7 +1010,7 @@
       bonus: 135,
       hint: `${ACTIVE_CLEAR_THRESHOLD * 2} goats`,
       objective: `Clear ${ACTIVE_CLEAR_THRESHOLD * 2} goats`,
-      brief: "Salt Lick pulls goats. Muck Wagon makes mud.",
+      brief: "Salt Lick pulls goats. Muck Wagon drops turds.",
       specialEvery: 4.8,
       specials: [{ id: "salt_lick", weight: 3 }, { id: "muck_wagon", weight: 1 }],
       weight: 1.45
@@ -1029,14 +1031,14 @@
     },
     {
       id: "v2_mud_season",
-      title: "Mud Season",
+      title: "Poop Patrol",
       family: "hazard",
       type: "turds",
       target: 3,
       bonus: 145,
-      hint: "clean 3 mud",
-      objective: "Clean 3 mud markers",
-      brief: "Rain Barrel washes mud. Muck Wagon makes more.",
+      hint: "clean 3 turds",
+      objective: "Clean 3 turds",
+      brief: "Rain Barrel washes turds. Muck Wagon makes more.",
       specialEvery: 3.9,
       specials: [{ id: "rain_barrel", weight: 3 }, { id: "muck_wagon", weight: 1 }],
       weight: 1.25
@@ -2319,11 +2321,12 @@
     return Math.floor(ROWS / 2);
   }
   function overlayCounts(){
-    const counts = { eggs: 0, turds: 0 };
+    const counts = { eggs: 0, turds: 0, mud: 0 };
     for(let y=0; y<ROWS; y++){
       for(let x=0; x<COLS; x++){
         if(overlay[y][x] === POWER.EGG) counts.eggs++;
         if(overlay[y][x] === POWER.TURD) counts.turds++;
+        if(overlay[y][x] === POWER.MUD) counts.mud++;
       }
     }
     return counts;
@@ -2337,7 +2340,7 @@
     const totalSoftCap = tuning.totalSoftCap + ((opts.allowOverflow ? tuning.chaosOverflowAllowance : 0) || 0);
     let chance = power === POWER.EGG ? tuning.restockEggChance : tuning.restockTurdChance;
     const typeCount = existingType + spawnedSoFar;
-    const totalCount = counts.eggs + counts.turds + spawnedSoFar;
+    const totalCount = counts.eggs + counts.turds + counts.mud + spawnedSoFar;
     if(typeCount >= typeSoftCap) chance *= 0.18;
     else if(typeCount >= Math.max(0, typeSoftCap - 2)) chance *= 0.42;
     if(totalCount >= totalSoftCap) chance *= 0.22;
@@ -2357,7 +2360,7 @@
   function formatRestockToast(eggs, turds){
     const parts = [];
     if(eggs > 0) parts.push(`+${eggs} 🥚`);
-    if(turds > 0) parts.push(`+${turds} mud`);
+    if(turds > 0) parts.push(`+${turds} 💩`);
     return parts.length ? `Lower barn ${parts.join(" ")}` : "";
   }
   function bestHerdSummary(best){
@@ -2862,7 +2865,7 @@
         : `${missionProgressText(mission.progress, mission.target)} goods`;
     }
     if(mission.type === "build_group") return `${missionCurrentProgress()} live`;
-    if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} ${REFRESH_V2_ENABLED ? "mud" : "turds"}`;
+    if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} ${REFRESH_V2_ENABLED ? "messes" : "turds"}`;
     if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials`;
     if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
     return `${missionProgressText(mission.progress, mission.target)}`;
@@ -3233,7 +3236,7 @@
           {
             id: "help-wolf",
             name: "Wolf Pack",
-            text: "2x2 trouble piece. When it settles, it blasts nearby settled tiles. If it whiffs completely, it leaves 1 mud marker.",
+            text: "2x2 trouble piece. When it settles, it blasts nearby settled tiles. If it whiffs completely, it leaves 1 mud trap.",
             piece: helpPieceFromSpec(SPECIAL.WOLVES_2, "WOLVES")
           },
           {
@@ -3422,7 +3425,7 @@
     if(specialId === "rain_barrel") return common ? "Common cleanup" : "Rare cleanup";
     if(specialId === "rooster_call") return common ? "Common combo" : "Rare combo";
     if(specialId === "egg_basket") return common ? "Common egg spread" : "Rare egg spread";
-    if(specialId === "muck_wagon") return common ? "Common mud spread" : "Rare mud spread";
+    if(specialId === "muck_wagon") return common ? "Common turd spread" : "Rare turd spread";
     if(specialId === "barnstorm_crate") return common ? "Common mayhem" : "Rare troublemaker";
     if(specialId === "barn_goods") return common ? "Common cash-in" : "Rare cash-in";
     if(["bunker_buster", "bunker"].includes(specialId)) return common ? "Common breaker" : "Rare troublemaker";
@@ -3438,21 +3441,21 @@
       case "salt_lick":
         return ["Nearby: pulls up to 2 animals in.", "If nobody moves: drops 1 egg."];
       case "rain_barrel":
-        return ["On lock: washes up to 4 eggs/mud.", "If clean: drops 1 egg."];
+        return ["On lock: washes up to 4 eggs/turds/mud.", "If clean: drops 1 egg."];
       case "rooster_call":
         return ["Nearby: flips up to 2 chickens to match.", "On lock: drops 2 eggs."];
       case "egg_basket":
         return ["On lock: becomes the touched animal.", "Nearby: plants 4 eggs."];
       case "muck_wagon":
-        return ["Nearby: splashes 3 mud traps.", "Empty mud eats 1 falling tile."];
+        return ["Nearby: drops 3 turds.", "Turds trim herd coins."];
       case "barnstorm_crate":
-        return ["On lock: sprays 2 eggs + 1 mud.", "Nearby: flips 1 animal to match."];
+        return ["On lock: sprays 2 eggs + 1 turd.", "Nearby: flips 1 animal to match."];
       case "barn_goods":
       case "produce":
-        return ["On producer hit: tags 1 good + 1 egg.", "On whiff: drops 1 mud."];
+        return ["On producer hit: tags 1 good + 1 egg.", "On whiff: drops 1 turd."];
       case "bunker_buster":
       case "bunker":
-        return ["On hit: chain-blasts the touched cluster.", "On whiff: drops 4 mud markers."];
+        return ["On hit: chain-blasts the touched cluster.", "On whiff: drops 4 turds."];
       default: {
         const rule = missionSpecialRule(specialId, sourceMission);
         return [rule?.short || rule?.desc || "Mission special through Next."];
@@ -3643,7 +3646,7 @@
     if(mission.type === "variety") return `Clear ${mission.target} different animals`;
     if(mission.type === "egg_clear") return `Clear ${mission.target} egg herds`;
     if(mission.type === "product") return mission.animal ? `Cash in ${mission.target} ${productInfoForAnimal(mission.animal).plural}` : `Cash ${mission.target} goods`;
-    if(mission.type === "turds") return REFRESH_V2_ENABLED ? `Clean ${mission.target} mud markers` : `Clear ${mission.target} turds`;
+    if(mission.type === "turds") return REFRESH_V2_ENABLED ? `Clean ${mission.target} mess markers` : `Clear ${mission.target} turds`;
     if(mission.type === "special_use") return `Use your mission special ${mission.target} time${mission.target === 1 ? "" : "s"}`;
     if(mission.type === "locks") return `Complete ${mission.target} settles`;
     return mission.title;
@@ -3655,7 +3658,7 @@
     if(mission.type === "variety") return "Mix the barn. Cash the confusion.";
     if(mission.type === "egg_clear") return "Eggs make the coins louder.";
     if(mission.type === "combo") return `One settle. Hit ${fmtChain(mission.target)} before the barn untangles itself.`;
-    if(mission.type === "product") return "Hit the right producer. Misses drop mud.";
+    if(mission.type === "product") return "Hit the right producer. Misses drop a turd.";
     if(mission.type === "build_group") return "Build it huge, but do not cash it early.";
     if(mission.type === "large_clears") return "Chunky herds only. Tiny clears do not count.";
     if(mission.type === "turds") return "Bring boots. The floor is trying to win.";
@@ -3789,7 +3792,7 @@
       if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} herds`;
       if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species`;
       if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds`;
-      if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} mud`;
+      if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} messes`;
       if(mission.type === "wolf") return `${missionProgressText(mission.progress, mission.target)} scares`;
       if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} big herds`;
     }
@@ -3809,7 +3812,7 @@
         : `${missionProgressText(mission.progress, mission.target)} goods cashed`;
     }
     if(mission.type === "build_group") return `Live herd ${missionCurrentProgress()} / ${mission.target}`;
-    if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} ${REFRESH_V2_ENABLED ? "mud cleaned" : "turds cleared"}`;
+    if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} ${REFRESH_V2_ENABLED ? "messes cleaned" : "turds cleared"}`;
     if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials used`;
     if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
     return `${missionProgressText(mission.progress, mission.target)} clears`;
@@ -4232,8 +4235,8 @@
           eggCandidates.push([x,y]);
         }
 
-        // turds: rarer rhythm
-        if(((xx + y + turdPhase) % 11) === 4){
+        // turds: roughly egg-matched rhythm; wolf specials own true mud traps.
+        if(((2*xx + y + turdPhase) % 6) === 3){
           turdCandidates.push([x,y]);
         }
       }
@@ -4242,33 +4245,51 @@
     shuffleInPlace(eggCandidates);
     shuffleInPlace(turdCandidates);
 
-    const blocked = new Set();
-    const blockAround = (x,y) => {
+    const occupied = new Set();
+    const blockedByPower = new Map([
+      [POWER.EGG, new Set()],
+      [POWER.TURD, new Set()]
+    ]);
+    const blockAround = (power, x, y) => {
+      const blocked = blockedByPower.get(power);
       for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
         const nx=x+dx, ny=y+dy;
         if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
         blocked.add(ny*COLS+nx);
       }
     };
+    const pools = {
+      [POWER.EGG]: eggCandidates,
+      [POWER.TURD]: turdCandidates
+    };
+    const remaining = {
+      [POWER.EGG]: ACTIVE_CLUTTER_TUNING.startEggs,
+      [POWER.TURD]: ACTIVE_CLUTTER_TUNING.startTurds
+    };
+    const tryPlace = (power) => {
+      if(remaining[power] <= 0) return false;
+      const pool = pools[power];
+      const samePowerBlocked = blockedByPower.get(power);
+      while(pool.length){
+        const [x, y] = pool.shift();
+        const key = y*COLS+x;
+        if(occupied.has(key) || samePowerBlocked.has(key)) continue;
+        overlay[y][x] = power;
+        occupied.add(key);
+        blockAround(power, x, y);
+        remaining[power]--;
+        return true;
+      }
+      return false;
+    };
 
-    let eggsLeft = ACTIVE_CLUTTER_TUNING.startEggs;
-    for(const [x,y] of eggCandidates){
-      if(eggsLeft <= 0) break;
-      const key = y*COLS+x;
-      if(blocked.has(key)) continue;
-      overlay[y][x] = POWER.EGG;
-      blockAround(x,y);
-      eggsLeft--;
-    }
-
-    let turdsLeft = ACTIVE_CLUTTER_TUNING.startTurds;
-    for(const [x,y] of turdCandidates){
-      if(turdsLeft <= 0) break;
-      const key = y*COLS+x;
-      if(blocked.has(key)) continue;
-      overlay[y][x] = POWER.TURD;
-      blockAround(x,y);
-      turdsLeft--;
+    const firstPower = Math.random() < 0.5 ? POWER.EGG : POWER.TURD;
+    let power = firstPower;
+    let safety = 0;
+    while((remaining[POWER.EGG] > 0 || remaining[POWER.TURD] > 0) && safety++ < 80){
+      const placed = tryPlace(power);
+      power = power === POWER.EGG ? POWER.TURD : POWER.EGG;
+      if(!placed) tryPlace(power);
     }
   }
 
@@ -4297,15 +4318,18 @@
     } else if(preset === "eggs"){
       overlay = makeOverlay();
       placeOverlay(POWER.EGG, 10);
-    } else if(preset === "mud" || preset === "turds"){
+    } else if(preset === "turds" || preset === "poop"){
       overlay = makeOverlay();
       placeOverlay(POWER.TURD, 10);
+    } else if(preset === "mud"){
+      overlay = makeOverlay();
+      placeOverlay(POWER.MUD, 10);
     } else if(preset === "mud_lane"){
       overlay = makeOverlay();
       const y = ROWS - 1;
       const startX = clamp(Math.floor(COLS / 2) - 2, 0, Math.max(0, COLS - 4));
       for(let x = startX; x < Math.min(COLS, startX + 4); x++){
-        overlay[y][x] = POWER.TURD;
+        overlay[y][x] = POWER.MUD;
       }
     } else if(preset === "wolf_hit"){
       overlay = makeOverlay();
@@ -4318,7 +4342,7 @@
       }
     } else if(preset === "wolf"){
       overlay = makeOverlay();
-      placeOverlay(POWER.TURD, 6);
+      placeOverlay(POWER.MUD, 6);
       const row = Math.max(2, startRow);
       for(let x = 1; x < Math.min(COLS - 1, 5); x++){
         board[row][x] = randChoice(ANIMALS);
@@ -4705,7 +4729,7 @@
   }
 
   function shouldMudDestroyLandingCell(x, y){
-    return REFRESH_V2_ENABLED && overlay[y]?.[x] === POWER.TURD && board[y]?.[x] === TILE.EMPTY;
+    return REFRESH_V2_ENABLED && overlay[y]?.[x] === POWER.MUD && board[y]?.[x] === TILE.EMPTY;
   }
 
   function consumeMudLandingCell(x, y, tile){
@@ -4761,16 +4785,18 @@
     const max = opts.max ?? 4;
     const radius = opts.radius ?? 2;
     const candidates = nearbyCellsForPiece(piece, radius, { includeFootprint: true });
+    const mud = candidates.filter(([x, y]) => overlay[y][x] === POWER.MUD);
     const turds = candidates.filter(([x, y]) => overlay[y][x] === POWER.TURD);
     const eggs = candidates.filter(([x, y]) => overlay[y][x] === POWER.EGG);
-    const ordered = [...turds, ...eggs];
-    const cleared = { eggs: 0, turds: 0 };
+    const ordered = [...mud, ...turds, ...eggs];
+    const cleared = { eggs: 0, turds: 0, mud: 0 };
     for(const [x, y] of ordered){
       if(overlay[y][x] === POWER.NONE) continue;
       if(overlay[y][x] === POWER.EGG) cleared.eggs++;
       if(overlay[y][x] === POWER.TURD) cleared.turds++;
+      if(overlay[y][x] === POWER.MUD) cleared.mud++;
       overlay[y][x] = POWER.NONE;
-      if((cleared.eggs + cleared.turds) >= max) break;
+      if((cleared.eggs + cleared.turds + cleared.mud) >= max) break;
     }
     return cleared;
   }
@@ -4804,26 +4830,38 @@
   }
 
   function placeMudTrapsForPiece(piece, count=1, opts={}){
+    const placed = placePowerMarkersForPiece(piece, POWER.MUD, count, opts);
+    return { turds: placed.mud, mud: placed.mud };
+  }
+
+  function placeTurdMessesForPiece(piece, count=1, opts={}){
+    return placePowerMarkersForPiece(piece, POWER.TURD, count, opts);
+  }
+
+  function placePowerMarkersForPiece(piece, power, count=1, opts={}){
     const target = Math.max(0, count|0);
-    const placed = { turds: 0 };
+    const placed = { eggs: 0, turds: 0, mud: 0 };
     if(!piece || target <= 0) return placed;
     const radius = opts.radius ?? 2;
     const used = new Set();
-    const canPlaceTrap = ([x, y]) =>
+    const canPlaceMarker = ([x, y]) =>
       x >= 0 && x < COLS &&
       y >= 0 && y < ROWS &&
       board[y][x] === TILE.EMPTY &&
       overlay[y][x] === POWER.NONE;
+    const placedCount = () => placed.eggs + placed.turds + placed.mud;
     const tryCells = (cells) => {
       for(const cell of cells){
-        if(placed.turds >= target) return;
+        if(placedCount() >= target) return;
         const [x, y] = cell;
         const key = keyForCell(x, y);
         if(used.has(key)) continue;
         used.add(key);
-        if(!canPlaceTrap(cell)) continue;
-        overlay[y][x] = POWER.TURD;
-        placed.turds++;
+        if(!canPlaceMarker(cell)) continue;
+        overlay[y][x] = power;
+        if(power === POWER.EGG) placed.eggs++;
+        if(power === POWER.TURD) placed.turds++;
+        if(power === POWER.MUD) placed.mud++;
       }
     };
 
@@ -4932,7 +4970,7 @@
       }
     } else {
       const turdsPlaced = markFootprintOverlays(piece, POWER.TURD, 2);
-      banner.text = `Barn Buster whiffed and dropped ${turdsPlaced} mud marker${turdsPlaced === 1 ? "" : "s"}.`;
+      banner.text = `Barn Buster whiffed and dropped ${turdsPlaced} turd${turdsPlaced === 1 ? "" : "s"}.`;
       banner.t = performance.now();
       playSpecialCue("bomb", { hit:false });
       playGameEventSound("turd_penalty");
@@ -5000,7 +5038,7 @@
     const excluded = new Set(footprintCells(piece).map(([x,y]) => keyForCell(x, y)));
     const footprintTurds = markOneFootprintOverlay(piece, POWER.TURD) ? 1 : 0;
     const lowerTurds = scatterLowerHalfOverlays(POWER.TURD, 3, excluded);
-    banner.text = `Bunker Buster whiffed and dropped ${footprintTurds + lowerTurds} mud marker${footprintTurds + lowerTurds === 1 ? "" : "s"}.`;
+    banner.text = `Bunker Buster whiffed and dropped ${footprintTurds + lowerTurds} turd${footprintTurds + lowerTurds === 1 ? "" : "s"}.`;
     banner.t = performance.now();
     playSpecialCue("bunker_buster", { hit:false });
     playGameEventSound("turd_penalty");
@@ -5069,7 +5107,7 @@
       }
       if(eggsPlaced >= eggs && turdsPlaced >= turds) break;
     }
-    banner.text = `Nest Bomber dropped ${eggsPlaced} eggs and ${turdsPlaced} mud marker${turdsPlaced === 1 ? "" : "s"}.`;
+    banner.text = `Nest Bomber dropped ${eggsPlaced} eggs and ${turdsPlaced} turd${turdsPlaced === 1 ? "" : "s"}.`;
     banner.t = performance.now();
     if(!playSpecialCue("seeder", { hit:true, animal:landAnimal, eggs:eggsPlaced, turds:turdsPlaced })){
       playTone({type:"square", f1:500, f2:200, dur:0.10, gain:0.07});
@@ -5157,15 +5195,16 @@
     const animal = chooseLandingAnimal(piece);
     placePieceAsAnimal(piece, animal);
     const cleared = clearNearbyOverlays(piece, { max: 4, radius: 2 });
-    if(cleared.turds > 0) bumpMission("turds", cleared.turds);
-    if((cleared.eggs + cleared.turds) === 0){
+    const clearedMesses = (cleared.turds || 0) + (cleared.mud || 0);
+    if(clearedMesses > 0) bumpMission("turds", clearedMesses);
+    if((cleared.eggs + clearedMesses) === 0){
       markOneFootprintOverlay(piece, POWER.EGG);
-      banner.text = "Rain Barrel found no mud, so it left one useful 🥚.";
+      banner.text = "Rain Barrel found no mess, so it left one useful 🥚.";
     } else {
-      banner.text = `Rain Barrel washed ${cleared.turds} mud marker${cleared.turds === 1 ? "" : "s"} and ${cleared.eggs} egg${cleared.eggs === 1 ? "" : "s"}.`;
+      banner.text = `Rain Barrel washed ${clearedMesses} mess marker${clearedMesses === 1 ? "" : "s"} and ${cleared.eggs} egg${cleared.eggs === 1 ? "" : "s"}.`;
     }
     banner.t = performance.now();
-    if(!playSpecialCue("rain_barrel", { hit:(cleared.eggs + cleared.turds) > 0, animal, cleared })){
+    if(!playSpecialCue("rain_barrel", { hit:(cleared.eggs + clearedMesses) > 0, animal, cleared })){
       playTone({ type:"sine", f1:360, f2:180, dur:0.15, gain:0.07 });
     }
   }
@@ -5203,8 +5242,8 @@
   function missionMuckWagonPiece(piece){
     const animal = chooseLandingAnimal(piece);
     placePieceAsAnimal(piece, animal);
-    const turdsPlaced = placeMudTrapsForPiece(piece, 3, { radius: 2 }).turds;
-    banner.text = `Muck Wagon splashed ${turdsPlaced} mud trap${turdsPlaced === 1 ? "" : "s"}. Empty mud eats one falling tile.`;
+    const turdsPlaced = placeTurdMessesForPiece(piece, 3, { radius: 2 }).turds;
+    banner.text = `Muck Wagon dropped ${turdsPlaced} turd${turdsPlaced === 1 ? "" : "s"}. Turds trim herd coins.`;
     banner.t = performance.now();
     if(!playSpecialCue("muck_wagon", { hit:turdsPlaced > 0, animal, turds:turdsPlaced })){
       playGameEventSound("turd_penalty");
@@ -5216,7 +5255,7 @@
     placePieceAsAnimal(piece, animal);
     const converted = convertNearbyAnimalsTo(piece, animal, 1, { radius: 2 });
     const scattered = scatterNearbyOverlays(piece, { eggs: 2, turds: 1, radius: 2 });
-    banner.text = `Barnstorm Crate sprayed ${scattered.eggs} 🥚, ${scattered.turds} mud, and ${converted ? "one matching ringer" : "pure bad ideas"}.`;
+    banner.text = `Barnstorm Crate sprayed ${scattered.eggs} 🥚, ${scattered.turds} 💩, and ${converted ? "one matching ringer" : "pure bad ideas"}.`;
     banner.t = performance.now();
     if(!playSpecialCue("barnstorm_crate", { hit:converted > 0, animal, scattered })){
       playTone({ type:"triangle", f1:480, f2:220, dur:0.12, gain:0.07 });
@@ -5245,7 +5284,7 @@
       }
     } else {
       markOneFootprintOverlay(piece, POWER.TURD);
-      banner.text = `${product.specialTitle} missed and turned into ${TILE_LABEL[landingAnimal]} after dropping 1 mud marker.`;
+      banner.text = `${product.specialTitle} missed and turned into ${TILE_LABEL[landingAnimal]} after dropping 1 turd.`;
       banner.t = performance.now();
       if(!playSpecialCue("barn_goods", { hit:false, animal:landingAnimal })){
         playTone({type:"square", f1:240, f2:150, dur:0.08, gain:0.05});
@@ -5637,7 +5676,7 @@
         bumpMission("clears", 1);
         if(gameOver) break;
         const chainTag = cascadeDepth > 1 ? `Chain ${fmtChain(cascadeDepth)}! ` : "";
-        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚+${scoreBreakdown.eggBonus}`:""}${turds?` mud-${scoreBreakdown.turdPenalty}`:""}`;
+        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚+${scoreBreakdown.eggBonus}`:""}${turds?` 💩-${scoreBreakdown.turdPenalty}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -5798,7 +5837,7 @@
       beginMudHazardTracking();
       entry?.onLock?.(current);
       if((entry?.leaveLonelyTurd ?? true) && maybeDropLonelyMissionTurd(current, landedLonely)){
-        banner.text += " It landed alone and left 1 mud marker.";
+        banner.text += " It landed alone and left 1 turd.";
       }
       const mudSummary = finishMudHazardTracking();
       appendMudHazardResult(mudSummary);
@@ -6157,8 +6196,9 @@
     const topReserve = compact ? Math.floor((FARM_BOARD_RENDERER_ENABLED ? 6 : 18) * dpr) : 0;
     const bottomReserve = compact ? Math.floor((FARM_BOARD_RENDERER_ENABLED ? 4 : 16) * dpr) : Math.floor((FARM_BOARD_RENDERER_ENABLED ? 6 : 14) * dpr);
 
+    const v2CellNudgeWidth = REFRESH_V2_ENABLED ? V2_BOARD_CELL_NUDGE_PX * COLS : 0;
     const usableWidth = REFRESH_V2_ENABLED
-      ? Math.min(rect.width, Math.max(260, window.innerWidth - 58), compact ? 360 : 440)
+      ? Math.min(rect.width, Math.max(260, window.innerWidth - 58 + v2CellNudgeWidth), compact ? 360 + v2CellNudgeWidth : 440 + v2CellNudgeWidth)
       : rect.width;
     const targetW = Math.max(220, Math.floor(usableWidth * dpr) - Math.floor((FARM_BOARD_RENDERER_ENABLED ? 0 : (compact ? 10 : 8)) * dpr));
     const targetH = Math.max(280, Math.floor(rect.height * dpr) - topReserve - bottomReserve - Math.floor((FARM_BOARD_RENDERER_ENABLED ? 0 : (compact ? 2 : 8)) * dpr));
@@ -6178,11 +6218,17 @@
     const canvasCssW = Math.floor(W / dpr);
     const canvasCssH = Math.floor(H / dpr);
     const boardOffset = Math.max(0, Math.floor((rect.width - canvasCssW) / 2));
+    const appRect = (appEl || document.body).getBoundingClientRect();
+    const boardLeftInApp = Math.max(0, Math.floor(rect.left - appRect.left + boardOffset));
     const stagePadTop = Math.floor(parseFloat(getComputedStyle(stageEl).paddingTop) || 0);
     if(compact){
       if(hudEl){
         hudEl.style.width = `${canvasCssW}px`;
         hudEl.style.maxWidth = `${canvasCssW}px`;
+        if(REFRESH_V2_ENABLED){
+          hudEl.style.marginLeft = `${boardLeftInApp}px`;
+          hudEl.style.marginRight = "auto";
+        }
       }
       if(stageMissionBarEl){
         stageMissionBarEl.style.width = `${canvasCssW}px`;
@@ -6193,6 +6239,8 @@
       if(hudEl){
         hudEl.style.removeProperty("width");
         hudEl.style.removeProperty("max-width");
+        hudEl.style.removeProperty("margin-left");
+        hudEl.style.removeProperty("margin-right");
       }
       if(stageMissionBarEl){
         if(REFRESH_V2_ENABLED){
@@ -6344,7 +6392,7 @@
   }
 
   function overlayMarkerGeometry(gx, gy, size=cell, power=POWER.EGG, opts={}){
-    const centeredMudTrap = REFRESH_V2_ENABLED && power === POWER.TURD && !opts.aboveTiles;
+    const centeredMudTrap = REFRESH_V2_ENABLED && power === POWER.MUD && !opts.aboveTiles;
     const markerSize = centeredMudTrap
       ? Math.max(18, size * 0.66)
       : Math.max(12, size * 0.38);
@@ -6393,7 +6441,7 @@
 
   function drawPowerMarker(cx, cy, size, power, opts={}){
     const egg = power === POWER.EGG;
-    const mudTrap = !egg && REFRESH_V2_ENABLED && !opts.aboveTiles;
+    const mudTrap = power === POWER.MUD && REFRESH_V2_ENABLED && !opts.aboveTiles;
     const halo = egg
       ? "rgba(255, 216, 77, 0.28)"
       : (mudTrap ? "rgba(92, 54, 28, 0.2)" : "rgba(126, 71, 36, 0.3)");
@@ -6999,8 +7047,7 @@
     const {
       fill = "rgba(255, 209, 102, 0.10)",
       stroke = "rgba(255, 209, 102, 0.72)",
-      lineWidth = Math.max(2, cell * 0.045),
-      label = ""
+      lineWidth = Math.max(2, cell * 0.045)
     } = opts;
     if(!group?.cells?.length) return;
 
@@ -7008,27 +7055,42 @@
     ctx.fillStyle = fill;
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lineWidth;
-    let sx = 0;
-    let sy = 0;
     for(const [x, y] of group.cells){
       const gx = px + x*cell;
       const gy = px + y*cell;
-      sx += gx + cell/2;
-      sy += gy + cell/2;
       roundRectFill(gx + cell*0.09, gy + cell*0.09, cell*0.82, cell*0.82, Math.max(6, cell*0.13), fill);
       roundRectStroke(gx + cell*0.09, gy + cell*0.09, cell*0.82, cell*0.82, Math.max(6, cell*0.13));
     }
-    if(label){
-      const cx = sx / group.cells.length;
-      const cy = sy / group.cells.length;
-      ctx.globalAlpha = 0.96;
-      roundRectFill(cx - cell*0.62, cy - cell*0.22, cell*1.24, cell*0.44, cell*0.2, "rgba(35, 20, 11, 0.82)");
-      ctx.fillStyle = "#ffe39a";
-      ctx.font = `900 ${Math.floor(cell*0.18)}px system-ui, -apple-system, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, cx, cy + 1);
-    }
+    ctx.restore();
+  }
+
+  function drawHerdGroupLabel(px, group, label, opts={}){
+    if(!group?.cells?.length || !label) return;
+    const {
+      fill = "rgba(35, 20, 11, 0.9)",
+      text = "#ffe39a"
+    } = opts;
+    const topY = Math.min(...group.cells.map(([, y]) => y));
+    const topCells = group.cells.filter(([, y]) => y === topY);
+    const minX = Math.min(...topCells.map(([x]) => x));
+    const maxX = Math.max(...topCells.map(([x]) => x));
+    const cx = px + ((minX + maxX + 1) * cell) / 2;
+    const cy = px + topY * cell + cell * 0.18;
+    const fontSize = Math.max(9, Math.floor(cell * 0.17));
+    ctx.save();
+    ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const padX = Math.max(8, cell * 0.18);
+    const pillW = Math.max(cell * 1.02, ctx.measureText(label).width + padX * 2);
+    const pillH = Math.max(15, cell * 0.34);
+    ctx.globalAlpha = 0.98;
+    roundRectFill(cx - pillW / 2, cy - pillH / 2, pillW, pillH, pillH / 2, fill);
+    ctx.strokeStyle = "rgba(255, 238, 182, 0.34)";
+    ctx.lineWidth = Math.max(1, cell * 0.018);
+    roundRectStroke(cx - pillW / 2, cy - pillH / 2, pillW, pillH, pillH / 2);
+    ctx.fillStyle = text;
+    ctx.fillText(label, cx, cy + 1);
     ctx.restore();
   }
 
@@ -7036,20 +7098,32 @@
     if(!REFRESH_V2_ENABLED) return;
     const { near, landing } = groups || v2HerdPreviewGroups();
     near.forEach((group) => {
-      const left = ACTIVE_CLEAR_THRESHOLD - group.cells.length;
       drawHerdCellGroup(px, group, {
         fill: "rgba(255, 255, 255, 0.035)",
         stroke: "rgba(255, 240, 185, 0.42)",
-        lineWidth: Math.max(1.2, cell * 0.022),
-        label: left <= 2 ? `${left} more` : ""
+        lineWidth: Math.max(1.2, cell * 0.022)
       });
     });
     landing.forEach((group) => {
       drawHerdCellGroup(px, group, {
         fill: "rgba(255, 209, 102, 0.1)",
         stroke: "rgba(255, 226, 139, 0.74)",
-        lineWidth: Math.max(1.7, cell * 0.034),
-        label: `${group.cells.length} herd`
+        lineWidth: Math.max(1.7, cell * 0.034)
+      });
+    });
+  }
+
+  function drawV2HerdHintLabels(px, groups=null){
+    if(!REFRESH_V2_ENABLED) return;
+    const { near, landing } = groups || v2HerdPreviewGroups();
+    near.forEach((group) => {
+      const left = ACTIVE_CLEAR_THRESHOLD - group.cells.length;
+      if(left <= 2) drawHerdGroupLabel(px, group, `${left} more`);
+    });
+    landing.forEach((group) => {
+      drawHerdGroupLabel(px, group, `${group.cells.length} herd`, {
+        fill: "rgba(64, 39, 13, 0.9)",
+        text: "#ffeeb7"
       });
     });
   }
@@ -7984,6 +8058,7 @@
       drawShadow(current, 0, gy-current.y, px);
     }
     if(current) drawPiece(current,0,0,px);
+    drawV2HerdHintLabels(px, herdHintGroups);
 
     stepParticles();
     drawParticles();
@@ -8244,8 +8319,8 @@
           </div>
           <p class="helpText">Make <b>${ACTIVE_CLEAR_THRESHOLD}+</b> matching animals touch. That clears a herd for coins.</p>
           <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
-          <p class="helpText">🥚 boosts a herd. Brown splats are mud; they trim payout.</p>
-          <p class="helpText">Empty mud eats one falling tile, then disappears.</p>
+          <p class="helpText">🥚 boosts a herd. 💩 turds trim herd coins.</p>
+          <p class="helpText">Wolf mud splats eat one falling tile, then disappear.</p>
         `;
       }
       const missionFold = helpFoldByTitle("Missions")?.querySelector(".helpFoldBody");
@@ -8253,7 +8328,7 @@
         missionFold.innerHTML = `
           <p class="helpText">The strip above the board shows one tiny job. Finish it, then cash the reward herd.</p>
           <p class="helpText">Early missions stay simple. Wolf nonsense arrives later, because manners.</p>
-          <p class="helpText"><b>Egg Basket</b> plants 4 eggs. <b>Muck Wagon</b> splashes 3 mud traps.</p>
+          <p class="helpText"><b>Egg Basket</b> plants 4 eggs. <b>Muck Wagon</b> drops 3 turds.</p>
           <p class="helpText">Special pieces always appear in the real <b>Next</b> tray.</p>
         `;
       }
@@ -8262,7 +8337,7 @@
         scoringFold.innerHTML = `
           <p class="helpText">Each animal in a cleared herd is worth <b>${V2_HERD_SCORE_PER_TILE}</b> coins. Bigger-than-${ACTIVE_CLEAR_THRESHOLD} herds add a modest size bonus.</p>
           <p class="helpText">🥚 adds +${Math.round(V2_EGG_MULTIPLIER_PER_EGG * 100)}% each, capped at ${Math.round((1 + V2_EGG_MULTIPLIER_CAP_EGGS * V2_EGG_MULTIPLIER_PER_EGG) * 100)}%. No egg jackpots from outer space.</p>
-          <p class="helpText">Mud markers shave the payout, but they will not erase the whole herd.</p>
+          <p class="helpText">Turds shave the payout, but they will not erase the whole herd.</p>
           <p class="helpText">Chains add a separate bounded combo bonus. Angry Wolves is the rare big payout.</p>
         `;
       }
