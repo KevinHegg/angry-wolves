@@ -2,6 +2,55 @@
 
 This file covers the current mission-special pass and the planned V2 barnyard-core refresh work.
 
+## V2 Mission Polish Pass
+
+Files changed for this focused tuning pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/game.js)
+- [styles.css](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/styles.css)
+- [MISSION_LADDER_V2.md](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/MISSION_LADDER_V2.md)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/ROLLBACK_PLAN.md)
+- [refresh-assets/v2-mission-polish/](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/refresh-assets/v2-mission-polish/)
+
+What this pass changes:
+
+- Keeps the V2 mission ladder and chained loop intact.
+- Scales early animal-herd missions down to 1 herd while the player has fewer than 2 completed jobs or is inside the first 2 runs.
+- Delays `Barn Cash` until at least 5 completed jobs or 5 runs.
+- Changes `Wolf Alert` wording to `survive 1 howl`.
+- Changes `Rain Barrel` so it clears up to 4 nearby mud traps only; if no mud is nearby, it drops 1 egg.
+- Adds clearer Pack Howl feedback: scrambled cells pulse and the banner says how many animals changed.
+- Adds clearer mud trap feedback: a mud-eat splat animation, squelch sound, and `Mud ate X tile(s).` banner.
+- Adds a restrained danger treatment plus start warning cue for Angry Wolves.
+- Expands `?debugMissionFlow=1` logs for mission choice, targets, rewards, cashouts, and misses.
+- Updates V2 score metadata to `GAME_VERSION = "v0.38-v2-mission-polish"`.
+
+To revert only early mission scaling:
+
+- Remove `v2ScaledMissionDefinition()` and use the selected mission definition directly in `newMission()`.
+- Or change the scaling condition so it always returns the original `entry`.
+
+To revert only the Barn Cash unlock delay:
+
+- Restore `v2_barn_cash.unlockJobs` and `v2_barn_cash.minRunsStarted` from `5` to `4` in `LADDER_V2_MISSION_DEFS`.
+
+To revert only Rain Barrel behavior:
+
+- In `missionRainBarrelPiece()`, call `clearNearbyOverlays(piece, { max: 4, radius: 2 })` without the `types: [POWER.MUD]` filter.
+- Restore the prior Rain Barrel copy in `SHARED_MISSION_SPECIAL_LIBRARY` and `missionBriefSpecialLines()`.
+
+To revert only wolf/mud feedback:
+
+- Remove the `scramble` and `mud_eat` cases from `drawBoardAnimations()`.
+- Change `panicNearbyAnimals()` back to returning a count instead of changed-cell objects.
+- Restore the previous Pack Howl and mud banner strings.
+
+To revert only Angry Wolves presentation:
+
+- Remove the `missionDanger`/`missionMarquee` class toggles in `syncMissionDrawerUI()`.
+- Remove the matching CSS rules in `styles.css`.
+- Replace `playMissionStartCue()` calls with the prior `playGameEventSound("mission_start")` behavior.
+
 ## V2 Mission Ladder Operationalization Pass
 
 Files changed for the mission ladder pass:

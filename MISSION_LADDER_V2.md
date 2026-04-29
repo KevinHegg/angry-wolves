@@ -21,17 +21,17 @@ This pass turns V2 missions into a chained "one more job" loop while keeping the
 | Mission | Family | Goal Hint | Objective | Common Special | Rare Special | Unlock |
 |---|---|---|---|---|---|---|
 | First Flock | Onboarding | clear 9 sheep | Clear one sheep herd | none | none | first run only |
-| Sheep Sweep | Animal | clear sheep herds | Clear 2 sheep herds | Salt Lick | Egg Basket | early |
-| Coop Cleanup | Animal | clear chickens | Clear 2 chicken herds | Rooster Call | Egg Basket | early |
-| Pig Panic | Animal | clear pigs | Clear 2 pig herds | Egg Basket | Muck Wagon | early |
-| Goat Rodeo | Animal | clear goats | Clear 2 goat herds | Salt Lick | Muck Wagon | early |
-| Moo Move | Animal | clear cows | Clear 2 cow herds | Salt Lick | Rain Barrel | early |
+| Sheep Sweep | Animal | clear sheep herds | Clear 2 sheep herds; early jobs scale to 1 herd | Salt Lick | Egg Basket | early |
+| Coop Cleanup | Animal | clear chickens | Clear 2 chicken herds; early jobs scale to 1 herd | Rooster Call | Egg Basket | early |
+| Pig Panic | Animal | clear pigs | Clear 2 pig herds; early jobs scale to 1 herd | Egg Basket | Muck Wagon | early |
+| Goat Rodeo | Animal | clear goats | Clear 2 goat herds; early jobs scale to 1 herd | Salt Lick | Muck Wagon | early |
+| Moo Move | Animal | clear cows | Clear 2 cow herds; early jobs scale to 1 herd | Salt Lick | Rain Barrel | early |
 | Egg Rush | Modifier | 2 egg herds | Clear 2 herds with eggs | Egg Basket | Rooster Call | after 1 completed job or 2 runs |
 | Mud Season | Modifier | clean 3 mud | Clean 3 mud markers | Rain Barrel | Muck Wagon | after 1 completed job or 2 runs |
 | Salt Party | Tool | 2 big herds | Clear 2 herds of 10+ | Salt Lick | Barnstorm Crate | after 3 completed jobs or 3 runs |
 | Rooster Riot | Combo | hit x2 chain | Trigger a x2 chain | Rooster Call | Egg Basket | after 3 completed jobs or 3 runs |
-| Wolf Alert | Wolf | weather 1 howl | Weather 1 wolf event | Pack Howl | Rain Barrel | after 4 completed jobs or 4 runs |
-| Barn Cash | Market | cash 2 goods | Cash 2 goods | Barn Goods | Muck Wagon | after 4 completed jobs or 4 runs |
+| Wolf Alert | Wolf | survive 1 howl | Survive 1 howl | Pack Howl | Rain Barrel | after 4 completed jobs or 4 runs |
+| Barn Cash | Market | cash 2 goods | Cash 2 goods | Barn Goods | Muck Wagon | after 5 completed jobs or 5 runs |
 | Angry Wolves | Rare marquee | 2 big herds | Clear 2 herds of 11+ | Angry Wolf | Pack Howl | after 5 completed jobs or 5 runs, rare weight |
 
 ## Unlock Ladder
@@ -43,14 +43,14 @@ This pass turns V2 missions into a chained "one more job" loop while keeping the
 - Wolf/advanced pool: `Wolf Alert`, `Barn Cash`.
 - Rare pool: `Angry Wolves`.
 
-Selection uses lightweight local progress only: runs started and lifetime jobs completed. Debug mission selection can force a mission or tier without changing stored progress.
+Selection uses lightweight local progress only: runs started and lifetime jobs completed. Early animal jobs scale down to 1 herd while the player has fewer than 2 completed jobs or is still inside the first 2 runs. Debug mission selection can force a mission or tier without changing stored progress.
 
 ## Special Library
 
 | Special | Role | Concrete Effect |
 |---|---|---|
 | Salt Lick | Common helper | Becomes the touched animal; converts up to 2 nearby animals to match. If isolated, places 1 egg. |
-| Rain Barrel | Cleanup helper | Clears up to 4 nearby mud/turd/egg markers, preferring mud first. If nothing is cleaned, places 1 egg. |
+| Rain Barrel | Cleanup helper | Clears up to 4 nearby mud traps. If no mud is nearby, places 1 egg. |
 | Rooster Call | Combo helper | Becomes the touched animal; flips up to 2 nearby chickens to match and places 2 eggs. |
 | Egg Basket | Bonus helper | Becomes the touched animal and plants 4 eggs nearby. |
 | Muck Wagon | Rare hazard | Becomes the touched animal and splashes 3 mud traps nearby. Empty mud eats 1 falling tile, then disappears. |
@@ -103,6 +103,7 @@ New or reused V2 audio events:
 - `egg_bonus`
 
 The long wolf howl remains reserved for Angry Wolves completion. Angry Wolf settles use shorter wolf havoc cues.
+Angry Wolves also gets a short warning cue when the mission starts.
 
 ## Scoring Safety
 
@@ -110,7 +111,7 @@ The long wolf howl remains reserved for Angry Wolves completion. Angry Wolf sett
 - Eggs remain capped.
 - Chains remain bounded.
 - Mission rewards and streak bonuses are added flat.
-- V2 submissions stay tagged as `GAME_MODE = "v2-prototype"` and `GAME_VERSION = "v0.37-v2-mission-ladder"`.
+- V2 submissions stay tagged as `GAME_MODE = "v2-prototype"` and `GAME_VERSION = "v0.38-v2-mission-polish"`.
 - Leaderboard payloads now include board dimensions plus mission/job metadata.
 
 ## Debug Flags
@@ -126,6 +127,8 @@ The long wolf howl remains reserved for Angry Wolves completion. Angry Wolf sett
 - `?debugNoLeaderboard=1`
 
 All debug helpers are off by default.
+
+`?debugMissionFlow=1` logs mission choice, family, unlock tier, jobs completed, current streak, objective target, reward value, reward cashouts, and reward misses.
 
 ## Rollback Notes
 
