@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Angry Wolves V2 Mission Polish Report</title>
+  <style>
+    @page {
+      size: letter;
+      margin: 0.55in;
+    }
+    :root {
+      color-scheme: light;
+      --ink: #261908;
+      --muted: #6f5a39;
+      --line: #d3b978;
+      --paper: #fff6df;
+      --panel: #f4dea8;
+      --accent: #b97921;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 11.5pt;
+      line-height: 1.38;
+    }
+    h1, h2, h3 {
+      font-family: Avenir Next, Helvetica, Arial, sans-serif;
+      line-height: 1.05;
+      margin: 0 0 0.14in;
+    }
+    h1 {
+      font-size: 24pt;
+      letter-spacing: 0.02em;
+    }
+    h2 {
+      border-top: 2px solid var(--line);
+      color: #4b2e0f;
+      font-size: 16pt;
+      margin-top: 0.28in;
+      padding-top: 0.14in;
+    }
+    h3 {
+      color: #5d3b14;
+      font-size: 12.5pt;
+      margin-top: 0.18in;
+    }
+    p {
+      margin: 0 0 0.09in;
+    }
+    code {
+      background: rgba(185, 121, 33, 0.12);
+      border-radius: 4px;
+      font-family: Menlo, Consolas, monospace;
+      font-size: 0.88em;
+      padding: 0.04in 0.06in;
+    }
+    pre {
+      background: #2b1b0d;
+      border-radius: 10px;
+      color: #fff6df;
+      font-family: Menlo, Consolas, monospace;
+      font-size: 8.5pt;
+      line-height: 1.3;
+      margin: 0.12in 0 0.18in;
+      overflow-wrap: break-word;
+      padding: 0.16in;
+      white-space: pre-wrap;
+    }
+    ul {
+      margin: 0.04in 0 0.16in;
+      padding-left: 0.22in;
+    }
+    li {
+      margin: 0.025in 0;
+    }
+    .cover {
+      background: linear-gradient(135deg, #fff2c5, #ead08e);
+      border: 1.5px solid var(--line);
+      border-radius: 16px;
+      margin-bottom: 0.25in;
+      padding: 0.28in;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-family: Avenir Next, Helvetica, Arial, sans-serif;
+      font-size: 9pt;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      margin-bottom: 0.08in;
+      text-transform: uppercase;
+    }
+    .meta {
+      color: var(--muted);
+      font-family: Avenir Next, Helvetica, Arial, sans-serif;
+      font-size: 9.5pt;
+      margin-top: 0.12in;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.45);
+      border: 1px solid rgba(137, 98, 42, 0.35);
+      border-radius: 12px;
+      margin: 0.12in 0;
+      padding: 0.14in;
+    }
+    .page-break {
+      break-before: page;
+    }
+    figure {
+      break-inside: avoid;
+      margin: 0.18in 0 0.28in;
+    }
+    figure img {
+      background: #1b1308;
+      border: 1px solid rgba(70, 48, 22, 0.45);
+      border-radius: 10px;
+      display: block;
+      max-height: 7.1in;
+      max-width: 100%;
+      object-fit: contain;
+      width: 100%;
+    }
+    figcaption {
+      color: var(--muted);
+      font-family: Avenir Next, Helvetica, Arial, sans-serif;
+      font-size: 9pt;
+      margin-top: 0.06in;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">Angry Wolves V2</div>
+    <h1>Mission Polish Report</h1>
+    <p>This PDF packages the last Codex response for the V2 mission-polish pass, plus the screen captures generated for review.</p>
+    <p class="meta">Branch: <code>tune/v2-mission-polish</code><br>Version shown in game: <code>v0.38-v2-mission-polish</code><br>Artifact folder: <code>refresh-assets/mission-polish-v2</code></p>
+  </section>
+
+  <h2>Last Response</h2>
+  <pre>Worked on existing branch `tune/v2-mission-polish`, which is already based on current `origin/main` at `c2caf06`.
+
+No commit, merge, deploy, or push was made in this pass.
+
+**Changed**
+- [game.js](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/game.js)
+- [MISSION_LADDER_V2.md](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/MISSION_LADDER_V2.md)
+- [ROLLBACK_PLAN.md](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/ROLLBACK_PLAN.md)
+- Screenshots: [refresh-assets/mission-polish-v2](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/refresh-assets/mission-polish-v2)
+- Full diff: [full-diff.patch](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/refresh-assets/mission-polish-v2/full-diff.patch)
+
+**What Changed**
+- Code and `MISSION_LADDER_V2.md` now agree on the polish spec.
+- Early animal missions still scale to `1 herd` for first sessions, then return to `2 herds`.
+- Added fuller `?debugMissionFlow=1` logs: raw/scaled targets, previous mission/family, weights, repeats, streak, rewards.
+- Added lightweight family-repeat down-weighting so mission flow varies a bit more.
+- Angry Wolves now shows/plays the warning cue: `Angry Wolves: big howl, big trouble.`
+- Added screenshot-only debug states for Rain Barrel, Pack Howl, mud-eat, and Angry Wolf effect captures.
+- Reward/streak rules unchanged: flat mission rewards, capped streak bonus, no restored multipliers.
+- Version remains `v0.38-v2-mission-polish`; leaderboard metadata remains V2-separated with cols/rows/job fields.
+
+**Validation**
+- `node --check game.js` passed.
+- `git diff --check` passed.
+- No `package.json` exists, so there is no npm build/test command to run.
+- Safety patch created: [PRE_MISSION_POLISH_SAFETY.patch](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/PRE_MISSION_POLISH_SAFETY.patch). It is empty because there were no tracked uncommitted changes before this pass.
+
+**Screenshots**
+![Scaled early animal mission](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/refresh-assets/mission-polish-v2/02-scaled-early-animal-one-herd.png)
+
+![Later animal mission](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/refresh-assets/mission-polish-v2/03-later-animal-two-herds.png)
+
+![Pack Howl effect](/Users/kevinhegg/Documents/angry-wolves-tune-v2-mission-polish/refresh-assets/mission-polish-v2/08-pack-howl-effect-debug.png)
+
+**Test URL**
+Server is still on port `4175`:
+
+[http://192.168.0.30:4175/index.html?debugMissionFlow=1&amp;_bust=v038polish2](http://192.168.0.30:4175/index.html?debugMissionFlow=1&amp;_bust=v038polish2)
+
+Status: waiting for approval before committing.</pre>
+
+  <h2>Committed Scope</h2>
+  <div class="card">
+    <p>The commit includes the V2 mission polish code/docs changes, the mission-polish screenshot package, this PDF report, and a small static asset query bump in <code>index.html</code> to reduce iPhone Safari cache confusion. It does not include older unrelated artifact folders.</p>
+  </div>
+
+  <h2 class="page-break">Screenshots</h2>
+  <figure>
+    <img src="01-first-flock-startup-drawer.png" alt="First Flock startup drawer">
+    <figcaption>First Flock startup drawer.</figcaption>
+  </figure>
+  <figure>
+    <img src="02-scaled-early-animal-one-herd.png" alt="Scaled early animal mission">
+    <figcaption>Early animal mission scaled to a one-herd target.</figcaption>
+  </figure>
+  <figure>
+    <img src="03-later-animal-two-herds.png" alt="Later animal mission with two herds">
+    <figcaption>Later animal mission showing the two-herd target.</figcaption>
+  </figure>
+  <figure>
+    <img src="04-egg-rush-drawer.png" alt="Egg Rush drawer">
+    <figcaption>Egg Rush mission drawer.</figcaption>
+  </figure>
+  <figure>
+    <img src="05-mud-season-rain-barrel-copy.png" alt="Mud Season drawer">
+    <figcaption>Mud Season drawer with Rain Barrel copy.</figcaption>
+  </figure>
+  <figure>
+    <img src="06-rain-barrel-cleaning-mud-debug.png" alt="Rain Barrel cleaning mud debug state">
+    <figcaption>Debug capture for Rain Barrel cleaning mud.</figcaption>
+  </figure>
+  <figure>
+    <img src="07-wolf-alert-survive-one-howl.png" alt="Wolf Alert drawer">
+    <figcaption>Wolf Alert with “survive 1 howl” wording.</figcaption>
+  </figure>
+  <figure>
+    <img src="08-pack-howl-effect-debug.png" alt="Pack Howl effect">
+    <figcaption>Debug capture for Pack Howl feedback.</figcaption>
+  </figure>
+  <figure>
+    <img src="09-mud-ate-one-tile-debug.png" alt="Mud ate one tile">
+    <figcaption>Debug capture for mud eating one falling tile.</figcaption>
+  </figure>
+  <figure>
+    <img src="10-angry-wolves-warning-drawer.png" alt="Angry Wolves warning drawer">
+    <figcaption>Angry Wolves warning drawer.</figcaption>
+  </figure>
+  <figure>
+    <img src="11-angry-wolf-leaving-mud-debug.png" alt="Angry Wolf leaving mud">
+    <figcaption>Debug capture for Angry Wolf leaving mud.</figcaption>
+  </figure>
+  <figure>
+    <img src="12-run-over-jobs-streak.png" alt="Run over jobs and streak panel">
+    <figcaption>Run-over panel with jobs and streak stats.</figcaption>
+  </figure>
+  <figure>
+    <img src="13-iphone-sized-full-layout.png" alt="iPhone-sized full layout">
+    <figcaption>iPhone-sized full layout check.</figcaption>
+  </figure>
+</body>
+</html>

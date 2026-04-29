@@ -533,6 +533,8 @@
   let angryWolvesCompleted = false;
   let lastMissionId = "";
   let repeatMissionCount = 0;
+  let lastMissionFamily = "";
+  let repeatMissionFamilyCount = 0;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -3906,9 +3908,13 @@
     let weight = Math.max(0.05, Number(entry.weight) || 1);
     if(V2_MISSION_LADDER_ENABLED && REFRESH_V2_ENABLED){
       const tier = missionUnlockTierFor(entry);
+      const family = entry.family || tier;
       if(tier === "rare") weight *= 0.45;
       if(entry.id === lastMissionId){
         weight *= repeatMissionCount >= 2 ? 0.05 : 0.32;
+      }
+      if(family && family === lastMissionFamily && entry.id !== lastMissionId){
+        weight *= repeatMissionFamilyCount >= 2 ? 0.38 : 0.68;
       }
       if(v2JobsCompletedLifetime() <= 1 && ["early", "animal"].includes(tier)) weight *= 1.25;
     }
@@ -3951,10 +3957,18 @@
     const tunedBonus = V2_MISSION_LADDER_ENABLED && REFRESH_V2_ENABLED
       ? Math.max(def?.marquee ? 240 : 70, Math.round(def.bonus))
       : Math.max(def?.marquee ? 200 : 80, Math.round(def.bonus * 0.6));
+    const previousMissionId = lastMissionId;
+    const previousMissionFamily = lastMissionFamily;
     if(def?.id === lastMissionId) repeatMissionCount++;
     else {
       lastMissionId = def?.id || "";
       repeatMissionCount = 1;
+    }
+    const nextFamily = def?.family || missionUnlockTierFor(def, runsStarted, jobsDone);
+    if(nextFamily === lastMissionFamily) repeatMissionFamilyCount++;
+    else {
+      lastMissionFamily = nextFamily || "";
+      repeatMissionFamilyCount = 1;
     }
     const nextMission = {
       ...def,
@@ -3979,13 +3993,20 @@
       objectiveTarget: nextMission.target,
       rewardValue: nextMission.cashBonus,
       earlyScaledTarget: !!nextMission.earlyScaledTarget,
+      rawTarget: nextMission.baseTarget || nextMission.target,
+      scaledTarget: nextMission.target,
       baseTarget: nextMission.baseTarget || nextMission.target,
+      previousMissionId,
+      previousMissionFamily,
+      repeatMissionCount,
+      repeatMissionFamilyCount,
       countRunStart,
       pool: selectionPool.map((entry) => ({
         id: entry.id,
         family: entry.family || "",
         unlockTier: missionUnlockTierFor(entry, runsStarted, jobsDone),
         target: entry.target,
+        wouldScaleTarget: v2ScaledMissionDefinition(entry, runsStarted, jobsDone).target,
         weight: adjustedMissionWeight(entry)
       })),
       debug: !!debugDef
@@ -4219,6 +4240,31 @@
   function applyDebugMissionState(){
     if(!REFRESH_V2_ENABLED || !DEBUG_MISSION_STATE || !mission) return;
     const state = missionDebugKey(DEBUG_MISSION_STATE);
+    const showDebugBoard = () => {
+      runStarted = true;
+      missionDrawerOpen = false;
+      manualPaused = false;
+      syncPausedState();
+      syncMissionDrawerUI();
+    };
+    const resetDebugBoard = () => {
+      board = makeBoard();
+      overlay = makeOverlay();
+      rewardMap = makeRewardMap();
+      productMap = makeProductMap();
+      clearProductMarks();
+      boardAnimations = [];
+      particles = [];
+      current = null;
+    };
+    const debugSpecialPiece = (specialId, x, y) => {
+      const piece = createMissionSpecialPiece({ forSpawn:false, specialId, sourceMission:mission });
+      if(piece){
+        piece.x = clamp(x, 0, Math.max(0, COLS - (piece.matrix[0]?.length || 1)));
+        piece.y = clamp(y, 0, Math.max(0, ROWS - piece.matrix.length));
+      }
+      return piece;
+    };
     if(state === "ready"){
       mission.progress = mission.target;
       mission.ready = true;
@@ -4249,6 +4295,46 @@
       }
       banner.text = `Debug: reward herd is live for ${mission.title}.`;
       banner.t = performance.now();
+    } else if(state === "rain_barrel_mud"){
+      showDebugBoard();
+      resetDebugBoard();
+      const piece = debugSpecialPiece("rain_barrel", Math.floor(COLS / 2) - 1, ROWS - 5);
+      if(piece){
+        for(const [x, y] of nearbyCellsForPiece(piece, 2, { includeFootprint:false }).slice(0, 6)){
+          if(board[y][x] === TILE.EMPTY) overlay[y][x] = POWER.MUD;
+        }
+        missionRainBarrelPiece(piece);
+      }
+    } else if(state === "pack_howl_effect"){
+      showDebugBoard();
+      resetDebugBoard();
+      const piece = debugSpecialPiece("pack_howl", Math.floor(COLS / 2) - 1, ROWS - 5);
+      if(piece){
+        for(const [x, y] of nearbyCellsForPiece(piece, 2, { includeFootprint:false }).slice(0, 8)){
+          board[y][x] = randChoice(ANIMALS.filter((animal) => animal !== TILE.WOLF));
+        }
+        missionPackHowlPiece(piece);
+      }
+    } else if(state === "mud_eat"){
+      showDebugBoard();
+      resetDebugBoard();
+      const x = Math.floor(COLS / 2);
+      const y = ROWS - 4;
+      overlay[y][x] = POWER.MUD;
+      mudHazardLockSummary = { destroyed:0, cells:[] };
+      consumeMudLandingCell(x, y, TILE.CHICKEN);
+      appendMudHazardResult(mudHazardLockSummary);
+      mudHazardLockSummary = null;
+    } else if(state === "angry_wolf_hit"){
+      showDebugBoard();
+      resetDebugBoard();
+      const piece = debugSpecialPiece("angry_wolf", Math.floor(COLS / 2) - 1, ROWS - 6);
+      if(piece){
+        for(const [x, y] of nearbyCellsForPiece(piece, 1, { includeFootprint:true }).slice(0, 9)){
+          board[y][x] = randChoice(ANIMALS);
+        }
+        missionAngryWolfPiece(piece);
+      }
     } else if(state === "next_job"){
       jobsCompleted = Math.max(jobsCompleted, 1);
       currentJobStreak = Math.max(currentJobStreak, 1);
@@ -4265,6 +4351,10 @@
       gameOverNow({ title: runEndTitle, note: runEndNote, delayMs: 0, waitForBoard: false, playSound: false });
     }
     missionFlowDebugLog("debugMissionState:applied", { state, missionId: mission?.id });
+  }
+
+  function debugMissionStateShowsBoard(){
+    return ["rain_barrel_mud", "pack_howl_effect", "mud_eat", "angry_wolf_hit"].includes(missionDebugKey(DEBUG_MISSION_STATE));
   }
 
   function missionPressureMultiplier(){
@@ -4442,6 +4532,9 @@
   function playMissionStartCue(source=""){
     playGameEventSound("mission_start", { missionId: mission?.id || "", family: mission?.family || "", source });
     if(mission?.id === "angry_wolves"){
+      banner.text = "Angry Wolves: big howl, big trouble.";
+      banner.t = performance.now();
+      showToast("Angry Wolves: big howl, big trouble.", 2300);
       playGameEventSound("angry_wolves_start", { source });
     }
   }
@@ -4912,6 +5005,9 @@
     showToast(opts.cashed ? `Next job: ${mission.title}` : `Bonus missed. Next job: ${mission.title}`, 2300);
     playGameEventSound("next_job", { missionId: mission.id, previousMissionId: previousMission?.id || "" });
     if(mission?.id === "angry_wolves"){
+      banner.text = "Angry Wolves: big howl, big trouble.";
+      banner.t = performance.now();
+      showToast("Angry Wolves: big howl, big trouble.", 2300);
       playGameEventSound("angry_wolves_start");
       setMissionDrawerOpen(true);
     } else {
@@ -9654,8 +9750,12 @@
     rememberShareSnapshot();
     updateHUD();
     if(REFRESH_V2_ENABLED){
-      showToast(`Review the barn job, then tap Start.`, 2200);
-      setMissionDrawerOpen(true);
+      if(debugMissionStateShowsBoard()){
+        setMissionDrawerOpen(false);
+      } else {
+        showToast(`Review the barn job, then tap Start.`, 2200);
+        setMissionDrawerOpen(true);
+      }
     } else {
       openMissionBriefing();
     }
@@ -9715,8 +9815,12 @@
     refreshLeaderboard({ force: true });
     debugScoreSamples();
     if(REFRESH_V2_ENABLED){
-      showToast(`Review the barn job, then tap Start.`, 2200);
-      setMissionDrawerOpen(true);
+      if(debugMissionStateShowsBoard()){
+        setMissionDrawerOpen(false);
+      } else {
+        showToast(`Review the barn job, then tap Start.`, 2200);
+        setMissionDrawerOpen(true);
+      }
     } else {
       openMissionBriefing();
     }

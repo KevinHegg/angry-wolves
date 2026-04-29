@@ -43,7 +43,7 @@ This pass turns V2 missions into a chained "one more job" loop while keeping the
 - Wolf/advanced pool: `Wolf Alert`, `Barn Cash`.
 - Rare pool: `Angry Wolves`.
 
-Selection uses lightweight local progress only: runs started and lifetime jobs completed. Early animal jobs scale down to 1 herd while the player has fewer than 2 completed jobs or is still inside the first 2 runs. Debug mission selection can force a mission or tier without changing stored progress.
+Selection uses lightweight local progress only: runs started and lifetime jobs completed. Early animal jobs scale down to 1 herd while the player has fewer than 2 completed jobs or is still inside the first 2 runs. The selector strongly discourages the same mission three times in a row and lightly down-weights repeated families. Debug mission selection can force a mission or tier without changing stored progress.
 
 ## Special Library
 
@@ -103,7 +103,7 @@ New or reused V2 audio events:
 - `egg_bonus`
 
 The long wolf howl remains reserved for Angry Wolves completion. Angry Wolf settles use shorter wolf havoc cues.
-Angry Wolves also gets a short warning cue when the mission starts.
+Angry Wolves also gets a short warning cue and banner when the mission starts: `Angry Wolves: big howl, big trouble.`
 
 ## Scoring Safety
 
@@ -122,13 +122,13 @@ Angry Wolves also gets a short warning cue when the mission starts.
 - `?debugSlow=1`
 - `?debugMissionFlow=1`
 - `?debugMissionTier=early|modifier|tool|wolf|rare`
-- `?debugMissionState=ready|reward|next_job|runover`
+- `?debugMissionState=ready|reward|next_job|runover|rain_barrel_mud|pack_howl_effect|mud_eat|angry_wolf_hit`
 - `?debugScore=1`
 - `?debugNoLeaderboard=1`
 
 All debug helpers are off by default.
 
-`?debugMissionFlow=1` logs mission choice, family, unlock tier, jobs completed, current streak, objective target, reward value, reward cashouts, and reward misses.
+`?debugMissionFlow=1` logs mission choice, family, unlock tier, candidate pool, weights, previous mission/family, raw target, scaled target, runs started, jobs completed, current streak, reward value, reward cashouts, and reward misses.
 
 ## Rollback Notes
 

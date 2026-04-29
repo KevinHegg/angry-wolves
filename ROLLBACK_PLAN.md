@@ -22,6 +22,8 @@ What this pass changes:
 - Adds clearer Pack Howl feedback: scrambled cells pulse and the banner says how many animals changed.
 - Adds clearer mud trap feedback: a mud-eat splat animation, squelch sound, and `Mud ate X tile(s).` banner.
 - Adds a restrained danger treatment plus start warning cue for Angry Wolves.
+- Adds the Angry Wolves start banner: `Angry Wolves: big howl, big trouble.`
+- Lightly down-weights repeated mission families in mission selection.
 - Expands `?debugMissionFlow=1` logs for mission choice, targets, rewards, cashouts, and misses.
 - Updates V2 score metadata to `GAME_VERSION = "v0.38-v2-mission-polish"`.
 
@@ -38,18 +40,27 @@ To revert only Rain Barrel behavior:
 
 - In `missionRainBarrelPiece()`, call `clearNearbyOverlays(piece, { max: 4, radius: 2 })` without the `types: [POWER.MUD]` filter.
 - Restore the prior Rain Barrel copy in `SHARED_MISSION_SPECIAL_LIBRARY` and `missionBriefSpecialLines()`.
+- Remove the screenshot-only `debugMissionState=rain_barrel_mud` helper if desired.
 
 To revert only wolf/mud feedback:
 
 - Remove the `scramble` and `mud_eat` cases from `drawBoardAnimations()`.
 - Change `panicNearbyAnimals()` back to returning a count instead of changed-cell objects.
 - Restore the previous Pack Howl and mud banner strings.
+- Remove the screenshot-only `debugMissionState` helpers for `pack_howl_effect`, `mud_eat`, and `angry_wolf_hit` if desired.
 
 To revert only Angry Wolves presentation:
 
 - Remove the `missionDanger`/`missionMarquee` class toggles in `syncMissionDrawerUI()`.
 - Remove the matching CSS rules in `styles.css`.
 - Replace `playMissionStartCue()` calls with the prior `playGameEventSound("mission_start")` behavior.
+- Remove the Angry Wolves start banner assignments in `playMissionStartCue()` and `startNextMissionJob()`.
+
+To revert only repeat/family selection tuning:
+
+- Remove `lastMissionFamily` and `repeatMissionFamilyCount`.
+- Remove the family-repeat multiplier from `adjustedMissionWeight()`.
+- Remove the family counter update and related debug fields from `newMission()`.
 
 ## V2 Mission Ladder Operationalization Pass
 
