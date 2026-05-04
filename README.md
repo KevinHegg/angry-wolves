@@ -1,45 +1,54 @@
-# Angry Wolves (Prototype)
+# Last Line
 
-Mobile-first, casual “Tetris-but-herds” game.
+A mobile-first daily pattern puzzle web app.
 
-- Classic Tetris board + falling tetrads
-- Clear **connected groups (4-neighbor) of 10+** matching animals (not rows)
-- Power tiles:
-  - 💩 Cow pie = **-5** coins when cleared
-  - 🥚 Golden egg = **+5** coins when cleared
-- Special 2×2 pieces:
-  - 🐺 Wolves = “bomb” effect on lock (prototype behavior)
-  - 🐑‍⬛ Black sheep = converts into the best adjacent animal type on lock
+## Setup
 
-## Run locally (Codespaces)
-1. Open the repo in **Code → Codespaces → Create codespace on main**
-2. Open `index.html` in the editor.
-3. Preview:
-   - Right-click `index.html` → **Open with Live Server** (recommended), or
-   - Use the built-in preview / open in a new tab.
+```bash
+npm install
+npm run dev
+```
 
-## Controls
-Mobile:
-- Tap board = rotate
-- Swipe left/right = move
-- Swipe down = drop (bigger swipe = hard drop)
-- Buttons below the board also work (hold to repeat)
+Then open the local Vite URL.
 
-Desktop:
-- Arrow keys = move/drop
-- `Z` / `X` = rotate
-- `Space` = hard drop
-- `P` = pause
+## Gameplay
 
-## Deploy to GitHub Pages
-1. Repo → **Settings → Pages**
-2. Source: **Deploy from a branch**
-3. Branch: `main`  Folder: `/root`
-4. Save
+- One shared daily puzzle seed based on local `YYYY-MM-DD`.
+- 3 rounds per day.
+- Choose one final line from A/B/C/D.
+- Explanations appear after each answer.
+- Streak increases only for perfect 3/3 completion days.
 
-Your game will appear at:
+## Storage
 
-`https://YOUR_USERNAME.github.io/angry-wolves/`
+Uses `localStorage` key `last-line-state-v1` for:
+- daily completion lockout
+- streak and aggregate stats
+- recent history
 
-## Files
-- `index.html` — single-file prototype (Canvas + JS)
+## Dev mode
+
+Use `?dev=1` to show **Dev Reset Today** button and replay/reset today.
+
+## Mock leaderboard path
+
+Current result screen logs a payload to console from the "Submit to Leaderboard (mock)" button.
+This is the integration point for future Google Apps Script POST submission.
+
+## Deterministic seed testing
+
+In console:
+
+```js
+LastLineDebug.getTodayKey()
+LastLineDebug.seededIndices('2026-05-04')
+LastLineDebug.seededIndices('2026-05-04') // same output
+```
+
+## Screens
+
+1. Start screen: daily card, start button, how-to.
+2. Round screen: prompt, 4 touch choices, timer, submit, explanation.
+3. Result screen: total score, time, streak, share, mock leaderboard.
+4. Stats modal: played, perfect days, streak, best time.
+5. How to play modal: concise rules.
