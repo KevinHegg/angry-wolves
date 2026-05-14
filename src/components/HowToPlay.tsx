@@ -1,0 +1,1 @@
+export function HowToPlay({onClose}:{onClose:()=>void}){return <div className='overlay'><div className='card'><h3>How to Play</h3><p>Place gates into sockets, then RUN SIGNAL. Match required truth+color before timer hits zero.</p><button onClick={onClose}>Got it</button></div></div>}

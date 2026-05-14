@@ -1,0 +1,1 @@
+export function PotatoBomb({time,exploded}:{time:number;exploded:boolean}){const mood=exploded?'💥':time<7?'😱🥔':time<15?'😰🥔':'😌🥔';return <div className="potato" aria-label="potato bomb">{mood}<span className="fuse"/></div>}
