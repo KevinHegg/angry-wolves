@@ -1,45 +1,30 @@
-# Angry Wolves (Prototype)
+# Angry Wolves: Moonlit Rescue
 
-Mobile-first, casual “Tetris-but-herds” game.
+A mobile-first falling-block rescue puzzle. Make **seven matching animals touch** to get a herd safely home before the wolf clock fills.
 
-- Classic Tetris board + falling tetrads
-- Clear **connected groups (4-neighbor) of 10+** matching animals (not rows)
-- Power tiles:
-  - 💩 Cow pie = **-5** coins when cleared
-  - 🥚 Golden egg = **+5** coins when cleared
-- Special 2×2 pieces:
-  - 🐺 Wolves = “bomb” effect on lock (prototype behavior)
-  - 🐑‍⬛ Black sheep = converts into the best adjacent animal type on lock
+## Play
 
-## Run locally (Codespaces)
-1. Open the repo in **Code → Codespaces → Create codespace on main**
-2. Open `index.html` in the editor.
-3. Preview:
-   - Right-click `index.html` → **Open with Live Server** (recommended), or
-   - Use the built-in preview / open in a new tab.
+Open `index.html` through any static web server, or visit the GitHub Pages deployment. The game has no build step.
 
-## Controls
-Mobile:
-- Tap board = rotate
-- Swipe left/right = move
-- Swipe down = drop (bigger swipe = hard drop)
-- Buttons below the board also work (hold to repeat)
+- Tap the field to rotate. Swipe left/right to steer and swipe down to drop.
+- Keyboard: arrows or A/D, `X`/`Z` to rotate, `Space` to drop, `C` to swap with Next.
+- Clear Calls to choose a Lantern, Shepherd's Whistle, or Water Bucket.
 
-Desktop:
-- Arrow keys = move/drop
-- `Z` / `X` = rotate
-- `Space` = hard drop
-- `P` = pause
+## Development
 
-## Deploy to GitHub Pages
-1. Repo → **Settings → Pages**
-2. Source: **Deploy from a branch**
-3. Branch: `main`  Folder: `/root`
-4. Save
+```sh
+npm test
+```
 
-Your game will appear at:
+Useful deterministic review links:
 
-`https://YOUR_USERNAME.github.io/angry-wolves/`
+- `?seed=review-1`
+- `?night=full-moon`
+- `?debugCall=wolf-warning`
+- `?mute=1`
 
-## Files
-- `index.html` — single-file prototype (Canvas + JS)
+The current game is static browser-native ES modules. `src/engine.js` is deliberately DOM-free so rescue rules, threats, tools, and seeded replays are testable. `src/content.js` contains the five authored Nights. The existing Apps Script leaderboard endpoint remains compatible and receives `game_mode=night-rescue-v1`.
+
+## Rollback
+
+The original V2 prototype is preserved on the `firstattempt` branch.
