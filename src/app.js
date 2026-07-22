@@ -28,6 +28,12 @@ const ctx = elements.gameCanvas.getContext("2d");
 const nextCtx = elements.nextCanvas.getContext("2d");
 
 function animalMeta(id) { return ANIMALS[id] || ANIMALS.sheep; }
+function renderSoundButton() {
+  elements.soundButton.textContent = save.soundOn ? "🔊" : "🔇";
+  elements.soundButton.setAttribute("aria-pressed", String(save.soundOn));
+  elements.soundButton.setAttribute("aria-label", save.soundOn ? "Mute sound" : "Turn sound on");
+  elements.soundButton.title = save.soundOn ? "Mute sound" : "Turn sound on";
+}
 function showToast(text, duration = 1700) {
   clearTimeout(toastTimer);
   elements.toast.textContent = text;
@@ -111,7 +117,7 @@ function showGameOver() {
 function showHowToPlay() {
   openOverlay({
     kind: "how", eyebrow: "ONE RULE AT A TIME", title: "Bring the herd home.",
-    body: `<ul><li><b>Make 7 matching animals touch</b> to rescue a herd.</li><li>Every drop fills the <b>moon track</b>. A rescue pushes the wolves back two steps.</li><li>At six moon steps, the visible wolf threat happens.</li><li>After each Call, choose a tool. Lantern pauses wolves, Whistle calls the target animal, Bucket clears mud.</li></ul><p>Tap the field to rotate. Swipe sideways to steer, down to drop. The Next card swaps once per drop.</p>`,
+    body: `<ul><li><b>Make 7 matching animals touch</b> to rescue a herd.</li><li>Every drop fills the <b>moon track</b>. A rescue pushes the wolves back two steps.</li><li>At six moon steps, the visible wolf threat happens.</li><li>After each Call, choose a tool. Lantern pauses wolves, Whistle calls the target animal, Bucket clears mud.</li></ul><p>Drag sideways to steer and down to descend faster. Swipe up-left to rotate counterclockwise or up-right to rotate clockwise. Tap the field for a quick clockwise turn. The Next card swaps once per drop.</p>`,
     actions: [{ label: "Got it", onClick: closeOverlay }]
   });
 }
@@ -171,27 +177,32 @@ function drawAnimal(context, id, x, y, size, alpha = 1) {
   const cy = y + size / 2;
   context.save();
   context.globalAlpha = alpha;
-  drawRoundedRect(context, x + 2, y + 2, size - 4, size - 4, size * .22, meta.color, "rgba(16,24,38,.23)");
-  context.fillStyle = "rgba(255,255,255,.2)";
+  context.lineWidth = Math.max(2, size * .045);
+  drawRoundedRect(context, x + 2, y + 2, size - 4, size - 4, size * .22, meta.color, "rgba(12,18,35,.58)");
+  context.fillStyle = "rgba(255,255,255,.26)";
   context.fillRect(x + 7, y + 7, size - 14, 4);
   if (id === "sheep") {
     context.fillStyle = "#fffaf0";
-    for (const [dx, dy] of [[-.17,-.05],[.13,-.15],[.2,.13],[-.16,.15]]) { context.beginPath(); context.arc(cx + size * dx, cy + size * dy, size * .19, 0, Math.PI * 2); context.fill(); }
-    context.fillStyle = meta.accent; context.beginPath(); context.ellipse(cx, cy + size * .06, size * .16, size * .2, 0, 0, Math.PI * 2); context.fill();
+    context.strokeStyle = "#c4b8aa"; context.lineWidth = Math.max(1.5, size*.025);
+    for (const [dx, dy] of [[-.17,-.05],[.13,-.15],[.2,.13],[-.16,.15]]) { context.beginPath(); context.arc(cx + size * dx, cy + size * dy, size * .19, 0, Math.PI * 2); context.fill(); context.stroke(); }
+    context.fillStyle = meta.accent; context.strokeStyle = "#28231f"; context.lineWidth = Math.max(2, size*.035); context.beginPath(); context.ellipse(cx, cy + size * .06, size * .17, size * .21, 0, 0, Math.PI * 2); context.fill(); context.stroke();
   } else if (id === "chicken") {
-    context.fillStyle = "#ffd36e"; context.beginPath(); context.ellipse(cx, cy + size * .04, size * .24, size * .26, 0, 0, Math.PI * 2); context.fill();
-    context.fillStyle = meta.accent; context.beginPath(); context.arc(cx, cy - size * .19, size * .08, 0, Math.PI * 2); context.fill();
-    context.fillStyle = "#eb8d3d"; context.beginPath(); context.moveTo(cx + size*.2, cy); context.lineTo(cx + size*.34, cy + size*.06); context.lineTo(cx + size*.2, cy + size*.1); context.fill();
+    context.fillStyle = "#fff0a5"; context.strokeStyle = meta.accent; context.lineWidth = Math.max(2, size*.035); context.beginPath(); context.ellipse(cx, cy + size * .04, size * .25, size * .27, 0, 0, Math.PI * 2); context.fill(); context.stroke();
+    context.fillStyle = "#c63f3e"; context.beginPath(); context.arc(cx - size*.06, cy - size * .23, size * .065, 0, Math.PI * 2); context.arc(cx + size*.04, cy - size * .24, size * .065, 0, Math.PI * 2); context.fill();
+    context.fillStyle = "#8a3e24"; context.beginPath(); context.moveTo(cx + size*.2, cy - size*.01); context.lineTo(cx + size*.35, cy + size*.05); context.lineTo(cx + size*.2, cy + size*.11); context.closePath(); context.fill();
   } else if (id === "pig") {
-    context.fillStyle = "#ffc0c8"; context.beginPath(); context.arc(cx, cy, size * .25, 0, Math.PI * 2); context.fill();
-    context.fillStyle = "#f06e92"; context.beginPath(); context.ellipse(cx, cy + size * .11, size * .17, size * .12, 0, 0, Math.PI * 2); context.fill();
-    context.fillStyle = meta.accent; context.beginPath(); context.arc(cx - size*.07, cy + size*.1, size*.022, 0, Math.PI*2); context.arc(cx + size*.07, cy + size*.1, size*.022, 0, Math.PI*2); context.fill();
+    context.fillStyle = "#ffd3da"; context.strokeStyle = meta.accent; context.lineWidth = Math.max(2, size*.035); context.beginPath(); context.moveTo(cx-size*.2,cy-size*.14); context.lineTo(cx-size*.26,cy-size*.32); context.lineTo(cx-size*.07,cy-size*.23); context.moveTo(cx+size*.2,cy-size*.14); context.lineTo(cx+size*.26,cy-size*.32); context.lineTo(cx+size*.07,cy-size*.23); context.stroke();
+    context.beginPath(); context.arc(cx, cy, size * .26, 0, Math.PI * 2); context.fill(); context.stroke();
+    context.fillStyle = "#e45f84"; context.beginPath(); context.ellipse(cx, cy + size * .11, size * .17, size * .12, 0, 0, Math.PI * 2); context.fill();
+    context.fillStyle = meta.accent; context.beginPath(); context.arc(cx - size*.07, cy + size*.1, size*.025, 0, Math.PI*2); context.arc(cx + size*.07, cy + size*.1, size*.025, 0, Math.PI*2); context.fill();
   } else {
-    context.fillStyle = "#e3d4ff"; context.beginPath(); context.ellipse(cx, cy + size*.03, size*.23, size*.25, 0, 0, Math.PI*2); context.fill();
-    context.strokeStyle = meta.accent; context.lineWidth = Math.max(2, size*.06); context.beginPath(); context.moveTo(cx-size*.14, cy-size*.18); context.lineTo(cx-size*.22, cy-size*.34); context.moveTo(cx+size*.14, cy-size*.18); context.lineTo(cx+size*.22, cy-size*.34); context.stroke();
+    context.fillStyle = "#f0e8ff"; context.strokeStyle = meta.accent; context.lineWidth = Math.max(2, size*.045); context.beginPath(); context.ellipse(cx, cy + size*.03, size*.24, size*.26, 0, 0, Math.PI*2); context.fill(); context.stroke();
+    context.lineWidth = Math.max(2.5, size*.065); context.beginPath(); context.moveTo(cx-size*.14, cy-size*.18); context.lineTo(cx-size*.23, cy-size*.35); context.moveTo(cx+size*.14, cy-size*.18); context.lineTo(cx+size*.23, cy-size*.35); context.stroke();
+    context.fillStyle = "#c5afe8"; context.beginPath(); context.ellipse(cx,cy+size*.13,size*.14,size*.09,0,0,Math.PI*2); context.fill();
   }
-  context.fillStyle = "#28243b";
-  context.beginPath(); context.arc(cx - size*.075, cy - size*.035, Math.max(1.3,size*.035), 0, Math.PI*2); context.arc(cx + size*.075, cy - size*.035, Math.max(1.3,size*.035), 0, Math.PI*2); context.fill();
+  context.fillStyle = "#171625";
+  context.beginPath(); context.arc(cx - size*.078, cy - size*.04, Math.max(1.6,size*.038), 0, Math.PI*2); context.arc(cx + size*.078, cy - size*.04, Math.max(1.6,size*.038), 0, Math.PI*2); context.fill();
+  context.fillStyle = "#fff"; context.beginPath(); context.arc(cx-size*.068,cy-size*.052,Math.max(.6,size*.011),0,Math.PI*2); context.arc(cx+size*.088,cy-size*.052,Math.max(.6,size*.011),0,Math.PI*2); context.fill();
   context.restore();
 }
 function drawOverlay(context, kind, x, y, size) {
@@ -217,6 +228,22 @@ function drawPiece(context, piece, cell, alpha = 1) {
     if (y >= 0) drawAnimal(context, piece.animal, x, y, cell, alpha);
   }));
 }
+function drawGhostPiece(context, piece, cell) {
+  if (!piece) return;
+  context.save();
+  context.setLineDash([Math.max(4, cell*.1), Math.max(3, cell*.07)]);
+  piece.matrix.forEach((row, rowIndex) => row.forEach((filled, colIndex) => {
+    if (!filled) return;
+    const x = (piece.x + colIndex) * cell;
+    const y = (piece.y + rowIndex) * cell;
+    if (y < 0) return;
+    drawAnimal(context, piece.animal, x, y, cell, .34);
+    context.lineWidth = Math.max(2, cell*.04);
+    context.strokeStyle = "rgba(255,240,174,.8)";
+    context.strokeRect(x + 6, y + 6, cell - 12, cell - 12);
+  }));
+  context.restore();
+}
 function ghostPiece() {
   const clone = { animal: state.current.animal, matrix: state.current.matrix, x: state.current.x, y: state.current.y };
   const blocked = (piece, dx, dy) => piece.matrix.some((row, ry) => row.some((filled, rx) => {
@@ -240,7 +267,7 @@ function renderBoard() {
   }
   state.board.forEach((row, y) => row.forEach((tile, x) => { if (tile) drawAnimal(ctx, tile, x * cell, y * cell, cell); }));
   state.overlay.forEach((row, y) => row.forEach((overlay, x) => { if (overlay) drawOverlay(ctx, overlay, x * cell, y * cell, cell); }));
-  if (state.mode === MODES.PLAYING && state.current) { drawPiece(ctx, ghostPiece(), cell, .19); drawPiece(ctx, state.current, cell); }
+  if (state.mode === MODES.PLAYING && state.current) { drawGhostPiece(ctx, ghostPiece(), cell); drawPiece(ctx, state.current, cell); }
   const call = currentCall(state);
   ctx.fillStyle = "rgba(255,244,190,.88)"; ctx.font = "700 18px ui-rounded, system-ui"; ctx.textAlign = "left";
   ctx.fillText(`${animalMeta(call.animal).name.toUpperCase()} PEN`, 12, canvas.height - 13);
@@ -315,7 +342,7 @@ elements.howButton.addEventListener("click", showHowToPlay);
 elements.mapButton.addEventListener("click", () => { state.mode = MODES.MAP; setScreen("map"); renderMap(); });
 elements.soundButton.addEventListener("click", () => {
   save.soundOn = !save.soundOn; saveProgress(save); audio.setEnabled(save.soundOn); if (save.soundOn) audio.wake();
-  elements.soundButton.textContent = save.soundOn ? "♬" : "×"; elements.soundButton.setAttribute("aria-pressed", String(save.soundOn));
+  renderSoundButton();
 });
 elements.closeOverlay.addEventListener("click", closeOverlay);
 elements.holdButton.addEventListener("click", () => act(() => swapHold(state)));
@@ -323,28 +350,67 @@ document.querySelectorAll("[data-action]").forEach((button) => button.addEventLi
   const action = button.dataset.action;
   if (action === "left") act(() => move(state, -1));
   if (action === "right") act(() => move(state, 1));
-  if (action === "rotate") act(() => rotate(state));
+  if (action === "rotate") act(() => rotate(state, 1));
   if (action === "drop") act(() => hardDrop(state));
 }));
 window.addEventListener("keydown", (event) => {
   if (elements.overlay.classList.contains("hidden") === false || state.mode !== MODES.PLAYING) return;
-  const handlers = { ArrowLeft: () => move(state, -1), a: () => move(state, -1), ArrowRight: () => move(state, 1), d: () => move(state, 1), ArrowDown: () => softDrop(state), s: () => softDrop(state), " ": () => hardDrop(state), x: () => rotate(state), z: () => rotate(state), c: () => swapHold(state) };
+  const handlers = { ArrowLeft: () => move(state, -1), a: () => move(state, -1), ArrowRight: () => move(state, 1), d: () => move(state, 1), ArrowDown: () => softDrop(state), s: () => softDrop(state), " ": () => hardDrop(state), x: () => rotate(state, 1), z: () => rotate(state, -1), c: () => swapHold(state) };
   const handler = handlers[event.key.toLowerCase()] || handlers[event.key];
   if (handler) { event.preventDefault(); act(handler); }
 });
-elements.gameCanvas.addEventListener("pointerdown", (event) => { touchStart = { x: event.clientX, y: event.clientY }; elements.gameCanvas.setPointerCapture?.(event.pointerId); });
-elements.gameCanvas.addEventListener("pointerup", (event) => {
-  if (!touchStart || state.mode !== MODES.PLAYING) return;
-  const dx = event.clientX - touchStart.x; const dy = event.clientY - touchStart.y; touchStart = null;
-  if (Math.abs(dy) > 55 && dy > Math.abs(dx)) act(() => hardDrop(state));
-  else if (Math.abs(dx) > 26) act(() => move(state, Math.sign(dx)));
-  else act(() => rotate(state));
+elements.gameCanvas.addEventListener("pointerdown", (event) => {
+  if (state.mode !== MODES.PLAYING) return;
+  touchStart = { x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, mode: "", moved: false };
+  elements.gameCanvas.setPointerCapture?.(event.pointerId);
 });
+elements.gameCanvas.addEventListener("pointermove", (event) => {
+  if (!touchStart || state.mode !== MODES.PLAYING) return;
+  const totalX = event.clientX - touchStart.x;
+  const totalY = event.clientY - touchStart.y;
+  if (!touchStart.mode) {
+    if (totalY < -18 && Math.abs(totalX) > 10) touchStart.mode = "rotate";
+    else if (Math.abs(totalX) > 10 || totalY > 10) touchStart.mode = Math.abs(totalX) >= totalY ? "horizontal" : "down";
+  }
+  if (touchStart.mode === "rotate") return;
+  const rect = elements.gameCanvas.getBoundingClientRect();
+  if (touchStart.mode === "horizontal") {
+    const threshold = Math.max(18, rect.width / COLS * .55);
+    const delta = event.clientX - touchStart.lastX;
+    const steps = Math.floor(Math.abs(delta) / threshold);
+    if (steps) {
+      const direction = Math.sign(delta);
+      touchStart.lastX += direction * threshold * steps;
+      touchStart.moved = true;
+      act(() => { for (let step = 0; step < steps; step += 1) move(state, direction); });
+    }
+  } else if (touchStart.mode === "down") {
+    const threshold = Math.max(16, rect.height / ROWS * .5);
+    const delta = event.clientY - touchStart.lastY;
+    const steps = Math.floor(Math.max(0, delta) / threshold);
+    if (steps) {
+      touchStart.lastY += threshold * steps;
+      touchStart.moved = true;
+      act(() => { for (let step = 0; step < steps; step += 1) softDrop(state); });
+    }
+  }
+});
+elements.gameCanvas.addEventListener("pointerup", (event) => {
+  if (!touchStart) return;
+  const gesture = touchStart;
+  const dx = event.clientX - gesture.x; const dy = event.clientY - gesture.y;
+  touchStart = null;
+  if (state.mode !== MODES.PLAYING) return;
+  if (dy < -28 && Math.abs(dx) > 18) act(() => rotate(state, dx < 0 ? -1 : 1));
+  else if (gesture.mode === "horizontal" && !gesture.moved && Math.abs(dx) > 18) act(() => move(state, Math.sign(dx)));
+  else if (gesture.mode === "down" && !gesture.moved && dy > 18) act(() => softDrop(state));
+  else if (!gesture.mode && Math.abs(dx) < 14 && Math.abs(dy) < 14) act(() => rotate(state, 1));
+});
+elements.gameCanvas.addEventListener("pointercancel", () => { touchStart = null; });
 
 clearInterval(gameLoop);
 gameLoop = setInterval(() => { if (state.mode === MODES.PLAYING && elements.overlay.classList.contains("hidden")) act(() => softDrop(state, false)); }, 760);
-elements.soundButton.textContent = save.soundOn ? "♬" : "×";
-elements.soundButton.setAttribute("aria-pressed", String(save.soundOn));
+renderSoundButton();
 
 const debugCall = params.get("debugCall");
 if (debugCall) {

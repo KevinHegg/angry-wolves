@@ -42,7 +42,10 @@ function pushEvent(state, type, detail = {}) {
   if (state.events.length > 12) state.events.shift();
 }
 function centerX(matrix) { return Math.floor((COLS - matrix[0].length) / 2); }
-function rotateMatrix(matrix) { return matrix[0].map((_, x) => matrix.map((row) => row[x]).reverse()); }
+function rotateMatrix(matrix, direction = 1) {
+  if (direction < 0) return matrix[0].map((_, x) => matrix.map((row) => row[row.length - 1 - x]));
+  return matrix[0].map((_, x) => matrix.map((row) => row[x]).reverse());
+}
 function makePiece(state, forcedAnimal = null, forcedShape = null) {
   const animal = forcedAnimal || (nextRandom(state) < 0.57 ? currentCall(state).animal : pick(state, ANIMAL_IDS));
   const matrix = (forcedShape || pick(state, SHAPES)).map((row) => row.slice());
@@ -70,7 +73,7 @@ function collides(state, piece, dx = 0, dy = 0, matrix = piece.matrix) {
   return false;
 }
 
-function seededLowerField(state, density = 14) {
+function seededLowerField(state, density = 8) {
   const open = [];
   for (let y = Math.floor(ROWS * .42); y < ROWS; y += 1) for (let x = 0; x < COLS; x += 1) open.push([x, y]);
   for (const [x, y] of shuffled(state, open).slice(0, density)) state.board[y][x] = pick(state, ANIMAL_IDS);
@@ -101,7 +104,7 @@ function setupBoardForCall(state, call) {
     state.current = makePiece(state, "sheep", [[1, 1], [1, 1]]);
     state.next = makePiece(state, "chicken");
   } else {
-    seededLowerField(state, 14 + state.callIndex * 2);
+    seededLowerField(state, 8 + state.callIndex * 2);
     if (call.eggs) placeOverlay(state, "egg", call.eggs);
     if (call.mud) placeOverlay(state, "mud", call.mud);
     state.current = makePiece(state);
@@ -190,15 +193,16 @@ export function move(state, dx) {
   return true;
 }
 
-export function rotate(state) {
+export function rotate(state, direction = 1) {
   if (state.mode !== MODES.PLAYING || !state.current) return false;
   state.manualStart = true;
-  const matrix = rotateMatrix(state.current.matrix);
+  const normalizedDirection = direction < 0 ? -1 : 1;
+  const matrix = rotateMatrix(state.current.matrix, normalizedDirection);
   for (const kick of [0, -1, 1, -2, 2]) {
     if (!collides(state, state.current, kick, 0, matrix)) {
       state.current.matrix = matrix;
       state.current.x += kick;
-      pushEvent(state, "rotate");
+      pushEvent(state, "rotate", { direction: normalizedDirection });
       return true;
     }
   }

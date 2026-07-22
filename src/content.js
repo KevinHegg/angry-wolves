@@ -1,12 +1,12 @@
 export const COLS = 8;
-export const ROWS = 11;
+export const ROWS = 9;
 export const CLEAR_SIZE = 7;
 
 export const ANIMALS = {
-  sheep: { name: "sheep", plural: "sheep", color: "#f6eee2", accent: "#5f564d", pen: "the warm barn" },
-  chicken: { name: "chicken", plural: "chickens", color: "#f5b95b", accent: "#a84636", pen: "the coop" },
-  pig: { name: "pig", plural: "pigs", color: "#f08a99", accent: "#9d3d61", pen: "the pigsty" },
-  goat: { name: "goat", plural: "goats", color: "#c7b3e8", accent: "#65528d", pen: "the hillside pen" }
+  sheep: { name: "sheep", plural: "sheep", color: "#f0e7d8", accent: "#4a4039", pen: "the warm barn" },
+  chicken: { name: "chicken", plural: "chickens", color: "#eda63d", accent: "#87372d", pen: "the coop" },
+  pig: { name: "pig", plural: "pigs", color: "#e97088", accent: "#7e2f55", pen: "the pigsty" },
+  goat: { name: "goat", plural: "goats", color: "#a98dd9", accent: "#4f3c78", pen: "the hillside pen" }
 };
 
 export const TOOLS = {

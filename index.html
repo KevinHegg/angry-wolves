@@ -16,7 +16,7 @@
           <span class="eyebrow">MOONLIT RESCUE</span>
           <h1>Angry Wolves</h1>
         </div>
-        <button class="icon-button" id="soundButton" aria-pressed="true" aria-label="Toggle sound" title="Toggle sound">♬</button>
+        <button class="icon-button" id="soundButton" aria-pressed="true" aria-label="Mute sound" title="Mute sound">🔊</button>
       </header>
 
       <section id="mapScreen" class="screen map-screen" aria-labelledby="mapTitle">
@@ -57,7 +57,7 @@
         </section>
 
         <section class="board-area">
-          <canvas id="gameCanvas" width="512" height="704" aria-label="Farm field. Use arrow keys or the controls to move and rotate the falling animal group."></canvas>
+          <canvas id="gameCanvas" width="512" height="576" aria-label="Farm field. Drag sideways to steer, drag down to descend, or swipe diagonally up to rotate the falling animal group."></canvas>
           <div id="toast" class="toast" role="status" aria-live="polite"></div>
         </section>
 
@@ -71,11 +71,11 @@
           </div>
           <div class="control-row" aria-label="Game controls">
             <button class="control-button" data-action="left" aria-label="Move left">←</button>
-            <button class="control-button" data-action="rotate" aria-label="Rotate animal group">↻</button>
+            <button class="control-button" data-action="rotate" aria-label="Rotate animal group clockwise">↻</button>
             <button class="control-button" data-action="right" aria-label="Move right">→</button>
             <button class="control-button accent" data-action="drop" aria-label="Drop animal group">↓</button>
           </div>
-          <p class="control-hint">Tap field to turn · swipe to steer or drop · C swaps · space drops</p>
+          <p class="control-hint">Drag to steer or descend · swipe ↖ / ↗ to rotate · C swaps · space drops</p>
         </section>
       </section>
     </main>

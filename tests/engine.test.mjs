@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { COLS, ROWS } from "../src/content.js";
-import { MODES, applyThreat, beginNextCall, createGame, currentCall, debugSnapshot, forceResolve, hardDrop, startNight, useTool } from "../src/engine.js";
+import { MODES, applyThreat, beginNextCall, createGame, currentCall, debugSnapshot, forceResolve, hardDrop, rotate, startNight, useTool } from "../src/engine.js";
 
 test("the scripted first flock rescues at least seven sheep in one drop", () => {
   const state = createGame("first-flock");
@@ -41,13 +41,13 @@ test("every earned tool has a distinct predictable effect", () => {
   startNight(state, 0);
   state.tools = ["lantern", "whistle", "bucket"];
   state.moon = 4;
-  state.overlay[9][2] = "mud";
+  state.overlay[ROWS - 1][2] = "mud";
   assert.equal(useTool(state, "lantern"), true);
   assert.equal(state.moonPaused, 3);
   assert.equal(useTool(state, "whistle"), true);
   assert.equal(state.next.animal, currentCall(state).animal);
   assert.equal(useTool(state, "bucket"), true);
-  assert.equal(state.overlay[9][2], null);
+  assert.equal(state.overlay[ROWS - 1][2], null);
 });
 
 test("seeded play remains reproducible", () => {
@@ -57,6 +57,19 @@ test("seeded play remains reproducible", () => {
   hardDrop(left); hardDrop(right);
   hardDrop(left); hardDrop(right);
   assert.deepEqual(debugSnapshot(left), debugSnapshot(right));
+});
+
+test("pieces rotate in both clockwise and counterclockwise directions", () => {
+  const state = createGame("two-way-rotation");
+  startNight(state, 0);
+  state.board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  state.overlay = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  state.current = { animal: "goat", matrix: [[1, 0, 0], [1, 1, 1]], x: 2, y: 1 };
+  const original = state.current.matrix.map((row) => row.slice());
+  assert.equal(rotate(state, 1), true);
+  assert.deepEqual(state.current.matrix, [[1, 1], [1, 0], [1, 0]]);
+  assert.equal(rotate(state, -1), true);
+  assert.deepEqual(state.current.matrix, original);
 });
 
 test("completing a Call moves to the next authored Call with the selected tool", () => {
