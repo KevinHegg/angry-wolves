@@ -5,15 +5,15 @@ const fs=require('node:fs');
 function harness(audioSession){
  const events={},instances=[];
  class Context{
-   constructor(){this.state='suspended';this.sampleRate=44100;this.currentTime=7;this.destination={};this.notes=[];instances.push(this);}
-   createBuffer(){return {};}
-   createBufferSource(){return {connect(){},start(){}};}
+   constructor(){this.state='suspended';this.sampleRate=44100;this.currentTime=7;this.destination={};this.notes=[];this.sources=[];instances.push(this);}
+   createBuffer(channels,length){return {getChannelData:()=>new Float32Array(length)};}
+   createBufferSource(){const source={connect(){},disconnect(){},start(at){this.at=at;},stop(){this.stopped=true;}};this.sources.push(source);return source;}
    resume(){return new Promise(resolve=>{this.ready=()=>{this.state='running';resolve();};});}
    close(){this.state='closed';return Promise.resolve();}
    createOscillator(){const self=this;return {frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},start(at){self.notes.push(at);},stop(){}};}
    createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}
  }
- const window={navigator:{audioSession},AudioContext:Context,addEventListener:(name,fn)=>{events[name]=fn;}};
+ const window={navigator:{audioSession},RescueVoices:require('../rescue-voices'),AudioContext:Context,addEventListener:(name,fn)=>{events[name]=fn;}};
  const document={hidden:false,addEventListener:(name,fn)=>{events[name]=fn;}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../rescue-audio.js'),'utf8'),{window,document,performance:{now:()=>0}});
  return {audio:window.RescueAudio,instances,events,document};
@@ -48,4 +48,13 @@ test('unsupported audio session configuration does not block sound',async()=>{
 test('a refused Safari resume reports failure instead of claiming playback',async()=>{
  const h=harness();h.audio.wake();h.instances[0].resume=()=>Promise.reject(Error('not allowed'));
  assert.equal(await h.audio.play(),false);
+});
+
+test('herd calls replace earlier selections and wolf reactions play on a separate delayed lane',async()=>{
+ const h=harness();const ready=h.audio.play('select',{animal:0});h.instances[0].ready();assert.equal(await ready,true);
+ const context=h.instances[0],selection=context.sources.at(-1);
+ await h.audio.play('rescue',{animal:0});assert.equal(selection.stopped,true);
+ const rescue=context.sources.at(-1);await h.audio.play('snarl',{delay:.32});
+ assert.ok(context.sources.at(-1).at>rescue.at+.3);assert.equal(rescue.stopped,undefined);
+ h.audio.setEnabled(false);assert.equal(context.state,'closed');
 });

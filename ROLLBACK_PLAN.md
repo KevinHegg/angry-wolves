@@ -678,3 +678,10 @@ Native sharing sends a PNG plus the game URL, with no duplicate score caption. T
 Visual-only update: decorative overhead wire fence with wooden posts around dialog headings, plus inline SVG barnyard and conifer trail endpoints. The heading still receives programmatic focus for screen-reader announcements; only its default outline is suppressed. Interactive controls retain their focus indicators. Existing game rules are unchanged. Previous release remains in `play/2.3/`.
 
 Verified the intro and active field visually at 393 × 650; all 37 existing tests pass.
+
+
+## Rescue 2.5 — animal calls
+
+Original locally synthesized sheep, pig, hen, cow, dog and wolf calls live in `rescue-voices.js`. Tune pitch, duration, modulation, noise and vocal formants in `VOICES`. `rescue-audio.js` caches the short/full buffers and replaces earlier herd calls instead of stacking them. Wolf responses follow actual distance changes, including Pip’s bark, and are delayed slightly after the herd sound. No response plays when distance is unchanged at a clamp. Muting/backgrounding closes the audio context and cancels sounds. The prior release remains intact in `play/2.4/`.
+
+39 tests pass, including non-silent bounded voice generation, short/full variants, replacement of selection sounds, delayed wolf playback, and existing gameplay/regression tests. These checks do not establish perceived realism or audible output on a physical iPhone. The help screen includes buttons to audition each voice.
