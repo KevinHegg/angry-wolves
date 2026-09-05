@@ -27,3 +27,24 @@ for (const strategy of ['random', 'goal-aware']) {
   }
   console.log(strategy, JSON.stringify(rows));
 }
+
+for (const policy of ['emergency bark', 'let Pip rest']) {
+  let wins=0;const bases=[],bonuses=[];
+  for(let seed=1;seed<=trials;seed++){
+    const rng=seeded(seed);let score=0,rests=0,won=true;
+    for(let chapter=0;chapter<3;chapter++){
+      const state=R.create(chapter,rng);
+      while(state.status==='playing'&&state.moves<100){
+        if(policy==='emergency bark'&&state.distance<=2&&state.bark)R.bark(state,rng);
+        const groups=R.groups(state.board);
+        const value=g=>2*Math.min(Math.max(0,R.CHAPTERS[chapter].goal[state.board[g[0]]]-state.saved[state.board[g[0]]]),g.length)+g.length;
+        groups.sort((a,b)=>value(b)-value(a));R.rescue(state,groups[0][0],rng);
+      }
+      if(state.status!=='won'){won=false;break;}
+      score+=state.score;rests+=state.bark;
+    }
+    if(won){wins++;bases.push(score);bonuses.push(R.restBonus(rests));}
+  }
+  bases.sort((a,b)=>a-b);
+  console.log(policy,JSON.stringify({wins:`${wins}/${trials}`,medianBase:bases[Math.floor(bases.length/2)],meanBonus:Math.round(bonuses.reduce((a,b)=>a+b,0)/bonuses.length)}));
+}

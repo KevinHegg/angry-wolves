@@ -8,22 +8,25 @@
   <title>Angry Wolves · Bring them home</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E">
   <script>if (new URLSearchParams(location.search).get('story') === '0' || ['v1','v2','legacy'].some(k => new URLSearchParams(location.search).has(k))) location.replace('classic.html' + location.search);</script>
-  <link rel="stylesheet" href="rescue.css?v=1">
-  <script src="rescue-engine.js?v=1" defer></script>
-  <script src="rescue.js?v=1" defer></script>
+  <link rel="stylesheet" href="rescue.css?v=2.0">
+  <script src="rescue-engine.js?v=2.0" defer></script>
+  <script src="rescue-services.js?v=2.0" defer></script>
+  <script src="rescue-share.js?v=2.0" defer></script>
+  <script src="rescue-audio.js?v=2.0" defer></script>
+  <script src="rescue.js?v=2.0" defer></script>
 </head>
 <body>
   <main class="rescue-app">
     <header class="masthead">
       <a class="wordmark" href="./" aria-label="Angry Wolves home"><span class="brand-wolf" aria-hidden="true"></span><span>ANGRY WOLVES<small>BRING THEM HOME</small></span></a>
-      <div class="utilities"><button id="sound" class="icon-button" aria-label="Turn sound on" aria-pressed="false">♪<span>Sound off</span></button><button id="guide" class="icon-button" aria-label="How to play">?<span>How to play</span></button></div>
+      <div class="utilities"><button id="leaderboard" class="icon-button" aria-label="Leaderboard">🏆<span>Scores</span></button><button id="sound" class="icon-button" aria-label="Turn sound off" aria-pressed="true">🔊<span>Sound on</span></button><button id="guide" class="icon-button" aria-label="How to play">?<span>How to play</span></button></div>
     </header>
     <nav class="journey" aria-label="Your journey"><span data-stop="0">01 <b>Pasture</b></span><i></i><span data-stop="1">02 <b>Orchard</b></span><i></i><span data-stop="2">03 <b>Home</b></span></nav>
-    <section class="field-heading"><div><p id="chapter-label" class="eyebrow">CHAPTER ONE · LATE AFTERNOON</p><h1 id="field-title">The open pasture</h1></div><div class="home-count"><strong id="total-home">0</strong><span>animals home</span></div></section>
+    <section class="field-heading"><div><p id="chapter-label" class="eyebrow">CHAPTER ONE · LATE AFTERNOON</p><h1 id="field-title">The open pasture</h1></div><div class="home-count"><strong id="total-home">0</strong><span>animals home</span><small id="pip-rest-hint">Pip rest bonus: +500 possible</small></div></section>
     <section class="game-layout">
       <aside class="story-card">
         <div class="landscape" aria-hidden="true"><div class="sun"></div><div class="hill hill-back"></div><div class="hill hill-front"></div><div class="barn"><span></span></div><div class="tree tree-one"></div><div class="tree tree-two"></div><div class="path"></div></div>
-        <div class="story-copy"><p class="eyebrow">A LITTLE COURAGE. A LOUD WHISTLE.</p><h2 id="story-title">The gate was left open.</h2><p id="story-text">The sheep wandered out. The wolves noticed. You and Pip, the sheepdog, need to bring the herds home.</p><div class="story-rule"><strong>Think first. Then whistle.</strong><span>The wolves only move when you rescue a herd. Take your time.</span></div><div class="rule-key"><span><b>3–4</b> wolves step closer</span><span><b>5–7</b> hold them off</span><span><b>8+</b> push them back</span></div></div>
+        <div class="story-copy"><p class="eyebrow">A LITTLE COURAGE. A LOUD WHISTLE.</p><h2 id="story-title">The gate was left open.</h2><p id="story-text">The sheep wandered out. The wolves noticed. You and Pip, the sheepdog, need to bring the herds home.</p><div class="story-rule"><strong>Think first. Then whistle.</strong><span>The wolves only move when you rescue a herd. Take your time.</span></div><div class="rule-key"><span><b>3</b> wolves move 2 steps closer</span><span><b>4</b> wolves move 1 step closer</span><span><b>5–7</b> hold them off</span><span><b>8+</b> push them back</span></div></div>
       </aside>
       <div class="play-area">
         <section id="goals" class="goals" aria-label="Animals needed to finish this field"></section>
@@ -34,7 +37,7 @@
         <div class="board-foot"><span>Tap a herd, then whistle it home.</span><button id="retry" class="text-button">Restart field</button></div>
       </div>
     </section>
-    <footer class="page-footer"><span>A small adventure in three chapters.</span><a href="classic.html">Classic falling-block game ↗</a><span>© 2026 Kevin Hegg</span></footer>
+    <footer class="page-footer"><span>A small adventure in three chapters.</span><span>© 2026 Kevin Hegg</span></footer>
   </main>
   <dialog id="story-dialog" aria-labelledby="dialog-title"><div class="dialog-art" aria-hidden="true"></div><p id="dialog-eyebrow" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-copy"></p><div id="dialog-details"></div><button id="dialog-action" class="primary"></button><button id="dialog-secondary" class="text-button" hidden></button></dialog>
   <noscript>This game needs JavaScript to herd the animals.</noscript>

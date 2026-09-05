@@ -16,187 +16,307 @@
     ];
     return `<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${faces[type]}</svg>`;
   }
-  let state = R.create(), selected = [], busy = false, total = 0, bankedScore = 0;
-  let soundOn = false, audio = null, best = 0, dialogAction = null, dialogSecondary = null;
-  let lastFocus = null, generation = 0, ready = false;
-  try { soundOn = localStorage.getItem('aw-rescue-sound') === '1'; best = Number(localStorage.getItem('aw-rescue-best')) || 0; } catch {}
+  const S = window.RescueServices, A = window.RescueAudio;
+  let state = R.create(), selected = [], busy = false, total = 0, bankedScore = 0, bankedMoves = 0;
+  let bankedBiggest = {count:0,type:0}, pipUsed = [false,false,false], finalResult = null, shareCard = null, shareReady = false;
+  let soundOn = true, best = 0, dialogAction = null, dialogSecondary = null;
+  let lastFocus = null, generation = 0, ready = false, dialogGeneration = 0, dialogView = '';
+  let startedAt = Date.now(), runNonce = newNonce(), keyboardInput = false;
+  let submission = {pending:false,done:false,message:''};
+  try { soundOn = localStorage.getItem('aw-rescue-sound') !== '0'; best = Number(localStorage.getItem('aw-rescue-best-v2')) || 0; } catch {}
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   document.querySelector('.brand-wolf').innerHTML = icon(4);
-  function tone(kind = 'select') {
-    if (!soundOn) return;
-    try {
-      audio ||= new (window.AudioContext || window.webkitAudioContext)();
-      if (audio.state === 'suspended') audio.resume().catch(() => {});
-      const notes = kind === 'win' ? [523, 659, 784, 1047] : kind === 'bark' ? [180, 140] : kind === 'rescue' ? [660, 880] : [480];
-      notes.forEach((frequency, i) => {
-        const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * .09;
-        o.type = kind === 'bark' ? 'triangle' : 'sine'; o.frequency.setValueAtTime(frequency, t);
-        o.frequency.exponentialRampToValueAtTime(frequency * (kind === 'bark' ? .65 : 1.07), t + .13);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.07, t + .015); g.gain.exponentialRampToValueAtTime(.001, t + .18);
-        o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + .2);
-      });
-    } catch { /* Audio is optional, including on silent or unsupported devices. */ }
-  }
+  A.setEnabled(soundOn);
+  function newNonce() { return window.crypto?.randomUUID?.() || `rescue-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
+  const tone = kind => A.play(kind);
   function soundLabel() {
     $('sound').setAttribute('aria-pressed', String(soundOn));
     $('sound').setAttribute('aria-label', `Turn sound ${soundOn ? 'off' : 'on'}`);
-    $('sound').innerHTML = `♪<span>Sound ${soundOn ? 'on' : 'off'}</span>`;
+    $('sound').innerHTML = `${soundOn ? '🔊' : '🔇'}<span>Sound ${soundOn ? 'on' : 'off'}</span>`;
   }
   function say(message) { $('feedback').textContent = message; }
-  function openDialog({ eyebrow, title, copy, details = '', action, run, secondary = '', secondaryRun }) {
-    lastFocus = document.activeElement;
+  function openDialog({eyebrow,title,copy,details='',action,run,secondary='',secondaryRun,view=''}) {
+    dialogGeneration++; dialogView = view;
+    if (!$('story-dialog').open) lastFocus = document.activeElement;
     $('dialog-eyebrow').textContent = eyebrow;
     $('dialog-title').textContent = title;
     $('dialog-copy').textContent = copy;
     $('dialog-details').innerHTML = details;
-    document.querySelector('.dialog-art').innerHTML = title === 'Everyone is home.' ? icon(0) + icon(1) + icon(2) + icon(3) : icon(0) + icon(4);
+    document.querySelector('.dialog-art').innerHTML = view === 'results' ? icon(0)+icon(1)+icon(2)+icon(3) : icon(0)+icon(4);
     $('dialog-action').textContent = action;
     $('dialog-secondary').textContent = secondary;
     $('dialog-secondary').hidden = !secondary;
-    dialogAction = run;
-    dialogSecondary = secondaryRun;
+    dialogAction = run; dialogSecondary = secondaryRun;
     if (!$('story-dialog').open) $('story-dialog').showModal();
-    $('dialog-action').focus();
+    $('story-dialog').scrollTop = 0;
+    // Pointer users should not have Safari scroll a dialog toward its last button.
+    if (keyboardInput) $('dialog-action').focus({preventScroll:true});
   }
   function closeDialog() {
+    dialogGeneration++; dialogView = ''; dialogAction = null; dialogSecondary = null;
     $('story-dialog').close();
-    if (lastFocus?.isConnected) lastFocus.focus({ preventScroll: true });
+    if (keyboardInput && lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
+    scheduleFit();
   }
   function intro() {
     ready = false;
-    openDialog({ eyebrow: 'A SMALL ADVENTURE IN THREE CHAPTERS', title: 'The gate was left open.',
-      copy: 'The animals wandered out. The wolves noticed. Bring the herds home with a whistle, and a little help from Pip the sheepdog.',
-      details: '<div class="instruction"><b>1.</b> Tap 3+ matching animals touching side to side.</div><div class="instruction"><b>2.</b> Whistle them home. Bigger herds hold off the wolves.</div><div class="instruction"><b>3.</b> Fill the animal goals to reach the next field.</div><p style="margin-top:12px">No clock. The wolves wait for your move.</p>',
-      action: 'Let’s bring them home', run: () => { ready = true; closeDialog(); select(30); } });
+    openDialog({eyebrow:'A SMALL ADVENTURE IN THREE CHAPTERS',title:'The gate was left open.',
+      copy:'The animals wandered out. The wolves noticed. Bring the herds home with a whistle, and a little help from Pip the sheepdog.',
+      details:'<div class="instruction"><b>1.</b> Select 3+ matching animals touching side to side.</div><div class="instruction"><b>2.</b> Whistle them home. A herd of 3 brings wolves two steps closer; 5+ holds them off.</div><div class="instruction"><b>3.</b> Fill the animal goals. Let Pip rest for a bonus at the end.</div><p class="dialog-tip">No clock. The wolves wait for your move. 🔊 Use the speaker button to turn sound on or off.</p>',
+      action:'Let’s bring them home', run:() => {ready=true; startedAt=Date.now(); tone('gate'); closeDialog(); select(30);} });
   }
   function render() {
     const c = R.CHAPTERS[state.chapter];
     document.body.className = `chapter-${state.chapter}`;
     $('chapter-label').textContent = `CHAPTER ${chapterWords[state.chapter]} · ${c.time.toUpperCase()}`;
     $('field-title').textContent = c.name;
-    $('story-title').textContent = ['The gate was left open.', 'Follow the little footprints.', 'Leave no herd behind.'][state.chapter];
+    $('story-title').textContent = ['The gate was left open.','Follow the little footprints.','Leave no herd behind.'][state.chapter];
     $('story-text').textContent = c.story;
-    $('total-home').textContent = total + state.saved.reduce((a, b) => a + b, 0);
-    document.querySelectorAll('[data-stop]').forEach((el, i) => { el.className = i === state.chapter ? 'current' : i < state.chapter ? 'complete' : ''; if (i === state.chapter) el.setAttribute('aria-current', 'step'); else el.removeAttribute('aria-current'); });
-    $('goals').innerHTML = c.goal.map((n, i) => n ? `<div class="goal ${state.saved[i] >= n ? 'done' : ''}" aria-label="${Math.min(n, state.saved[i])} of ${n} ${names[i]} home">${icon(i)}<div class="goal-copy"><strong>${state.saved[i] >= n ? `${n} ✓` : `${state.saved[i]} / ${n}`}</strong><span>${names[i]}${state.chapter === 2 ? '' : ' home'}</span></div><div class="goal-progress" style="width:${Math.min(100, state.saved[i] / n * 100)}%"></div></div>` : '').join('');
-    $('wolf-label').textContent = state.distance > 0 ? `Wolves are ${state.distance} ${state.distance === 1 ? 'step' : 'steps'} away` : 'The wolves reached the field';
-    $('wolf-effect').textContent = state.distance <= 2 ? 'Small herd? Use Pip or find 5+.' : '3–4: closer · 5–7: hold · 8+: back';
-    document.querySelector('.wolf-trail').classList.toggle('danger', state.distance <= 2);
-    $('trail-steps').innerHTML = Array.from({ length: 11 }, (_, i) => `<span class="trail-step ${i === state.distance ? 'active' : ''}">${i === state.distance ? icon(4) : ''}</span>`).join('');
-    const allGroups = R.groups(state.board), playable = new Set(allGroups.flat());
-    $('board').innerHTML = state.board.map((t, i) => `<button class="animal ${playable.has(i) ? 'hint' : ''}" data-cell="${i}" data-type="${t}" aria-label="${singular[t]}, row ${Math.floor(i / 6) + 1}, column ${i % 6 + 1}" aria-pressed="false" tabindex="${i === 30 ? 0 : -1}">${icon(t)}</button>`).join('');
-    $('bark').disabled = !state.bark || busy || state.status !== 'playing';
-    $('bark').innerHTML = `<span aria-hidden="true">🐕</span><span>${state.bark ? 'Pip, bark!' : 'Good dog, Pip.'}<small>${state.bark ? '+3 steps · regroup · once' : 'Bark used this field'}</small></span>`;
-    renderSelection();
+    $('total-home').textContent = total + state.saved.reduce((a,b)=>a+b,0);
+    $('pip-rest-hint').textContent = `Pip bonus: up to +${R.restBonus(pipUsed.filter(used=>!used).length)}`;
+    document.querySelectorAll('[data-stop]').forEach((el,i)=>{el.className=i===state.chapter?'current':i<state.chapter?'complete':'';if(i===state.chapter)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
+    $('goals').innerHTML = c.goal.map((n,i)=>n?`<div class="goal ${state.saved[i]>=n?'done':''}" aria-label="${Math.min(n,state.saved[i])} of ${n} ${names[i]} home">${icon(i)}<div class="goal-copy"><strong>${state.saved[i]>=n?`${n} ✓`:`${state.saved[i]} / ${n}`}</strong><span>${names[i]}${state.chapter===2?'':' home'}</span></div><div class="goal-progress" style="width:${Math.min(100,state.saved[i]/n*100)}%"></div></div>`:'').join('');
+    $('wolf-label').textContent = state.distance>0?`Wolves are ${state.distance} ${state.distance===1?'step':'steps'} away`:'The wolves reached the field';
+    $('wolf-effect').textContent = '3: +2 closer · 4: +1 · 5–7: hold · 8+: back';
+    document.querySelector('.wolf-trail').classList.toggle('danger',state.distance<=2);
+    $('trail-steps').innerHTML = Array.from({length:11},(_,i)=>`<span class="trail-step ${i===state.distance?'active':''}">${i===state.distance?icon(4):''}</span>`).join('');
+    const playable = new Set(R.groups(state.board).flat());
+    $('board').innerHTML = state.board.map((t,i)=>`<button class="animal ${playable.has(i)?'hint':''}" data-cell="${i}" data-type="${t}" aria-label="${singular[t]}, row ${Math.floor(i/6)+1}, column ${i%6+1}" aria-pressed="false" tabindex="${i===30?0:-1}">${icon(t)}</button>`).join('');
+    $('bark').disabled = !state.bark || busy || state.status!=='playing';
+    $('bark').innerHTML = `<span aria-hidden="true">🐕</span><span>${state.bark?'Pip, bark!':'Good dog, Pip.'}<small>${state.bark?'+3 steps · regroup · once':'Bark used this field'}</small></span>`;
+    renderSelection(); scheduleFit();
   }
   function renderSelection() {
-    const chosen = new Set(selected);
-    $('board').setAttribute('aria-busy', String(busy));
-    $('board').classList.toggle('has-selection', selected.length > 0);
-    [...$('board').children].forEach((el, i) => { el.classList.toggle('selected', chosen.has(i)); el.setAttribute('aria-pressed', String(chosen.has(i))); el.disabled = busy || state.status !== 'playing'; });
-    $('whistle').disabled = !selected.length || busy || state.status !== 'playing';
-    $('whistle-label').textContent = selected.length ? `Whistle ${selected.length} home` : 'Choose a herd';
+    const chosen=new Set(selected);
+    $('board').setAttribute('aria-busy',String(busy));
+    $('board').classList.toggle('has-selection',selected.length>0);
+    [...$('board').children].forEach((el,i)=>{el.classList.toggle('selected',chosen.has(i));el.setAttribute('aria-pressed',String(chosen.has(i)));el.disabled=busy||state.status!=='playing';});
+    $('whistle').disabled=!selected.length||busy||state.status!=='playing';
+    $('whistle-label').textContent=selected.length?`Whistle ${selected.length} home`:'Choose a herd';
   }
   function select(i) {
-    if (!ready || busy || state.status !== 'playing' || $('story-dialog').open) return;
-    const g = R.group(state.board, i);
-    if (g.length < 3) { selected = []; renderSelection(); say(`Only ${g.length} here. Find 3+ matching animals touching side to side.`); return; }
-    if (selected.includes(i)) { commit(); return; }
-    selected = g;
-    tone();
-    renderSelection();
-    const effect = g.length >= 8 ? 'Wolves step back!' : g.length >= 5 ? 'Wolves stay put.' : `Wolves step closer${state.distance === 1 ? ' — this must finish the field!' : '.'}`;
+    if(!ready||busy||state.status!=='playing'||$('story-dialog').open)return;
+    const g=R.group(state.board,i);
+    if(g.length<3){selected=[];renderSelection();say(`Only ${g.length} here. Find 3+ matching animals touching side to side.`);return;}
+    if(selected.includes(i)){commit();return;}
+    selected=g; tone('select'); renderSelection();
+    const step=R.wolfStep(g.length);
+    const effect=step>0?'Wolves step back!':step===0?'Wolves stay put.':`Wolves ${-step} ${step===-1?'step':'steps'} closer${state.distance<=-step?' — finish the goal!':'.'}`;
     say(`${g.length} ${names[state.board[i]]} ready. ${effect}`);
   }
   function commit() {
-    if (!ready || busy || !selected.length || state.status !== 'playing' || $('story-dialog').open) return;
-    busy = true;
-    const start = selected[0], ticket = generation;
-    const activeCell = document.activeElement?.dataset?.cell;
-    selected.forEach(i => $('board').children[i].classList.add('rescuing'));
-    renderSelection();
-    $('bark').disabled = true;
-    tone('rescue');
-    setTimeout(() => {
-      if (ticket !== generation) return;
-      const result = R.rescue(state, start);
-      selected = []; busy = false; render();
-      if (!result.ok) return;
-      result.cleared.forEach(i => $('board').children[i].classList.add('new-arrival'));
-      if (activeCell !== undefined) {
-        [...$('board').children].forEach(el => { el.tabIndex = -1; });
-        const cell = $('board').children[Number(activeCell)];
-        if (cell) { cell.tabIndex = 0; cell.focus(); }
+    if(!ready||busy||!selected.length||state.status!=='playing'||$('story-dialog').open)return;
+    busy=true;
+    const start=selected[0],ticket=generation,activeCell=document.activeElement?.dataset?.cell;
+    selected.forEach(i=>$('board').children[i].classList.add('rescuing'));
+    renderSelection(); $('bark').disabled=true; tone('rescue');
+    setTimeout(()=>{
+      if(ticket!==generation)return;
+      const result=R.rescue(state,start);
+      selected=[];busy=false;render();
+      if(!result.ok)return;
+      result.cleared.forEach(i=>$('board').children[i].classList.add('new-arrival'));
+      if(keyboardInput&&activeCell!==undefined){
+        [...$('board').children].forEach(el=>{el.tabIndex=-1;});
+        const cell=$('board').children[Number(activeCell)];
+        if(cell){cell.tabIndex=0;cell.focus({preventScroll:true});}
       }
-      say(`${result.count} ${names[result.type]} home! ${result.push === 2 ? 'The pack backs away.' : result.push === 1 ? 'The pack holds back.' : 'The pack steps closer.'}${result.regrouped ? ' A new herd has gathered.' : ''}`);
-      if (state.status !== 'playing') finishField();
-    }, reducedMotion.matches ? 0 : 230);
+      say(`${result.count} ${names[result.type]} home! ${result.step>0?'The pack backs away.':result.step===0?'The pack holds back.':`The pack moves ${-result.step} ${result.step===-1?'step':'steps'} closer.`}${result.regrouped?' A new herd gathered.':''}`);
+      if(state.status!=='playing')finishField();
+    },reducedMotion.matches?0:230);
   }
   function startField(chapter) {
-    generation++; busy = false; selected = []; ready = true;
-    state = R.create(chapter); render(); window.scrollTo(0, 0);
-    say('Tap a herd of 3+ matching animals that touch.');
+    generation++;busy=false;selected=[];ready=true;
+    state=R.create(chapter);render();window.scrollTo(0,0);
+    say('Select a herd of 3+ matching animals that touch.');
+  }
+  function freshAdventure() {
+    total=0;bankedScore=0;bankedMoves=0;bankedBiggest={count:0,type:0};pipUsed=[false,false,false];
+    finalResult=null;submission={pending:false,done:false,message:''};
+    if(shareCard)URL.revokeObjectURL(shareCard.url);shareCard=null;shareReady=false;
+    runNonce=newNonce();startedAt=Date.now();closeDialog();startField(0);
   }
   function finishField() {
-    if (state.status === 'lost') {
-      openDialog({ eyebrow: 'PIP GUIDED THE HERDS TO COVER', title: 'A little too close.', copy: 'The wolves reached the field. The animals are sheltering with Pip. Try this field again: herds of 5+ buy you time, and his bark gives you three extra steps.',
-        action: 'Try this field again', run: () => { closeDialog(); startField(state.chapter); } });
-      return;
+    if(state.status==='lost'){
+      openDialog({eyebrow:'PIP GUIDED THE HERDS TO COVER',title:'A little too close.',copy:'The wolves reached the field. The animals are sheltering with Pip. Try again: three animals bring the pack two steps closer, while five or more hold them off.',
+        details:'<p>Your earlier fields stay complete. Bark use in this field still counts toward the final rest bonus.</p>',
+        action:'Try this field again',run:()=>{closeDialog();startField(state.chapter);} });return;
     }
     tone('win');
-    const final = state.chapter === 2;
-    const saved = total + state.saved.reduce((a, b) => a + b, 0), score = bankedScore + state.score;
-    if (final && score > best) { best = score; try { localStorage.setItem('aw-rescue-best', String(best)); } catch {} }
-    openDialog({ eyebrow: final ? 'THREE FIELDS. ONE SAFE BARN.' : `CHAPTER ${chapterWords[state.chapter]} COMPLETE`, title: final ? 'Everyone is home.' : ['The sheep are safe.', 'Out of the orchard.'][state.chapter],
-      copy: R.CHAPTERS[state.chapter].ending,
-      details: `<div class="stat-line"><span><strong>${saved}</strong>animals home</span><span><strong>${score}</strong>herding points</span></div>${final ? `<p style="margin-top:12px">Personal best: ${best} · Bigger herds earn more points.</p>` : ''}`,
-      action: final ? 'One more adventure' : `On to ${state.chapter === 0 ? 'the orchard' : 'the last gate'} →`,
-      run: () => {
-        closeDialog();
-        if (final) { total = 0; bankedScore = 0; startField(0); }
-        else {
-          total = saved; bankedScore = score; startField(state.chapter + 1);
-          const c = R.CHAPTERS[state.chapter];
-          openDialog({ eyebrow: `CHAPTER ${chapterWords[state.chapter]} · ${c.time.toUpperCase()}`, title: c.name, copy: c.story,
-            details: '<p>Pip has his bark back. The wolves start closer this time.</p>', action: 'Open the field gate', run: closeDialog });
-        }
-      } });
-  }
-  $('board').addEventListener('click', e => { const cell = e.target.closest('[data-cell]'); if (cell) select(Number(cell.dataset.cell)); });
-  $('board').addEventListener('keydown', e => {
-    const cell = e.target.closest('[data-cell]'); if (!cell) return;
-    let i = Number(cell.dataset.cell), next = i;
-    if (e.key === 'ArrowLeft') next = Math.max(i - i % 6, i - 1);
-    else if (e.key === 'ArrowRight') next = Math.min(i - i % 6 + 5, i + 1);
-    else if (e.key === 'ArrowUp') next = Math.max(0, i - 6);
-    else if (e.key === 'ArrowDown') next = Math.min(35, i + 6);
-    else return;
-    e.preventDefault(); cell.tabIndex = -1; $('board').children[next].tabIndex = 0; $('board').children[next].focus();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !$('story-dialog').open && !e.repeat && (e.target === document.body || e.target.closest('#board') || e.target.closest('#whistle'))) {
-      e.preventDefault(); commit();
+    if(state.chapter===2){
+      const rested=pipUsed.filter(used=>!used).length,bonus=R.restBonus(rested);
+      finalResult=Object.freeze({score:bankedScore+state.score+bonus,herdingScore:bankedScore+state.score,bonus,rested,
+        saved:total+state.saved.reduce((a,b)=>a+b,0),biggest:{...(state.biggest.count>bankedBiggest.count?state.biggest:bankedBiggest)},
+        moves:bankedMoves+state.moves,durationMs:Date.now()-startedAt,nonce:runNonce});
+      if(finalResult.score>best){best=finalResult.score;try{localStorage.setItem('aw-rescue-best-v2',String(best));}catch{}}
+      showResults();prepareShare(finalResult);return;
     }
-    if (e.key === 'Escape' && !$('story-dialog').open) { selected = []; renderSelection(); say('Choose a different herd when you are ready.'); }
+    const next=R.CHAPTERS[state.chapter+1],rested=pipUsed.slice(0,state.chapter+1).filter(used=>!used).length;
+    // One transition screen. Never close/reopen the same dialog during its tap.
+    openDialog({eyebrow:`CHAPTER ${chapterWords[state.chapter]} COMPLETE`,title:['The sheep are safe.','Out of the orchard.'][state.chapter],copy:`${R.CHAPTERS[state.chapter].ending} ${next.story}`,
+      details:`<div class="stat-line"><span><strong>${total+state.saved.reduce((a,b)=>a+b,0)}</strong>animals home</span><span><strong>${rested}</strong>fields Pip rested</span></div><p class="dialog-tip">Next: ${next.name}. Pip gets a fresh bark.</p>`,
+      action:'Open the field gate',run:()=>{
+        total+=state.saved.reduce((a,b)=>a+b,0);bankedScore+=state.score;bankedMoves+=state.moves;
+        if(state.biggest.count>bankedBiggest.count)bankedBiggest={...state.biggest};
+        const chapter=state.chapter+1;closeDialog();tone('gate');startField(chapter);
+      }});
+  }
+  function showResults() {
+    const r=finalResult;if(!r)return;
+    openDialog({view:'results',eyebrow:'THREE FIELDS. ONE SAFE BARN.',title:'Everyone is home.',copy:R.CHAPTERS[2].ending,
+      details:`<div class="stat-line"><span><strong>${r.saved}</strong>animals home</span><span><strong>${r.score.toLocaleString()}</strong>total points</span></div><p class="score-breakdown">${r.herdingScore.toLocaleString()} herding + <b>${r.bonus} Pip rest bonus</b><br>Pip rested in ${r.rested}/3 fields · personal best ${best.toLocaleString()}</p><div class="biggest-herd">${icon(r.biggest.type)}<span>Biggest herd: <b>${r.biggest.count} ${names[r.biggest.type]}</b></span></div><img id="share-preview" class="share-preview" alt="Your Angry Wolves score card" hidden><div class="result-actions"><button id="share-score" class="primary" type="button" ${shareReady?'':'disabled'}>${shareReady?'Share my score ↗':'Preparing card…'}</button><button id="post-score" class="primary" type="button">🏆 Leaderboard</button></div><p id="share-status" class="dialog-tip" role="status"></p><details id="share-options"><summary>Save card or copy caption</summary><a id="save-card" download="angry-wolves-score.png" hidden>Save score image</a><textarea id="share-caption" readonly aria-label="Score and game link to share"></textarea><button id="copy-caption" class="text-button" type="button">Copy caption and link</button></details>`,
+      action:'One more adventure',run:freshAdventure});
+    $('share-caption').value=S.caption(r);
+    $('share-score').addEventListener('click',async()=>{
+      if(!$('share-score'))return;
+      $('share-score').disabled=true;
+      $('share-options').open=true;
+      $('share-status').textContent='Choose an app in the share menu, or save the card below.';
+      try{
+        const outcome=await window.RescueShare.share(r,shareCard);
+        if(dialogView!=='results')return;
+        $('share-status').textContent=outcome==='shared'?'Your share is ready.':outcome==='cancelled'?'Sharing cancelled. Your score is still here.':'Save the image and copy the caption below to share anywhere.';
+        if(outcome==='fallback')$('share-options').open=true;
+      }catch{if(dialogView==='results'){$('share-status').textContent='Save the image and copy the caption below instead.';$('share-options').open=true;}}
+      finally{if($('share-score'))$('share-score').disabled=false;}
+    });
+    $('post-score').addEventListener('click',showLeaderboard);
+    $('copy-caption').addEventListener('click',async()=>{
+      try{await navigator.clipboard.writeText(S.caption(r));if($('share-status'))$('share-status').textContent='Caption and link copied.';}
+      catch{if($('share-caption')){$('share-caption').focus();$('share-caption').select();$('share-status').textContent='Select and copy the caption above.';}}
+    });
+    attachShare();
+  }
+  async function prepareShare(result) {
+    try{
+      const card=await window.RescueShare.makeCard(result,icon);
+      if(finalResult!==result){URL.revokeObjectURL(card.url);return;}
+      shareCard=card;shareReady=true;attachShare();
+    }catch{if(finalResult!==result)return;shareReady=true;if(dialogView==='results'){$('share-status').textContent='The image could not be prepared. You can still share your score and link.';$('share-score').disabled=false;$('share-score').textContent='Share my score ↗';}}
+  }
+  function attachShare(){
+    if(dialogView!=='results'||!shareCard)return;
+    $('share-preview').src=shareCard.url;$('share-preview').hidden=false;
+    $('save-card').href=shareCard.url;$('save-card').hidden=false;
+    $('share-score').disabled=false;$('share-score').textContent='Share my score ↗';
+  }
+  function showLeaderboard() {
+    if(busy)return;
+    let initials='',badge=0;try{initials=localStorage.getItem('aw-rescue-initials')||'';badge=Number(localStorage.getItem('aw-rescue-badge'))||0;}catch{}
+    if(!/^[A-Z]{3}$/.test(initials))initials='';if(!Number.isInteger(badge)||badge<0||badge>9)badge=0;
+    const form=finalResult&&!submission.done?`<form id="score-form"><label class="initials-label" for="score-initials">Your three letters</label><input id="score-initials" maxlength="3" minlength="3" pattern="[A-Za-z]{3}" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" aria-label="Three-letter player name"><fieldset class="badge-picker"><legend>Choose your shepherd badge</legend>${S.BADGES.map((emoji,i)=>`<label><input type="radio" name="shepherd-badge" value="${i}" ${i===badge?'checked':''}><span title="${S.BADGE_NAMES[i]}" aria-label="${S.BADGE_NAMES[i]}">${emoji}</span></label>`).join('')}</fieldset><button id="submit-score" class="primary" type="submit" ${submission.pending?'disabled':''}>${submission.pending?'Saving…':`Post ${finalResult.score.toLocaleString()} points`}</button></form>`:'';
+    openDialog({view:'leaderboard',eyebrow:'THE SHEPHERDS’ BOARD',title:'A place among the herd.',copy:'Top 20 completed adventures. Three letters, one badge, and a barn full of animals.',
+      details:`${form}<p id="submit-status" class="dialog-tip" role="status"></p><p id="leaderboard-status" role="status">Loading scores…</p><ol id="leaderboard-list" class="leaderboard-list"></ol><button id="refresh-scores" class="text-button" type="button">Refresh scores</button>`,
+      action:finalResult?'Back to my score':'Back to the field',run:finalResult?showResults:closeDialog});
+    $('submit-status').textContent=submission.message;
+    if($('score-initials')){
+      $('score-initials').value=initials;
+      $('score-initials').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,3);});
+      $('score-form').addEventListener('submit',postScore);
+    }
+    $('refresh-scores').addEventListener('click',loadLeaderboard);
+    loadLeaderboard();
+  }
+  async function loadLeaderboard(){
+    if(dialogView!=='leaderboard')return;
+    const ticket=dialogGeneration;
+    $('leaderboard-status').textContent='Loading scores…';$('refresh-scores').disabled=true;
+    try{
+      const entries=await S.leaderboard();if(ticket!==dialogGeneration)return;
+      $('leaderboard-list').replaceChildren();
+      entries.forEach((entry,i)=>{
+        const row=document.createElement('li'),rank=document.createElement('span'),name=document.createElement('strong'),score=document.createElement('span'),herd=document.createElement('small');
+        rank.className='rank';rank.textContent=String(i+1);name.textContent=S.decodeName(entry.playerName);score.textContent=entry.score.toLocaleString();
+        const animal=S.ANIMALS.includes(entry.biggestHerdAnimal)?entry.biggestHerdAnimal:'🐑';
+        herd.textContent=`Biggest herd ${Math.max(0,Math.min(36,Number(entry.biggestHerdCount)||0))} ${animal}`;
+        row.append(rank,name,score,herd);$('leaderboard-list').append(row);
+      });
+      $('leaderboard-status').textContent=entries.length?'Completed adventures · highest score first':'The pasture is fresh. Be the first shepherd on the board!';
+    }catch{if(ticket===dialogGeneration)$('leaderboard-status').textContent='The score sheet is taking a break. Tap Refresh to try again.';}
+    finally{if(ticket===dialogGeneration)$('refresh-scores').disabled=false;}
+  }
+  async function postScore(event){
+    event.preventDefault();if(submission.pending||submission.done||!finalResult)return;
+    const initials=$('score-initials').value,badge=Number(document.querySelector('input[name="shepherd-badge"]:checked').value),result=finalResult;
+    try{S.encodeName(initials,badge);}catch(error){$('submit-status').textContent=error.message;return;}
+    submission.pending=true;submission.message='Saving this adventure…';$('submit-status').textContent=submission.message;$('submit-score').disabled=true;
+    try{
+      const response=await S.submit(result,initials,badge);
+      if(finalResult!==result)return;
+      submission.done=true;submission.message=response.message;
+      try{localStorage.setItem('aw-rescue-initials',initials);localStorage.setItem('aw-rescue-badge',String(badge));}catch{}
+      if(dialogView==='leaderboard'){$('score-form')?.remove();$('submit-status').textContent=submission.message;loadLeaderboard();}
+    }catch(error){if(finalResult===result){submission.message=error.message||'Could not save. Your score is still here; try again.';if($('submit-status'))$('submit-status').textContent=submission.message;}}
+    finally{if(finalResult===result){submission.pending=false;if($('submit-score'))$('submit-score').disabled=false;}}
+  }
+  // Real touch releases activate dialog controls once, without waiting for
+  // Safari's synthesized click or activating the next screen a second time.
+  function bindDialogButton(id,getAction){
+    const button=$(id);let lastTouch=-Infinity,pointer=null;
+    button.addEventListener('pointerdown',event=>{if(event.pointerType!=='mouse')pointer={id:event.pointerId,x:event.clientX,y:event.clientY,generation:dialogGeneration};});
+    button.addEventListener('pointercancel',()=>{pointer=null;});
+    button.addEventListener('pointerup',event=>{
+      if(!pointer||pointer.id!==event.pointerId)return;
+      const start=pointer;pointer=null;
+      if(start.generation!==dialogGeneration||Math.hypot(event.clientX-start.x,event.clientY-start.y)>12)return;
+      event.preventDefault();lastTouch=performance.now();const action=getAction();if(action)action();
+    });
+    button.addEventListener('click',event=>{if(event.detail>0&&performance.now()-lastTouch<600)return;const action=getAction();if(action)action();});
+  }
+  $('board').addEventListener('click',e=>{const cell=e.target.closest('[data-cell]');if(cell)select(Number(cell.dataset.cell));});
+  $('board').addEventListener('keydown',e=>{
+    const cell=e.target.closest('[data-cell]');if(!cell)return;
+    const i=Number(cell.dataset.cell);let next=i;
+    if(e.key==='ArrowLeft')next=Math.max(i-i%6,i-1);else if(e.key==='ArrowRight')next=Math.min(i-i%6+5,i+1);
+    else if(e.key==='ArrowUp')next=Math.max(0,i-6);else if(e.key==='ArrowDown')next=Math.min(35,i+6);else return;
+    e.preventDefault();cell.tabIndex=-1;$('board').children[next].tabIndex=0;$('board').children[next].focus({preventScroll:true});
   });
-  $('whistle').addEventListener('click', commit);
-  $('bark').addEventListener('click', () => {
-    if (!ready || busy || $('story-dialog').open || !R.bark(state)) return;
-    selected = []; tone('bark'); render(); say('Good dog! Wolves back 3 steps. The animals regrouped.');
+  document.addEventListener('pointerdown',()=>{keyboardInput=false;},{passive:true});
+  document.addEventListener('keydown',e=>{
+    keyboardInput=true;
+    if(e.code==='Space'&&!$('story-dialog').open&&!e.repeat&&(e.target===document.body||e.target.closest('#board')||e.target.closest('#whistle'))){e.preventDefault();commit();}
+    if(e.key==='Escape'&&!$('story-dialog').open){selected=[];renderSelection();say('Choose a different herd when you are ready.');}
   });
-  $('retry').addEventListener('click', () => {
-    if (busy) return;
-    openDialog({ eyebrow: 'A FRESH START', title: 'Try this field again?', copy: 'Your earlier fields stay complete. This field’s animals, wolves, and Pip’s bark will reset.', action: 'Restart this field', run: () => { closeDialog(); startField(state.chapter); }, secondary: 'Keep playing', secondaryRun: closeDialog });
+  $('whistle').addEventListener('click',commit);
+  $('bark').addEventListener('click',()=>{
+    if(!ready||busy||$('story-dialog').open||!R.bark(state))return;
+    pipUsed[state.chapter]=true;selected=[];tone('bark');render();say('Good dog! Wolves back 3 steps. The animals regrouped.');
   });
-  $('guide').addEventListener('click', () => {
-    if (busy) return;
-    openDialog({ eyebrow: 'YOU ARE THE SHEPHERD', title: 'Think first. Then whistle.', copy: 'Select a herd, see what will happen, then whistle it home. Fill the animal goals above the field to continue the story.',
-      details: '<div class="instruction"><b>Find a herd.</b> 3+ matching animals must touch horizontally or vertically. Diagonals do not count.</div><div class="instruction"><b>Whistle.</b> Tap the button or tap your selected herd again. The spaces refill from above.</div><div class="instruction"><b>Watch the pack.</b> 3–4 animals: wolves step closer. 5–7: wolves stay put. 8+: wolves step back.</div><div class="instruction"><b>Call Pip once per field.</b> His bark pushes wolves back 3 steps and shuffles the animals. It costs no move.</div><div class="instruction"><b>Keyboard.</b> Tab into the field, use arrow keys to move, Enter to select, Space to whistle. Escape clears a selection.</div><div class="instruction"><b>Points.</b> 10 per animal, plus a bonus for herds larger than 3. Your best completed adventure stays on this device.</div>',
-      action: 'Back to the field', run: closeDialog });
+  $('retry').addEventListener('click',()=>{
+    if(busy)return;
+    openDialog({eyebrow:'A FRESH START',title:'Try this field again?',copy:'Earlier fields stay complete. This field’s animals, points, and wolf distance reset. Pip gets another bark, but any bark already used still counts against the rest bonus.',action:'Restart this field',run:()=>{closeDialog();startField(state.chapter);},secondary:'Keep playing',secondaryRun:closeDialog});
   });
-  $('sound').addEventListener('click', () => { soundOn = !soundOn; soundLabel(); try { localStorage.setItem('aw-rescue-sound', soundOn ? '1' : '0'); } catch {} tone(); });
-  $('dialog-action').addEventListener('click', () => dialogAction?.());
-  $('dialog-secondary').addEventListener('click', () => dialogSecondary?.());
-  $('story-dialog').addEventListener('cancel', e => { e.preventDefault(); if (ready && state.status === 'playing') closeDialog(); });
-  soundLabel(); render(); intro();
+  $('guide').addEventListener('click',()=>{
+    if(busy)return;
+    openDialog({eyebrow:'YOU ARE THE SHEPHERD',title:'Think first. Then whistle.',copy:'Select a herd, see what will happen, then whistle it home. Fill the animal goals to continue.',
+      details:'<div class="instruction"><b>Find a herd.</b> 3+ matching animals must touch horizontally or vertically. Diagonals do not count.</div><div class="instruction"><b>Whistle.</b> Tap the button or your selected herd again. Spaces refill from above.</div><div class="instruction"><b>Watch the pack.</b> 3 animals: two steps closer. 4: one step closer. 5–7: stay put. 8+: one step back.</div><div class="instruction"><b>Let Pip rest.</b> No rest: +0. One field: +100. Two: +250. All three: +500. Paid once when everyone is home. Using Pip on any attempt counts, even after retrying.</div><div class="instruction"><b>Call Pip once per attempt.</b> His bark adds three steps and regroups the animals. It costs no move.</div><div class="instruction"><b>Points.</b> 10 per animal plus a bigger-herd bonus. Successful fields and Pip’s final bonus make your leaderboard score.</div><div class="instruction"><b>Keyboard.</b> Arrow keys move, Enter selects, Space whistles. Escape clears selection.</div><div class="instruction"><b>Sound.</b> Use 🔊 / 🔇 at the top. If quiet, check phone volume and Silent Mode, then test below.<button id="test-sound" class="text-button" type="button">Turn on and test sound</button></div>',
+      action:'Back to the field',run:closeDialog});
+    $('test-sound').addEventListener('click',()=>{soundOn=true;A.reset();A.setEnabled(true);soundLabel();tone('gate');try{localStorage.setItem('aw-rescue-sound','1');}catch{}});
+  });
+  $('sound').addEventListener('click',()=>{soundOn=!soundOn;A.setEnabled(soundOn);soundLabel();try{localStorage.setItem('aw-rescue-sound',soundOn?'1':'0');}catch{}if(soundOn)tone('gate');});
+  $('leaderboard').addEventListener('click',showLeaderboard);
+  bindDialogButton('dialog-action',()=>dialogAction);bindDialogButton('dialog-secondary',()=>dialogSecondary);
+  $('story-dialog').addEventListener('cancel',e=>{e.preventDefault();if(dialogView==='leaderboard'&&finalResult)showResults();else if(ready&&state.status==='playing')closeDialog();});
+  let fitFrame=0;
+  function scheduleFit(){if(!fitFrame)fitFrame=requestAnimationFrame(fitViewport);}
+  function fitViewport(){
+    fitFrame=0;
+    const viewport=window.visualViewport;
+    if(viewport&&Math.abs(viewport.scale-1)>.01)return;
+    const height=Math.floor(Math.min(window.innerHeight,viewport?.height||window.innerHeight));
+    document.documentElement.style.setProperty('--visible-height',`${height}px`);
+    document.documentElement.style.setProperty('--visible-top',`${Math.floor(viewport?.offsetTop||0)}px`);
+    if(window.matchMedia('(max-width:700px)').matches){
+      const area=document.querySelector('.play-area');
+      const others=['.goals','.wolf-trail','.feedback','.actions','.board-foot'];
+      let reserved=0;
+      for(const selector of others){const el=area.querySelector(selector),css=getComputedStyle(el);reserved+=el.getBoundingClientRect().height+parseFloat(css.marginTop)+parseFloat(css.marginBottom);}
+      const size=Math.max(80,Math.floor(Math.min(area.clientWidth,area.clientHeight-reserved-3)));
+      document.documentElement.style.setProperty('--field-size',`${size}px`);
+    }
+  }
+  window.addEventListener('resize',scheduleFit,{passive:true});window.visualViewport?.addEventListener('resize',scheduleFit,{passive:true});window.visualViewport?.addEventListener('scroll',scheduleFit,{passive:true});
+  window.addEventListener('pageshow',scheduleFit,{passive:true});
+  new ResizeObserver(scheduleFit).observe(document.querySelector('.play-area'));
+  soundLabel();render();intro();
 })();

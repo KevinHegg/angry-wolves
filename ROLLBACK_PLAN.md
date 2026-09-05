@@ -627,3 +627,14 @@ The default page now runs a separate three-chapter rescue game. The existing fal
 - Restore documentation selectively from the snapshot if desired; do not overwrite later edits wholesale.
 
 See `RESCUE_STORY_NOTES.md` for reasoning and verification. Nothing was committed, pushed, merged, or published by this pass.
+
+## Rescue 2.0 — 2026-09-05
+
+Previous published game: commit `2c7b000`. Exact pre-update runtime and documentation copies are in `.codex-safety/rescue-v2-before/`.
+
+- Restore the earlier rescue game by restoring only `index.html`, `rescue.js`, `rescue-engine.js`, and `rescue.css` from that snapshot. Extra service/audio/share files may remain unused. Preserve unrelated work.
+- Change wolf movement in `rescue-engine.js: wolfStep()` and rest awards in `REST_BONUSES` to retune this version.
+- `pipUsed` in `rescue.js` deliberately persists across field retries and resets only for a new adventure.
+- The leaderboard category is `rescue-v2`. Badge indices 0–9 in `rescue-services.js` are permanent because the existing sheet stores them with the initials. Do not reorder them.
+- No Apps Script changes are required for this version. It uses the already-deployed endpoint and existing columns. The QA test category is `rescue-v2-qa` and is not displayed to players.
+- Public navigation no longer links to the old falling-block game. Legacy assets remain preserved.

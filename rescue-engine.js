@@ -2,6 +2,9 @@
 (function (root) {
   'use strict';
   const SIZE = 6;
+  const REST_BONUSES = Object.freeze([0, 100, 250, 500]);
+  function restBonus(rested) { return REST_BONUSES[Math.max(0, Math.min(3, Math.floor(rested)))]; }
+  function wolfStep(count) { return count === 3 ? -2 : count === 4 ? -1 : count < 8 ? 0 : 1; }
   const CHAPTERS = [
     { name: 'The open pasture', time: 'Late afternoon', goal: [12, 0, 0, 0], types: 3, distance: 8,
       story: 'The gate is open. The sheep have wandered out. Get 12 sheep home before the wolves reach the field.',
@@ -46,7 +49,7 @@
     // Every field opens with an obvious, useful herd.
     const first = c.goal.findIndex(n => n > 0);
     board[30] = board[31] = board[32] = board[33] = first;
-    return { chapter, board, saved: [0, 0, 0, 0], distance: c.distance, bark: 1, moves: 0, score: 0, status: 'playing' };
+    return { chapter, board, saved: [0, 0, 0, 0], distance: c.distance, bark: 1, moves: 0, score: 0, biggest: {count: 0, type: 0}, status: 'playing' };
   }
   function rescue(state, start, rng = Math.random) {
     if (state.status !== 'playing') return { ok: false };
@@ -56,8 +59,9 @@
     state.saved[type] += count;
     state.score += count * 10 + Math.max(0, count - 3) ** 2 * 2;
     state.moves++;
-    const push = count >= 8 ? 2 : count >= 5 ? 1 : 0;
-    state.distance = Math.min(10, state.distance - 1 + push);
+    if (count > state.biggest.count) state.biggest = {count, type};
+    const step = wolfStep(count);
+    state.distance = Math.max(0, Math.min(10, state.distance + step));
     for (let col = 0; col < SIZE; col++) {
       const survivors = [];
       for (let row = SIZE - 1; row >= 0; row--) {
@@ -71,7 +75,7 @@
     if (CHAPTERS[state.chapter].goal.every((n, i) => state.saved[i] >= n)) state.status = 'won';
     else if (state.distance <= 0) state.status = 'lost';
     const regrouped = ensureMove(state.board, CHAPTERS[state.chapter].types, rng);
-    return { ok: true, count, type, push, cleared: g, regrouped };
+    return { ok: true, count, type, step, cleared: g, regrouped };
   }
   function bark(state, rng = Math.random) {
     if (state.status !== 'playing' || !state.bark) return false;
@@ -84,7 +88,7 @@
     ensureMove(state.board, CHAPTERS[state.chapter].types, rng);
     return true;
   }
-  const api = { SIZE, CHAPTERS, neighbors, group, groups, create, rescue, bark };
+  const api = { SIZE, CHAPTERS, REST_BONUSES, restBonus, wolfStep, neighbors, group, groups, create, rescue, bark };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RescueRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

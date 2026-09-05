@@ -14,10 +14,12 @@ Open `http://localhost:8000/`.
 
 - Select 3+ matching animals touching horizontally or vertically.
 - Press **Whistle** or select the same herd again to send them home.
-- Herds of 3–4 let wolves move closer; 5–7 hold them off; 8+ push them back.
+- Herds of 3 move wolves two steps closer; 4 moves them one step closer; 5–7 hold them off; 8+ push them back.
 - **Pip, bark!** pushes wolves back three steps and regroups the animals, once per field.
 - Complete the visible animal goals to continue. A failed field can be retried without losing earlier chapters.
-- There is no real-time clock. Sound is optional. Best completed-adventure points are stored on this device.
+- Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
+- There is no real-time clock. Sound is optional; the speaker button shows its state.
+- Completed adventures can join the leaderboard with three letters and one of ten shepherd badges, or be shared as an illustrated score card.
 
 Keyboard: Tab into the board, arrow keys to move focus, Enter to select, Space to whistle, Escape to clear a selection.
 
@@ -25,23 +27,26 @@ Keyboard: Tab into the board, arrow keys to move focus, Enter to select, Space t
 
 - `index.html`, `rescue.css`, `rescue.js`: default rescue game and interface.
 - `rescue-engine.js`: independent, testable game rules.
+- `rescue-audio.js`: gesture-based audio initialization and recovery.
+- `rescue-services.js`: existing score-sheet connection, badge encoding, and share captions.
+- `rescue-share.js`: local PNG score-card generation and native sharing.
 - `classic.html`, `game.js`, `styles.css`: preserved falling-block version, including its existing leaderboard integration.
 - `RESCUE_STORY_NOTES.md`: design decisions, tuning evidence, and verification.
 - `ROLLBACK_PLAN.md`: restoration instructions.
 
-No install or build step; no dependencies. The folder remains compatible with static GitHub Pages hosting. The rescue game makes no leaderboard submissions and uses a separate local best-score key.
+No install or build step; no dependencies. The folder remains compatible with static GitHub Pages hosting. The leaderboard uses the existing Apps Script deployment and sheet, filtered to the `rescue-v2` scoring category. Only an explicit player submission writes a score.
 
 ## Verify
 
 ```sh
-node --test tests/rescue-engine.test.cjs
+node --test tests/*.test.cjs
 node tests/rescue-balance.cjs
 ```
 
 The second command simulates 1,000 seeded games per chapter for random and goal-aware strategies. It is a tuning aid, not a human playtest.
 
-## Classic version
+## Live game and rollback
 
-Use the **Classic falling-block game** link, visit `classic.html`, or append `?story=0` to the default URL. Existing `v1`, `v2`, and `legacy` query parameters route to the classic page and retain their original behavior there.
+Play at https://kevinhegg.github.io/angry-wolves/. Pages publishes the current `tune/v2-clarity-economy-audio` branch. No merge to `main` is required.
 
-The previous README is preserved with the pre-change snapshot in `.codex-safety/story-rescue-before/README.md`. Older V2 documents describe the classic version.
+The old game is no longer linked in the interface. Its files remain available for rollback. See `ROLLBACK_PLAN.md` for restoration instructions and `RESCUE_V2_NOTES.md` for the scoring, Safari, leaderboard, and share update.

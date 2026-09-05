@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const R = require('../rescue-engine.js');
 function random(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
 function striped() { return Array.from({length:36}, (_,i) => (i % 6 + Math.floor(i / 6)) % 3); }
-function setup(size, distance=5) { const s = R.create(2); s.board = striped(); for(let i=0;i<size;i++) s.board[i]=2; s.distance=distance; return s; }
+function setup(size, distance=5) { const s = R.create(2); s.board = Array.from({length:36}, (_,i)=>(i%6+Math.floor(i/6))%2); for(let i=0;i<size;i++) s.board[i]=2; s.distance=distance; return s; }
 test('groups connect along edges, never diagonally or across row boundaries', () => {
   const b = striped(); assert.equal(R.group(b, 0).length,1);
   b[5]=b[6]=2; assert.ok(!R.group(b,5).includes(6));
@@ -14,11 +14,12 @@ test('invalid and short groups are free and leave state unchanged', () => {
   assert.equal(R.rescue(s,0).ok,false); assert.equal(R.rescue(s,-1).ok,false); assert.deepEqual(s,before);
 });
 test('herd sizes apply exactly the displayed wolf movement', () => {
-  for (const size of [3,5,8]) {
+  for (const size of [3,4,5,7,8]) {
     const s=setup(size); const group=R.group(s.board,0).length;
     const result=R.rescue(s,0,random(12));
+    assert.equal(result.count,size);
     assert.equal(result.count,group);
-    assert.equal(s.distance,5-1+(group>=8?2:group>=5?1:0));
+    assert.equal(s.distance,5+(group===3?-2:group===4?-1:group<8?0:1));
     assert.equal(s.saved[2],group);
   }
 });
@@ -56,4 +57,14 @@ test('thousands of turns stay valid and always offer a legal herd', () => {
       assert.ok(s.distance>=0 && s.distance<=10); assert.ok(Number.isFinite(s.score));
     }
   }
+});
+
+test('Pip rest bonuses match the four promised tiers', () => {
+  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,100,250,500]);
+});
+test('biggest herd keeps its animal and survives smaller later rescues', () => {
+  const s=setup(8); R.rescue(s,0,random(2));
+  assert.deepEqual(s.biggest,{count:8,type:2});
+  s.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%2);s.board[0]=s.board[1]=s.board[2]=3;
+  R.rescue(s,0,random(3));assert.deepEqual(s.biggest,{count:8,type:2});
 });
