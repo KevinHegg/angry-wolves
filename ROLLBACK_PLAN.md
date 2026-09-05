@@ -660,3 +660,14 @@ Audio requests `navigator.audioSession.type = playback` where supported, before 
 Badge IDs 0–9 retain their original meanings. IDs A–J add animal variations without changing the four-character sheet format. The new picker offers ten animals; an already-selected legacy badge remains available. Do not reorder the badge arrays or IDs. Initials and badge drafts save on input/change and survive dialog reopening even when storage is unavailable within the same page session.
 
 Native sharing sends a PNG plus the game URL, with no duplicate score caption. Targets that cannot receive files get only the link.
+
+
+## Rescue 2.3 — carried boards and bounded scoring
+
+`play/2.2/` remains intact. To roll back this release, restore root and classic redirects to that directory. No historical sheet rows were renamed or deleted.
+
+- `create(chapter, rng, carriedBoard)` copies the outgoing board for the next field. A retry restores that field’s entry board; goals, score, moves, wolf distance and bark reset. Pip usage for the rest award remains recorded across retries.
+- `pressure(moves)` adds one wolf step starting at move 18 and two from 26. Set its return value to zero to disable. `rescue()` scatters newly generated animals after move 8, increasing by .03 per move to a maximum .6 chance of choosing a least-adjacent animal. Set `scatter` to zero to disable. Existing tiles are never rearranged by this tuning.
+- `herdPoints(count)` is shared by score awards and previews. Base scoring and the existing score category remain unchanged; this release does not clear earlier leaderboard entries.
+- Player profiles preload locked when three saved initials exist. Change player unlocks fields. Existing scores retain the identity used for their submission. Without authenticated player ownership, initials are not a safe key for renaming or deleting old records.
+- Dialog buttons use native click activation instead of touch-release position checks, with a short duplicate-click guard. This avoids rejecting taps when Safari’s visible viewport moves during a touch.

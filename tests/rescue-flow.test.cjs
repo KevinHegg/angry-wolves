@@ -16,7 +16,7 @@ function harness(){
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?{value:'0'}:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
  const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(r);entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:true}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
- const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
+ const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
  vm.runInNewContext(source,{window,document,localStorage:{getItem(){return null},setItem(){}},ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
  return{...window.test,api:window.test,nodes,get,posted};
 }
@@ -27,7 +27,7 @@ test('two complete adventures each offer score entry and replay resets all field
  for(let run=0;run<2;run++){
   assert.equal(a.state.chapter,0);assert.equal(a.state.score,0);assert.equal(a.result,null);assert.equal(a.submission.done,false);
   for(let moves=0;!a.result&&moves<1000;moves++){
-   if(h.get('story-dialog').open){a.action();continue;}
+   if(h.get('story-dialog').open){const previous=a.state.board.slice(),won=a.state.status==='won';a.action();if(won)assert.deepEqual(a.state.board,previous);continue;}
    const state=a.state,goal=R.CHAPTERS[state.chapter].goal;
    const groups=R.groups(state.board).sort((x,y)=>{
     const value=g=>g.length+2*Math.min(g.length,Math.max(0,goal[state.board[g[0]]]-state.saved[state.board[g[0]]]));return value(y)-value(x);

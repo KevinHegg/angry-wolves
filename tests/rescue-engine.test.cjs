@@ -68,3 +68,20 @@ test('biggest herd keeps its animal and survives smaller later rescues', () => {
   s.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%2);s.board[0]=s.board[1]=s.board[2]=3;
   R.rescue(s,0,random(3));assert.deepEqual(s.biggest,{count:8,type:2});
 });
+
+test('field transitions preserve every tile without aliasing the previous board',()=>{
+ const before=R.create(0,()=>.2);before.board[12]=2;
+ const next=R.create(1,()=>{throw Error('must not generate a new board')},before.board);
+ assert.deepEqual(next.board,before.board);assert.notEqual(next.board,before.board);
+ assert.equal(next.chapter,1);assert.deepEqual(next.saved,[0,0,0,0]);assert.equal(next.moves,0);assert.equal(next.bark,1);
+});
+test('herd point previews equal the awarded score',()=>{
+ const state=R.create(0,()=>.5);const herd=R.groups(state.board)[0];const expected=R.herdPoints(herd.length);
+ const result=R.rescue(state,herd[0],()=>.5);assert.equal(result.ok,true);assert.equal(state.score,expected);
+});
+test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
+ const state=R.create(0,()=>.5);
+ while(state.status==='playing'&&state.moves<50){state.board.fill(1);if(state.distance<=2&&state.bark)R.bark(state,()=>.5);R.rescue(state,0,()=>.5);}
+ assert.equal(state.status,'lost');assert.ok(state.moves<=40);
+ assert.equal(R.pressure(17),0);assert.equal(R.pressure(18),1);assert.equal(R.pressure(26),2);
+});

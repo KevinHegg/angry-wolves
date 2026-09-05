@@ -15,13 +15,11 @@ function controls(){
 test('first gate click works immediately after page load',()=>{
  const c=controls();c.handlers.click({detail:1});assert.equal(c.count(),1);
 });
-test('touch release plus Safari synthetic click activates a gate only once',()=>{
- const c=controls();const e={pointerId:1,pointerType:'touch',clientX:20,clientY:20,preventDefault(){}};
- c.handlers.pointerdown(e);c.handlers.pointerup(e);c.handlers.click({detail:1});assert.equal(c.count(),1);
- c.setTime(1000);c.handlers.click({detail:1});assert.equal(c.count(),2);
+test('native taps after scrolling work without pointer-coordinate assumptions',()=>{
+ const c=controls();assert.equal(c.handlers.pointerup,undefined);c.handlers.click({detail:1});assert.equal(c.count(),1);
+ c.setTime(1100);c.handlers.click({detail:1});assert.equal(c.count(),2);
 });
-test('a scroll or changed dialog cannot activate an old gate',()=>{
- const c=controls();const e={pointerId:1,pointerType:'touch',clientX:20,clientY:20,preventDefault(){}};
- c.handlers.pointerdown(e);c.handlers.pointerup({...e,clientY:80});assert.equal(c.count(),0);
- c.handlers.pointerdown(e);c.context.dialogGeneration++;c.handlers.pointerup(e);assert.equal(c.count(),0);
+test('duplicate taps cannot trigger the next screen and keyboard activation remains available',()=>{
+ const c=controls();c.handlers.click({detail:1});c.context.dialogGeneration++;c.handlers.click({detail:1});assert.equal(c.count(),1);
+ c.handlers.click({detail:0});assert.equal(c.count(),2);
 });

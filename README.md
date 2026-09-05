@@ -16,8 +16,9 @@ Open `http://localhost:8000/`.
 - Press **Whistle** or select the same herd again to send them home.
 - Herds of 3 move wolves two steps closer; 4 moves them one step closer; 5–7 hold them off; 8+ push them back.
 - **Pip, bark!** pushes wolves back three steps and regroups the animals, once per field.
-- Complete the visible animal goals to continue. A failed field can be retried without losing earlier chapters.
+- Complete the visible animal goals to continue with the same board of animals. A failed field can be retried without losing earlier chapters.
 - Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
+- Later refills become more scattered. From whistle 18 in a field, wolves advance one extra step; from 26, two extra steps. Building herds is useful, but indefinite score farming is impossible.
 - There is no real-time clock. Sound is optional; the speaker button shows its state.
 - Completed adventures can join the leaderboard with three letters and one of ten animal badges, or be shared as an illustrated score card.
 
@@ -34,7 +35,7 @@ Keyboard: Tab into the board, arrow keys to move focus, Enter to select, Space t
 - `RESCUE_STORY_NOTES.md`: design decisions, tuning evidence, and verification.
 - `ROLLBACK_PLAN.md`: restoration instructions.
 
-No dependencies. After editing the root rescue files, run `node scripts/package-rescue.cjs` to refresh the self-contained `play/2.2/` release. Future releases should use a new directory and update the root redirect, classic redirect, share URL, and packaging version together. The folder remains compatible with static GitHub Pages hosting. The leaderboard uses the existing Apps Script deployment and sheet, filtered to the `rescue-v2` scoring category. Only an explicit player submission writes a score.
+No dependencies. After editing the root rescue files, run `node scripts/package-rescue.cjs` to refresh the self-contained `play/2.3/` release. Future releases should use a new directory and update the root redirect, classic redirect, share URL, and packaging version together. The folder remains compatible with static GitHub Pages hosting. The leaderboard uses the existing Apps Script deployment and sheet, filtered to the `rescue-v2` scoring category. Only an explicit player submission writes a score.
 
 ## Verify
 
@@ -47,6 +48,6 @@ The second command simulates 1,000 seeded games per chapter for random and goal-
 
 ## Live game and rollback
 
-Play at https://kevinhegg.github.io/angry-wolves/play/2.2/. Pages publishes the current `tune/v2-clarity-economy-audio` branch. No merge to `main` is required.
+Play at https://kevinhegg.github.io/angry-wolves/play/2.3/. Pages publishes the current `tune/v2-clarity-economy-audio` branch. No merge to `main` is required.
 
 The old game is no longer linked in the interface. Its files remain available for rollback. See `ROLLBACK_PLAN.md` for restoration instructions and `RESCUE_V2_NOTES.md` for the scoring, Safari, leaderboard, and share update.

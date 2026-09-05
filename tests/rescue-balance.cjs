@@ -31,9 +31,9 @@ for (const strategy of ['random', 'goal-aware']) {
 for (const policy of ['emergency bark', 'let Pip rest']) {
   let wins=0;const bases=[],bonuses=[];
   for(let seed=1;seed<=trials;seed++){
-    const rng=seeded(seed);let score=0,rests=0,won=true;
+    const rng=seeded(seed);let score=0,rests=0,won=true,carry=null;
     for(let chapter=0;chapter<3;chapter++){
-      const state=R.create(chapter,rng);
+      const state=R.create(chapter,rng,carry);
       while(state.status==='playing'&&state.moves<100){
         if(policy==='emergency bark'&&state.distance<=2&&state.bark)R.bark(state,rng);
         const groups=R.groups(state.board);
@@ -41,7 +41,7 @@ for (const policy of ['emergency bark', 'let Pip rest']) {
         groups.sort((a,b)=>value(b)-value(a));R.rescue(state,groups[0][0],rng);
       }
       if(state.status!=='won'){won=false;break;}
-      score+=state.score;rests+=state.bark;
+      carry=state.board.slice();score+=state.score;rests+=state.bark;
     }
     if(won){wins++;bases.push(score);bonuses.push(R.restBonus(rests));}
   }
