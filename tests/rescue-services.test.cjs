@@ -29,3 +29,18 @@ test('pending moderation and duplicate submissions never claim a public ranking'
     assert.equal((await S.submit(result,'ABC',0)).status,'received');
   }finally{global.fetch=old;}
 });
+test('top 20 displaces the lowest score and preserves earlier ties',async()=>{
+ const entries=Array.from({length:20},(_,i)=>({score:2000-i*10,gameMode:S.MODE,playerName:'ABC0'}));
+ assert.equal(S.qualifies(entries,1810),false);assert.equal(S.qualifies(entries,1811),true);assert.equal(S.qualifies(entries.slice(0,19),1),true);
+ const old=global.fetch;global.fetch=async()=>({ok:true,json:async()=>({ok:true,entries:[...entries,{score:3000,gameMode:S.MODE,playerName:'NEW1'}]})});
+ try{const board=await S.leaderboard();assert.equal(board.length,20);assert.equal(board[0].score,3000);assert.equal(board[19].score,1820);}finally{global.fetch=old;}
+});
+test('rank requires an unambiguous matching public entry',()=>{
+ const row=S.payload(result,'ABC',0);
+ assert.equal(S.verifiedRank([row],result,'ABC0'),1);
+ assert.equal(S.verifiedRank([{...row,durationMs:100}],result,'ABC0'),null);
+ assert.equal(S.verifiedRank([row,row],result,'ABC0'),null);
+ assert.match(S.caption({...result,rank:3,playerLabel:'ABC 🐕'}),/Top 20 high score · #3/);
+ assert.match(S.caption({...result,personalBest:true}),/New personal best/);
+ assert.doesNotMatch(S.caption(result),/high score|personal best/);
+});

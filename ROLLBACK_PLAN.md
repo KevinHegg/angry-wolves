@@ -638,3 +638,14 @@ Previous published game: commit `2c7b000`. Exact pre-update runtime and document
 - The leaderboard category is `rescue-v2`. Badge indices 0–9 in `rescue-services.js` are permanent because the existing sheet stores them with the initials. Do not reorder them.
 - No Apps Script changes are required for this version. It uses the already-deployed endpoint and existing columns. The QA test category is `rescue-v2-qa` and is not displayed to players.
 - Public navigation no longer links to the old falling-block game. Legacy assets remain preserved.
+
+
+## Rescue 2.1 — flow and cache repair
+
+This supersedes the historical per-visit rollback links above. Root and `classic.html` now route to `play/2.1/`; old query parameters no longer opt into the falling-block game. Published releases contain their own runtime assets. For a future release, use a new numbered folder to avoid Safari combining cached entry pages with newer scripts.
+
+- Previous published release: `1fc6db9`. Pre-change runtime copies: `.codex-safety/rescue-v21-before/`.
+- Restore a prior release deliberately from its Git version; do not recreate player-facing classic links as a routine rollback.
+- Top-board limit is `LIMIT = 20` in `rescue-services.js`. The sheet retains its history; only the highest 20 rescue scores appear. A new tied score does not displace an older score.
+- Rank is added to the share image only after a matching public score is returned. Review-pending submissions do not claim a rank.
+- Run `node scripts/package-rescue.cjs` after source changes, and include the generated release files in the same commit.

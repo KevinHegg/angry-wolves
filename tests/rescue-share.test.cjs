@@ -24,3 +24,11 @@ test('unsupported sharing falls back and cancellation never claims success',asyn
  assert.equal(await harness({}).share(result,null),'fallback');
  assert.equal(await harness({share:()=>Promise.reject({name:'AbortError'})}).share(result,null),'cancelled');
 });
+test('score image draws verified rank and player, or personal best only',async()=>{
+ const texts=[];const ctx=new Proxy({fillText:text=>texts.push(text)},{get:(obj,key)=>key in obj?obj[key]:()=>{}});
+ const window={RescueServices:S};
+ vm.runInNewContext(fs.readFileSync(require.resolve('../rescue-share.js'),'utf8'),{window,document:{createElement:()=>({getContext:()=>ctx,toBlob:fn=>fn('png')})},Image:class{async decode(){}},URL:{createObjectURL:()=> 'blob:card'}});
+ await window.RescueShare.makeCard({...result,rank:7,playerLabel:'ABC 🐑'},()=>'<svg></svg>');
+ assert.ok(texts.includes('TOP 20 HIGH SCORE · #7'));assert.ok(texts.includes('ABC 🐑'));
+ texts.length=0;await window.RescueShare.makeCard({...result,personalBest:true},()=>'<svg></svg>');assert.ok(texts.includes('NEW PERSONAL BEST'));assert.ok(!texts.some(t=>String(t).includes('TOP 20')));
+});
