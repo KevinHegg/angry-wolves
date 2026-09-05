@@ -10,15 +10,15 @@ function harness(navigator){
  vm.runInNewContext(fs.readFileSync(require.resolve('../rescue-share.js'),'utf8'),{window,navigator,File});
  return window.RescueShare;
 }
-test('native share receives the prepared PNG and exact score caption',async()=>{
+test('native share receives the prepared PNG and link without duplicate score text',async()=>{
  let sent;const h=harness({canShare:()=>true,share:data=>{sent=data;return Promise.resolve();}});
  assert.equal(await h.share(result,{blob:'prepared-image'}),'shared');
  assert.equal(sent.files[0].name,'angry-wolves-score.png');assert.equal(sent.files[0].type,'image/png');
- assert.ok(sent.text.includes('2,114'));assert.ok(sent.text.includes('10 🐷'));assert.ok(sent.text.includes(S.GAME_URL));
+ assert.equal(sent.text,undefined);assert.equal(sent.url,S.GAME_URL);
 });
 test('text-only native sharing includes a public game URL',async()=>{
  let sent;const h=harness({canShare:()=>false,share:data=>{sent=data;return Promise.resolve();}});
- await h.share(result,null);assert.equal(sent.url,S.GAME_URL);assert.equal(sent.files,undefined);
+ await h.share(result,null);assert.equal(sent.url,S.GAME_URL);assert.equal(sent.files,undefined);assert.equal(sent.text,undefined);
 });
 test('unsupported sharing falls back and cancellation never claims success',async()=>{
  assert.equal(await harness({}).share(result,null),'fallback');

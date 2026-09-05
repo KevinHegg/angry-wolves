@@ -649,3 +649,14 @@ This supersedes the historical per-visit rollback links above. Root and `classic
 - Top-board limit is `LIMIT = 20` in `rescue-services.js`. The sheet retains its history; only the highest 20 rescue scores appear. A new tied score does not displace an older score.
 - Rank is added to the share image only after a matching public score is returned. Review-pending submissions do not claim a rank.
 - Run `node scripts/package-rescue.cjs` after source changes, and include the generated release files in the same commit.
+
+
+## Rescue 2.2 — Safari audio, identity and sharing
+
+The previous release remains intact in `play/2.1/`. Root and classic redirects now point to `play/2.2/`. Restore the redirects to 2.1 for a release rollback without changing score history.
+
+Audio requests `navigator.audioSession.type = playback` where supported, before creating/resuming Web Audio. Muting returns it to auto. Sound is still initiated by a gesture; no microphone access is requested. Browsers without this API retain the existing sound path and may need Silent Mode off.
+
+Badge IDs 0–9 retain their original meanings. IDs A–J add animal variations without changing the four-character sheet format. The new picker offers ten animals; an already-selected legacy badge remains available. Do not reorder the badge arrays or IDs. Initials and badge drafts save on input/change and survive dialog reopening even when storage is unavailable within the same page session.
+
+Native sharing sends a PNG plus the game URL, with no duplicate score caption. Targets that cannot receive files get only the link.

@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-function harness(){
+function harness(audioSession){
  const events={},instances=[];
  class Context{
    constructor(){this.state='suspended';this.sampleRate=44100;this.currentTime=7;this.destination={};this.notes=[];instances.push(this);}
@@ -13,7 +13,7 @@ function harness(){
    createOscillator(){const self=this;return {frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},start(at){self.notes.push(at);},stop(){}};}
    createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}
  }
- const window={AudioContext:Context,addEventListener:(name,fn)=>{events[name]=fn;}};
+ const window={navigator:{audioSession},AudioContext:Context,addEventListener:(name,fn)=>{events[name]=fn;}};
  const document={hidden:false,addEventListener:(name,fn)=>{events[name]=fn;}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../rescue-audio.js'),'utf8'),{window,document,performance:{now:()=>0}});
  return {audio:window.RescueAudio,instances,events,document};
@@ -34,4 +34,18 @@ test('mute prevents output initialization and scheduled notes',async()=>{
  const h=harness();h.audio.setEnabled(false);h.audio.play();assert.equal(h.instances.length,0);
  h.audio.setEnabled(true);h.audio.play();h.audio.setEnabled(false);h.instances[0].ready();await flush();
  assert.equal(h.instances[0].notes.length,0);
+});
+
+test('Safari media playback route is requested before sound and released when muted',async()=>{
+ const session={type:'auto'},h=harness(session);
+ const played=h.audio.play('gate');assert.equal(session.type,'playback');h.instances[0].ready();assert.equal(await played,true);
+ h.audio.setEnabled(false);assert.equal(session.type,'auto');assert.equal(await h.audio.play(),false);
+});
+test('unsupported audio session configuration does not block sound',async()=>{
+ const session={set type(value){throw Error('unsupported')}};const h=harness(session);
+ const played=h.audio.play();h.instances[0].ready();assert.equal(await played,true);
+});
+test('a refused Safari resume reports failure instead of claiming playback',async()=>{
+ const h=harness();h.audio.wake();h.instances[0].resume=()=>Promise.reject(Error('not allowed'));
+ assert.equal(await h.audio.play(),false);
 });

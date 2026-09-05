@@ -5,7 +5,7 @@ const result={score:1750,rested:2,bonus:250,biggest:{count:14,type:1},saved:91,m
 test('all ten badges round-trip through the existing alphanumeric name column',()=>{
   for(let i=0;i<10;i++){assert.equal(S.encodeName('abc',i),'ABC'+i);assert.equal(S.decodeName('ABC'+i),'ABC '+S.BADGES[i]);}
   for(const name of ['AB','ABCD','A1C','<b>'])assert.throws(()=>S.encodeName(name,0));
-  assert.throws(()=>S.encodeName('ABC',10));assert.throws(()=>S.encodeName('ABC',-1));
+  assert.throws(()=>S.encodeName('ABC',20));assert.throws(()=>S.encodeName('ABC',-1));
 });
 test('score payload uses the new category and the actual completed-run metrics',()=>{
   const p=S.payload(result,'ABC',3);assert.equal(p.gameMode,'rescue-v2');assert.equal(p.score,1750);
@@ -43,4 +43,19 @@ test('rank requires an unambiguous matching public entry',()=>{
  assert.match(S.caption({...result,rank:3,playerLabel:'ABC 🐕'}),/Top 20 high score · #3/);
  assert.match(S.caption({...result,personalBest:true}),/New personal best/);
  assert.doesNotMatch(S.caption(result),/high score|personal best/);
+});
+
+test('whimsical badges use stable alphanumeric IDs and keep legacy badges intact',()=>{
+ assert.equal(S.PICKER_BADGES.length,10);
+ for(let i=0;i<S.BADGES.length;i++)assert.equal(S.decodeName(S.encodeName('ABC',i)),`ABC ${S.BADGES[i]}`);
+ assert.equal(S.encodeName('ABC',10),'ABCA');assert.equal(S.decodeName('ABC5'),'ABC 🥾');
+ assert.ok(S.PICKER_BADGES.map(i=>S.BADGES[i]).includes('🐺'));
+});
+test('profile drafts survive reopening and reloads without score submission',()=>{
+ const values=new Map();const storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
+ S.saveProfile({initials:'KEV',badge:10},storage);assert.deepEqual(S.readProfile(storage),{initials:'KEV',badge:10});
+ S.saveProfile({initials:'KE',badge:19},storage);assert.deepEqual(S.readProfile(storage),{initials:'KE',badge:19});
+ values.set('aw-rescue-badge','999');assert.equal(S.readProfile(storage).badge,0);
+ const blocked={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')}};
+ assert.deepEqual(S.readProfile(blocked),{initials:'',badge:0});assert.doesNotThrow(()=>S.saveProfile({initials:'ABC',badge:1},blocked));
 });
