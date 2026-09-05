@@ -464,6 +464,40 @@ html,body{
   z-index:1;
 }
 
+.animalIconSlot{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:1.1em;
+  height:1.1em;
+  vertical-align:-0.24em;
+}
+
+.animalIconSlot--help{
+  width:1.35em;
+  height:1.35em;
+  vertical-align:-0.32em;
+}
+
+.animalIconSlot--score{
+  width:1.18em;
+  height:1.18em;
+  margin:0 0.12em;
+  vertical-align:-0.24em;
+}
+
+.animalIconCanvas{
+  display:block;
+  width:100%;
+  height:100%;
+}
+
+.previewAnimalCanvas{
+  width:88% !important;
+  height:88% !important;
+  z-index:1;
+}
+
 .scoreAnimalGlyph{
   width:1.08em;
   height:1.08em;
@@ -970,6 +1004,7 @@ canvas{
 .modal{
   position:relative;
   width: min(520px, 100%);
+  box-sizing:border-box;
   background: var(--panel2);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
@@ -1110,7 +1145,7 @@ canvas{
   gap:10px;
 }
 .gameOverModal .gameOverStats{
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 .gameOverModal{
   max-height:min(84svh, 780px);
@@ -1118,6 +1153,26 @@ canvas{
   flex-direction:column;
   overflow:auto;
   overscroll-behavior:contain;
+}
+.scoreReceipt{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:6px 10px;
+  padding:10px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.055);
+  border:1px solid rgba(255,255,255,0.08);
+  font-size:11px;
+}
+.scoreReceiptRow{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  color:var(--muted);
+}
+.scoreReceiptRow strong{
+  color:var(--accent);
+  white-space:nowrap;
 }
 .gameOverStat{
   display:flex;
@@ -2148,7 +2203,14 @@ canvas{
   }
 
   .gameOverModal .gameOverStats{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap:6px;
+  }
+
+  .gameOverModal .scoreReceipt{
+    grid-template-columns:1fr;
+    gap:4px;
+    font-size:10px;
   }
 
   .gameOverModal .gameOverStat:not(.gameOverStatWide){
@@ -2266,6 +2328,12 @@ canvas{
 
   .gameOverModal .leaderboardMeta{
     font-size:10px;
+  }
+
+  .gameOverModal .leaderboardScore{
+    max-width:62px;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
 
   .leaderboardScore{
@@ -2443,6 +2511,16 @@ body.refreshV2 .stageMissionBar{
   color:#2c1b0d;
 }
 
+body.refreshV2 .stageMissionBar.missionCeremonyPulse{
+  animation:v2MissionCeremonyPulse 1050ms ease-out 1;
+}
+
+@keyframes v2MissionCeremonyPulse{
+  0%{ transform:translateY(0) scale(1); box-shadow:0 8px 18px rgba(0,0,0,0.26); }
+  18%{ transform:translateY(-1px) scale(1.015); box-shadow:0 10px 24px rgba(222, 167, 68, 0.28); }
+  100%{ transform:translateY(0) scale(1); box-shadow:0 8px 18px rgba(0,0,0,0.26); }
+}
+
 body.refreshV2 .missionDrawerToggle{
   width:23px;
   height:23px;
@@ -2560,9 +2638,9 @@ body.refreshV2 .buildVersion{
   }
 
   body.refreshV2 #app{
-    height:calc(var(--aw-visual-vh, 100dvh) - var(--aw-mobile-shell-gap, 8px));
-    min-height:calc(var(--aw-visual-vh, 100dvh) - var(--aw-mobile-shell-gap, 8px));
-    margin-top:calc(var(--aw-mobile-shell-gap, 8px) / 2);
+    height:calc(var(--aw-visual-vh, 100dvh) - var(--aw-mobile-shell-gap, 8px) - var(--v2-mobile-browser-offset, 0px));
+    min-height:calc(var(--aw-visual-vh, 100dvh) - var(--aw-mobile-shell-gap, 8px) - var(--v2-mobile-browser-offset, 0px));
+    margin-top:calc((var(--aw-mobile-shell-gap, 8px) / 2) + var(--v2-mobile-browser-offset, 0px));
     margin-left:auto;
     margin-right:auto;
     width:calc(100% - 16px);
@@ -2580,7 +2658,7 @@ body.refreshV2 .buildVersion{
     width:100%;
     margin-left:0;
     margin-right:0;
-    min-height:calc(var(--aw-visual-vh, 100dvh) - var(--aw-mobile-shell-gap, 8px) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 94px);
+    min-height:calc(var(--aw-visual-vh, 100dvh) - var(--aw-mobile-shell-gap, 8px) - var(--v2-mobile-browser-offset, 0px) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 94px);
     padding-top:31px;
   }
 
@@ -2770,5 +2848,19 @@ body.refreshV2 .buildVersion{
 
   body.refreshV2.awViewportShort #nextCard{
     min-height:54px;
+  }
+}
+
+@supports (-webkit-touch-callout: none){
+  @media (max-width: 760px) and (hover: none) and (pointer: coarse){
+    body.refreshV2{
+      --v2-mobile-browser-offset: clamp(132px, 17svh, 178px);
+    }
+  }
+
+  @media (max-width: 760px) and (hover: none) and (pointer: coarse) and (max-height: 760px){
+    body.refreshV2{
+      --v2-mobile-browser-offset: clamp(108px, 15svh, 146px);
+    }
   }
 }

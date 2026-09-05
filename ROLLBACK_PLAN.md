@@ -2,6 +2,76 @@
 
 This file covers the current mission-special pass and the planned V2 barnyard-core refresh work.
 
+## V2 Clarity + Economy + Audio Pass
+
+Files changed for this pass:
+
+- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
+- [index.html](/Users/kevinhegg/Documents/angry-wolves/index.html)
+- [styles.css](/Users/kevinhegg/Documents/angry-wolves/styles.css)
+- [MISSION_LADDER_V2.md](/Users/kevinhegg/Documents/angry-wolves/MISSION_LADDER_V2.md)
+- [AUDIO_DESIGN.md](/Users/kevinhegg/Documents/angry-wolves/AUDIO_DESIGN.md)
+- [CLARITY_ECONOMY_AUDIO_V2.md](/Users/kevinhegg/Documents/angry-wolves/CLARITY_ECONOMY_AUDIO_V2.md)
+- [refresh-assets/clarity-economy-audio-v2/](/Users/kevinhegg/Documents/angry-wolves/refresh-assets/clarity-economy-audio-v2/)
+
+What this pass changes:
+
+- Keeps chained missions and persistent board carryover.
+- Adds `V2_NEXT_JOB_CEREMONY_ENABLED`, disabled with `?nextJobCeremony=0`.
+- Adds `V2_JOB_PATIENCE_ENABLED`, disabled with `?jobPatience=0`.
+- Adds `V2_FRESH_JOB_BONUS_ENABLED`, disabled with `?freshJobBonus=0`.
+- Adds `V2_CASCADE_COMPRESSION_ENABLED`, disabled with `?cascadeCompression=0`.
+- Adds `V2_HERD_SCORE_COMPRESSION_ENABLED`, disabled with `?herdCompression=0`.
+- Adds default-off `V2_OFF_MISSION_DAMPING_ENABLED`, enabled only with `?offMissionDamping=1`.
+- Adds `V2_AUDIO_ANIMALS_ENABLED`, disabled with `?audioAnimals=0`.
+- Updates `GAME_VERSION` to `v0.40-v2-clarity-economy-audio`.
+- Adds a score receipt to the run-over panel.
+- Makes First Flock start on a clean board.
+- Reconciles Rain Barrel to mud-only cleanup, Wolf Alert to "survive 1 howl", and Barn Cash to a 5-job/5-run unlock.
+
+To disable the full clarity/economy layer while keeping V2:
+
+- Open with `?nextJobCeremony=0&jobPatience=0&freshJobBonus=0&cascadeCompression=0&herdCompression=0`.
+
+To disable only job patience:
+
+- Open with `?jobPatience=0`.
+- This removes objective expiration and Fresh Job timing pressure, but the chained mission loop still works.
+
+To disable only fresh bonuses:
+
+- Open with `?freshJobBonus=0`.
+- Or set `V2_FRESH_JOB_BONUS_ENABLED = false`.
+
+To disable only cascade/large-herd scoring compression:
+
+- Open with `?cascadeCompression=0&herdCompression=0`.
+- Mission rewards, streak rewards, and normal chain visuals/audio remain intact.
+
+To disable only transition ceremony:
+
+- Open with `?nextJobCeremony=0`.
+- Jobs still chain immediately, but the mission strip pulse, carryover toast, and short transition pause are skipped.
+
+To disable animal-forward audio:
+
+- Open with `?audioAnimals=0`.
+- For the larger V2 audio rollback, open with `?humorAudio=0`.
+
+To revert copy-only changes:
+
+- Restore `LADDER_V2_MISSION_DEFS`, `missionBriefSpecialLines`, `patchHelpLine`, and `SHARED_MISSION_SPECIAL_LIBRARY` in [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js).
+- Restore [MISSION_LADDER_V2.md](/Users/kevinhegg/Documents/angry-wolves/MISSION_LADDER_V2.md) from the prior version.
+
+To return to the pre-ladder V2 deck:
+
+- Open with `?missionLadder=0`.
+- To also disable chained jobs, open with `?missionLadder=0&chainedMissions=0`.
+
+To return to the legacy production path:
+
+- Open with `?v1=1` or `?v2=0`.
+
 ## V2 Mission Ladder Operationalization Pass
 
 Files changed for the mission ladder pass:
@@ -543,3 +613,17 @@ The refactor intentionally keeps restorable legacy data in [game.js](/Users/kevi
 - `LEGACY_CLUTTER_TUNING`
 
 These exist so rollback does not depend on reconstructing deleted behavior.
+
+## 2026-09-05 — Bring them home rescue story
+
+The default page now runs a separate three-chapter rescue game. The existing falling-block engine and its CSS were preserved byte-for-byte at the start of this pass.
+
+- Immediate per-visit rollback: open `classic.html` or use `?story=0` on the default URL.
+- Existing `v1`, `v2`, and `legacy` query parameters are forwarded to `classic.html` unchanged.
+- Restore the old default without touching any prior gameplay edits: copy `classic.html` over `index.html`. The unused `rescue.js`, `rescue-engine.js`, and `rescue.css` may safely remain.
+- Exact pre-pass copies of `index.html`, `game.js`, `styles.css`, `ROLLBACK_PLAN.md`, `ANGRY_WOLVES_CONTEXT.md`, and `README.md` are in `.codex-safety/story-rescue-before/`. These include the uncommitted work present when this pass began. Do not reset to Git HEAD to undo this pass; that would discard earlier work.
+- Story tuning lives in `rescue-engine.js`: `CHAPTERS` sets animal goals, animal variety, and initial wolf distance. `rescue()` sets the 5/8 herd thresholds. `bark()` sets the three-step rescue margin and ten-step distance cap. `create()` gives one bark per field.
+- Story local storage uses only `aw-rescue-sound` and `aw-rescue-best`. Classic scores and leaderboard settings are separate.
+- Restore documentation selectively from the snapshot if desired; do not overwrite later edits wholesale.
+
+See `RESCUE_STORY_NOTES.md` for reasoning and verification. Nothing was committed, pushed, merged, or published by this pass.

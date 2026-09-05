@@ -1,45 +1,47 @@
-# Angry Wolves (Prototype)
+# Angry Wolves · Bring them home
 
-Mobile-first, casual “Tetris-but-herds” game.
+A small, mobile-first rescue puzzle in three chapters. The gate was left open; bring the animals through the pasture and orchard to the barn before the wolves arrive.
 
-- Classic Tetris board + falling tetrads
-- Clear **connected groups (4-neighbor) of 10+** matching animals (not rows)
-- Power tiles:
-  - 💩 Cow pie = **-5** coins when cleared
-  - 🥚 Golden egg = **+5** coins when cleared
-- Special 2×2 pieces:
-  - 🐺 Wolves = “bomb” effect on lock (prototype behavior)
-  - 🐑‍⬛ Black sheep = converts into the best adjacent animal type on lock
+## Play
 
-## Run locally (Codespaces)
-1. Open the repo in **Code → Codespaces → Create codespace on main**
-2. Open `index.html` in the editor.
-3. Preview:
-   - Right-click `index.html` → **Open with Live Server** (recommended), or
-   - Use the built-in preview / open in a new tab.
+Serve this folder with any static web server, for example:
 
-## Controls
-Mobile:
-- Tap board = rotate
-- Swipe left/right = move
-- Swipe down = drop (bigger swipe = hard drop)
-- Buttons below the board also work (hold to repeat)
+```sh
+python3 -m http.server 8000
+```
 
-Desktop:
-- Arrow keys = move/drop
-- `Z` / `X` = rotate
-- `Space` = hard drop
-- `P` = pause
+Open `http://localhost:8000/`.
 
-## Deploy to GitHub Pages
-1. Repo → **Settings → Pages**
-2. Source: **Deploy from a branch**
-3. Branch: `main`  Folder: `/root`
-4. Save
+- Select 3+ matching animals touching horizontally or vertically.
+- Press **Whistle** or select the same herd again to send them home.
+- Herds of 3–4 let wolves move closer; 5–7 hold them off; 8+ push them back.
+- **Pip, bark!** pushes wolves back three steps and regroups the animals, once per field.
+- Complete the visible animal goals to continue. A failed field can be retried without losing earlier chapters.
+- There is no real-time clock. Sound is optional. Best completed-adventure points are stored on this device.
 
-Your game will appear at:
-
-`https://YOUR_USERNAME.github.io/angry-wolves/`
+Keyboard: Tab into the board, arrow keys to move focus, Enter to select, Space to whistle, Escape to clear a selection.
 
 ## Files
-- `index.html` — single-file prototype (Canvas + JS)
+
+- `index.html`, `rescue.css`, `rescue.js`: default rescue game and interface.
+- `rescue-engine.js`: independent, testable game rules.
+- `classic.html`, `game.js`, `styles.css`: preserved falling-block version, including its existing leaderboard integration.
+- `RESCUE_STORY_NOTES.md`: design decisions, tuning evidence, and verification.
+- `ROLLBACK_PLAN.md`: restoration instructions.
+
+No install or build step; no dependencies. The folder remains compatible with static GitHub Pages hosting. The rescue game makes no leaderboard submissions and uses a separate local best-score key.
+
+## Verify
+
+```sh
+node --test tests/rescue-engine.test.cjs
+node tests/rescue-balance.cjs
+```
+
+The second command simulates 1,000 seeded games per chapter for random and goal-aware strategies. It is a tuning aid, not a human playtest.
+
+## Classic version
+
+Use the **Classic falling-block game** link, visit `classic.html`, or append `?story=0` to the default URL. Existing `v1`, `v2`, and `legacy` query parameters route to the classic page and retain their original behavior there.
+
+The previous README is preserved with the pre-change snapshot in `.codex-safety/story-rescue-before/README.md`. Older V2 documents describe the classic version.

@@ -49,6 +49,13 @@
   const V2_ONBOARDING_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("v2Onboarding", true);
   const V2_MISSION_LADDER_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("missionLadder", true);
   const V2_CHAINED_MISSIONS_ENABLED = V2_MISSION_LADDER_ENABLED && runtimeFlag("chainedMissions", true);
+  const V2_NEXT_JOB_CEREMONY_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("nextJobCeremony", true);
+  const V2_JOB_PATIENCE_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("jobPatience", true);
+  const V2_FRESH_JOB_BONUS_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("freshJobBonus", true);
+  const V2_CASCADE_COMPRESSION_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("cascadeCompression", true);
+  const V2_HERD_SCORE_COMPRESSION_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("herdCompression", true);
+  const V2_OFF_MISSION_DAMPING_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("offMissionDamping", false);
+  const V2_AUDIO_ANIMALS_ENABLED = REFRESH_V2_ENABLED && runtimeFlag("audioAnimals", true);
   const DEBUG_SCORE = runtimeFlag("debugScore", false);
   const AUDIO_DEBUG = runtimeFlag("audioDebug", false);
   const AUDIO_RESET = runtimeFlag("audioReset", false);
@@ -84,6 +91,28 @@
   const V2_CHAIN_BONUS_BASE = 18;
   const V2_CHAIN_BONUS_STEP = 9;
   const V2_CHAIN_BONUS_CAP = 120;
+  const V2_HERD_SCORE_SOFT_CAP = 180;
+  const V2_HERD_SCORE_SOFT_CAP_RATE = 0.55;
+  const V2_HERD_SCORE_HARD_CAP = 320;
+  const V2_CASCADE_MULTIPLIERS = Object.freeze({
+    1: 1,
+    2: 0.9,
+    3: 0.75,
+    4: 0.6
+  });
+  const V2_PATIENCE_LIMITS = Object.freeze({
+    firstFlock: 24,
+    earlyAnimalOneHerd: 22,
+    animalTwoHerds: 32,
+    eggRush: 34,
+    mudSeason: 32,
+    saltParty: 34,
+    roosterRiot: 34,
+    wolfAlert: 28,
+    barnCash: 38,
+    angryWolves: 44,
+    default: 32
+  });
   const V2_GHOST_TOKEN_ALPHA = 0.24;
   const V2_GHOST_TOKEN_BASE_ALPHA = 0.52;
   const V2_GHOST_CELL_FILL = "rgba(234, 222, 176, 0.035)";
@@ -145,7 +174,7 @@
   const SHARE_GRID_ROWS = 6;
   const GAME_MODE = REFRESH_V2_ENABLED ? "v2-prototype" : "standard";
   // Optional score/version tag sent to the leaderboard backend.
-  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.37-v2-mission-ladder" : "v0.27";
+  const GAME_VERSION = REFRESH_V2_ENABLED ? "v0.40-v2-clarity-economy-audio" : "v0.27";
   // Paste your deployed Google Apps Script web app URL here.
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec";
   const LEADERBOARD_PREVIEW_LIMIT = 5;
@@ -294,7 +323,7 @@
   };
 
   const SPECIAL_TILE_META = {
-    [TILE.WOLF]: { accent: "#d7dfef", badge: "🐺" },
+    [TILE.WOLF]: { accent: "#d7dfef", badge: "!" },
     [TILE.BLACK_SHEEP]: { accent: "#8ee6ff", badge: "↺" },
     [TILE.BOMB]: { accent: "#ffc29d", badge: "💣" },
     [TILE.REAPER]: { accent: "#9cf5df", badge: "✂" },
@@ -490,6 +519,7 @@
   const finalClearsEl = document.getElementById("finalClears");
   const finalBestEl = document.getElementById("finalBest");
   const finalComboEl = document.getElementById("finalCombo");
+  const scoreReceiptEl = document.getElementById("scoreReceipt");
   const stageRunActionsEl = document.getElementById("stageRunActions");
   const stageStartButton = document.getElementById("stageStartButton");
   const stageResultsButton = document.getElementById("stageResultsButton");
@@ -516,7 +546,7 @@
   let bestHerd = null;
   let holdUsed = false;
   let mission = null;
-  let runEndTitle = "Run Over 🐺";
+  let runEndTitle = "Run Over";
   let runEndNote = "The barn got crowded.";
   let missionSpecialCharge = 0;
   let missionSpecialPending = false;
@@ -528,11 +558,20 @@
   let bestJobStreak = 0;
   let bankedMissionCoins = 0;
   let bankedStreakCoins = 0;
+  let herdingCoins = 0;
+  let chainCoins = 0;
+  let dropCoins = 0;
+  let freshJobBonusTotal = 0;
+  let jobsExpired = 0;
+  let rewardsMissed = 0;
+  let biggestCascade = 0;
   let bestMissionTitle = "";
   let angryWolvesAttempted = false;
   let angryWolvesCompleted = false;
   let lastMissionId = "";
   let repeatMissionCount = 0;
+  let nextJobCeremonyUntil = 0;
+  let nextJobCeremonyTimer = 0;
 
   let fallTimer = 0;
   let fallInterval = BASE_FALL_MS;
@@ -713,9 +752,9 @@
     },
     rain_barrel: {
       title: "Rain Barrel",
-      desc: () => "2x2 bucket. Washes up to 4 nearby eggs, turds, or mud traps.",
-      short: "Cleans nearby eggs, turds, and mud.",
-      help: "2x2 bucket. It washes up to 4 nearby eggs, turds, or mud traps. If clean, it drops 1 egg.",
+      desc: () => "2x2 bucket. Washes up to 4 nearby mud traps. If clean, it drops 1 egg.",
+      short: "Washes mud; drops egg if clean.",
+      help: "2x2 bucket. It washes up to 4 nearby mud traps. If clean, it drops 1 egg.",
       tile: TILE.RAIN,
       specKey: "RAIN_O",
       onLock: missionRainBarrelPiece,
@@ -1302,8 +1341,8 @@
       type: "wolf_event",
       target: 1,
       bonus: 235,
-      hint: "weather 1 howl",
-      objective: "Weather 1 wolf event",
+      hint: "survive 1 howl",
+      objective: "Survive 1 Pack Howl",
       brief: "That is not a dog.",
       specialEvery: 2.7,
       specials: [{ id: "pack_howl", weight: 3 }, { id: "rain_barrel", weight: 1 }],
@@ -1325,8 +1364,8 @@
       brief: "Market day got weird.",
       specialEvery: 3.9,
       specials: [{ id: "barn_goods", weight: 3 }, { id: "muck_wagon", weight: 1 }],
-      unlockJobs: 4,
-      minRunsStarted: 4,
+      unlockJobs: 5,
+      minRunsStarted: 5,
       weight: 0.62
     },
     {
@@ -2132,7 +2171,7 @@
         wolfVoice(event, heft, delay);
         return true;
       }
-      if(!goofyAnimalSounds){
+      if(!goofyAnimalSounds || !V2_AUDIO_ANIMALS_ENABLED){
         tone({ type:"triangle", f1:260 + (Number(animal) || 1) * 32, f2:210, dur:0.075, gain:0.035 * heft, bus:"animal", delay });
         return true;
       }
@@ -2248,14 +2287,19 @@
         }
         haptic(size >= BIG_GROUP_THRESHOLD ? 18 : 10);
       },
-      chain_bonus: ({ depth=2 }={}) => {
+      chain_bonus: ({ depth=2, animal=null }={}) => {
         const capped = Math.min(5, Math.max(2, depth));
         sequence(Array.from({ length:capped }, (_, i) => ({ f:360 + i * 86, d:0.052, g:0.032 + i * 0.006, type:i % 2 ? "square" : "triangle" })), {
           bus:"herd",
           step:0.048,
           pitchJitter:12
         });
-        if(depth >= 3) noise({ dur:0.09, gain:0.03, bus:"herd", delay:0.16, filter:{ type:"bandpass", freq:1180, q:0.8 } });
+        const leadAnimal = ANIMALS.includes(animal) ? animal : randChoice(ANIMALS);
+        if(depth >= 2) animalVoice(leadAnimal, "chain", 0.72, { delay:0.12 });
+        if(depth >= 3) {
+          noise({ dur:0.09, gain:0.03, bus:"herd", delay:0.16, filter:{ type:"bandpass", freq:1180, q:0.8 } });
+          animalVoice(randChoice(ANIMALS), "chain", 0.64, { delay:0.2 });
+        }
         if(depth >= 4) {
           animalVoice(TILE.CHICKEN, "party", 0.75, { delay:0.18 });
           animalVoice(TILE.PIG, "party", 0.72, { delay:0.23 });
@@ -2293,7 +2337,8 @@
       },
       next_job: () => {
         woodTick(0, 0.036);
-        sequence([392, 494], { bus:"mission", type:"triangle", step:0.055, gain:0.034, delay:0.035 });
+        sequence([392, 494, 587], { bus:"mission", type:"triangle", step:0.055, gain:0.034, delay:0.035 });
+        animalVoice(randChoice(ANIMALS), "murmur", 0.36, { delay:0.13 });
       },
       job_streak: ({ streak=2 }={}) => {
         const count = clamp(streak, 2, 4);
@@ -2337,9 +2382,10 @@
         noise({ dur:0.07, gain:0.05, bus:"clutter", filter:{ type:"lowpass", freq:260, q:0.7 } });
         tone({ type:"sawtooth", f1:155, f2:86, dur:0.09, gain:0.028, bus:"clutter", delay:0.02 });
       },
-      mud_tile_eaten: () => {
+      mud_tile_eaten: ({ animal=null }={}) => {
         noise({ dur:0.095, gain:0.058, bus:"clutter", filter:{ type:"lowpass", freq:230, q:0.65 } });
         tone({ type:"sawtooth", f1:132, f2:62, dur:0.115, gain:0.03, bus:"clutter", delay:0.018 });
+        if(animal) animalVoice(animal, "yelp", 0.48, { delay:0.04 });
         haptic(12);
       },
       mud_cleaned: () => {
@@ -2659,15 +2705,15 @@
     playTone({type:"triangle", f1:520, f2:690, dur:0.05, gain:0.04});
   }
 
-  function playLockTick(){
-    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_land")) return;
+  function playLockTick(animal=null){
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("piece_land", { animal })) return;
     playTone({type:"square", f1:170, f2:120, dur:0.05, gain:0.05});
     playTone({noise:true, dur:0.025, gain:0.018});
   }
 
-  function playChainBonusSting(depth){
+  function playChainBonusSting(depth, animal=null){
     if(!USE_ENHANCED_CHAOS_AUDIO || depth <= 1) return;
-    if(HUMOR_AUDIO_ENABLED && playGameEventSound("chain_bonus", { depth })) return;
+    if(HUMOR_AUDIO_ENABLED && playGameEventSound("chain_bonus", { depth, animal })) return;
     const capped = Math.min(5, depth);
     const notes = Array.from({ length: capped - 1 }, (_, idx) => ({
       f: 420 + idx * 62,
@@ -2865,11 +2911,11 @@
   }
   function bestHerdSummary(best){
     if(!best) return "-";
-    return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "group"}) · <span class="coinInline small" aria-hidden="true"></span> x ${best.gain}`;
+    return `${best.count} ${animalIconHTML(best.animal, "score")} (${GROUP_NAME[best.animal] || "group"}) · <span class="coinInline small" aria-hidden="true"></span> x ${best.gain}`;
   }
   function bestGroupPlain(best){
     if(!best) return "No big groups yet";
-    return `${best.count} ${TILE_LABEL[best.animal]} (${GROUP_NAME[best.animal] || "group"}) · coin x ${best.gain}`;
+    return `${best.count} ${animalWord(best.animal)} (${GROUP_NAME[best.animal] || "group"}) · coin x ${best.gain}`;
   }
   function shareUrl(){
     return "https://kevinhegg.github.io/angry-wolves/";
@@ -3042,15 +3088,24 @@
       bestJobStreak,
       bankedMissionCoins,
       bankedStreakCoins,
+      herdingCoins,
+      chainCoins,
+      freshJobBonusTotal,
+      jobsExpired,
+      rewardsMissed,
       angryWolvesAttempted,
       angryWolvesCompleted,
       bestChain: bestCombo,
+      biggestCascade,
       biggestHerdCount: bestHerd?.count || 0,
-      biggestHerdAnimal: bestHerd ? (TILE_LABEL[bestHerd.animal] || "") : "",
+      biggestHerdAnimal: bestHerd ? animalWord(bestHerd.animal) : "",
       herdsCleared,
       pace: level,
       cols: COLS,
       rows: ROWS,
+      jobPatienceEnabled: V2_JOB_PATIENCE_ENABLED,
+      cascadeCompressionEnabled: V2_CASCADE_COMPRESSION_ENABLED,
+      herdCompressionEnabled: V2_HERD_SCORE_COMPRESSION_ENABLED,
       durationMs: Math.max(0, Date.now() - runStartedAtMs),
       nonce: generateNonce(),
       clientTimestamp: Date.now(),
@@ -3325,8 +3380,7 @@
       return `I kicked up a ${fmtChain(bestCombo)} chain in Angry Wolves and still hauled in ${totalScore} coins.`;
     }
     if(bestHerd){
-      const herdBadge = TILE_LABEL[bestHerd.animal] || animalWord(bestHerd.animal);
-      return `I built ${bestHerd.count} ${herdBadge} in Angry Wolves for ${totalScore} coins.`;
+      return `I built ${bestHerd.count} ${animalWord(bestHerd.animal)} in Angry Wolves for ${totalScore} coins.`;
     }
     return `I stirred up the barn in Angry Wolves for ${totalScore} coins.`;
   }
@@ -3357,32 +3411,33 @@
     if(!mission) return "Start dropping";
     if(mission.done) return `+${mission.cashBonus} earned`;
     if(mission.ready){
-      if(hasRewardCoinOnBoard()) return rewardCountdownLabel();
-      return `Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
+      if(hasRewardCoinOnBoard()) return `Reward ${rewardCountdownLabel()}`;
+      return `Reward herd in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles`;
     }
-    if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
-    if(mission.type === "animal_herds") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} herds`;
-    if(mission.type === "destroy") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} wrecked`;
-    if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} clears`;
-    if(mission.type === "combo") return `${fmtChain(bestCombo)} / ${fmtChain(mission.target)}`;
-    if(mission.type === "wolf" || mission.type === "wolf_event") return `${missionProgressText(mission.progress, mission.target)} howls`;
-    if(mission.type === "score") return `${missionProgressText(score, mission.target)} coins`;
-    if(mission.type === "level") return `Lv ${level}/${mission.target}`;
-    if(mission.type === "big_group") return `${missionProgressText(mission.progress, mission.target)} jumbo`;
-    if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} of ${mission.minSize}+`;
-    if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species`;
-    if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds`;
+    const patience = missionPatienceSuffix();
+    if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}${patience}`;
+    if(mission.type === "animal_herds") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} herds${patience}`;
+    if(mission.type === "destroy") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} wrecked${patience}`;
+    if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} clears${patience}`;
+    if(mission.type === "combo") return `${fmtChain(bestCombo)} / ${fmtChain(mission.target)}${patience}`;
+    if(mission.type === "wolf" || mission.type === "wolf_event") return `${missionProgressText(mission.progress, mission.target)} howls${patience}`;
+    if(mission.type === "score") return `${missionProgressText(score, mission.target)} coins${patience}`;
+    if(mission.type === "level") return `Lv ${level}/${mission.target}${patience}`;
+    if(mission.type === "big_group") return `${missionProgressText(mission.progress, mission.target)} jumbo${patience}`;
+    if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} of ${mission.minSize}+${patience}`;
+    if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species${patience}`;
+    if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds${patience}`;
     if(mission.type === "product"){
       return mission.animal
-        ? `${missionProgressText(mission.progress, mission.target)} ${productInfoForAnimal(mission.animal).plural}`
-        : `${missionProgressText(mission.progress, mission.target)} goods`;
+        ? `${missionProgressText(mission.progress, mission.target)} ${productInfoForAnimal(mission.animal).plural}${patience}`
+        : `${missionProgressText(mission.progress, mission.target)} goods${patience}`;
     }
-    if(mission.type === "build_group") return `${missionCurrentProgress()} live`;
-    if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} ${REFRESH_V2_ENABLED ? "messes" : "turds"}`;
-    if(mission.type === "mud_cleaned") return `${missionProgressText(mission.progress, mission.target)} mud`;
-    if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials`;
-    if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles`;
-    return `${missionProgressText(mission.progress, mission.target)}`;
+    if(mission.type === "build_group") return `${missionCurrentProgress()} live${patience}`;
+    if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} ${REFRESH_V2_ENABLED ? "messes" : "turds"}${patience}`;
+    if(mission.type === "mud_cleaned") return `${missionProgressText(mission.progress, mission.target)} mud${patience}`;
+    if(mission.type === "special_use") return `${missionProgressText(mission.progress, mission.target)} specials${patience}`;
+    if(mission.type === "locks") return `${missionProgressText(locks, mission.target)} settles${patience}`;
+    return `${missionProgressText(mission.progress, mission.target)}${patience}`;
   }
   function hasRewardCoinOnBoard(){
     return rewardMap.some((row) => row.some(Boolean));
@@ -3405,7 +3460,7 @@
   }
   function missionCashoutObjectiveCopy(){
     if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED){
-      return `Then clear the reward herd within ${REWARD_COUNTDOWN_START} settles. Miss it and the next job starts grumpy.`;
+      return `Reward herd coming next. Clear it within ${REWARD_COUNTDOWN_START} settles to cash out.`;
     }
     return `Then clear the reward herd within ${REWARD_COUNTDOWN_START} settles when the coin lands. Miss it and the run ends.`;
   }
@@ -3662,6 +3717,45 @@
     return activeRows.map(row => row.slice(minCol, maxCol + 1));
   }
 
+  function createAnimalIconCanvas(tile, className="animalIconCanvas", label=""){
+    const canvasEl = document.createElement("canvas");
+    canvasEl.className = className;
+    canvasEl.setAttribute("aria-hidden", "true");
+    const cssSize = 64;
+    const dpr = Math.min(2.5, Math.max(1, window.devicePixelRatio || 1));
+    canvasEl.width = Math.round(cssSize * dpr);
+    canvasEl.height = Math.round(cssSize * dpr);
+    canvasEl.style.width = "100%";
+    canvasEl.style.height = "100%";
+    const iconCtx = canvasEl.getContext("2d");
+    if(iconCtx){
+      iconCtx.scale(dpr, dpr);
+      drawVectorAnimalToken(tile, 0, 0, cssSize, {}, iconCtx);
+    }
+    return canvasEl;
+  }
+
+  function renderAnimalIconSlot(slot){
+    if(!slot) return;
+    const tile = Number(slot.getAttribute("data-animal-icon-tile") || slot.dataset?.animalIconTile || 0);
+    if(!isVectorAnimalTile(tile)) return;
+    const sizeClass = slot.getAttribute("data-animal-icon-size") || "inline";
+    const label = slot.getAttribute("aria-label") || animalWord(tile);
+    slot.classList.add("animalIconSlot", `animalIconSlot--${sizeClass}`);
+    slot.textContent = "";
+    slot.appendChild(createAnimalIconCanvas(tile, `animalIconCanvas animalIconCanvas--${sizeClass}`, label));
+  }
+
+  function renderInlineAnimalIcons(root=document){
+    if(!root?.querySelectorAll) return;
+    root.querySelectorAll("[data-animal-icon-tile]").forEach(renderAnimalIconSlot);
+  }
+
+  function animalIconHTML(tile, size="inline", label=""){
+    const safeLabel = String(label || animalWord(tile)).replace(/"/g, "&quot;");
+    return `<span class="animalIconSlot animalIconSlot--${size}" data-animal-icon-tile="${tile}" data-animal-icon-size="${size}" aria-label="${safeLabel}" role="img"></span>`;
+  }
+
   function renderPreview(el, piece){
     if(!el) return;
     const cols = 4;
@@ -3692,8 +3786,15 @@
       }
     }
 
-    el.innerHTML = grid.flat().map((tile) => {
-      if(!tile) return '<span class="previewCell"></span>';
+    el.textContent = "";
+    grid.flat().forEach((tile) => {
+      const cellEl = document.createElement("span");
+      cellEl.className = "previewCell";
+      if(!tile){
+        el.appendChild(cellEl);
+        return;
+      }
+      cellEl.classList.add("filled");
       const label = TILE_LABEL[tile] || "?";
       const fg = tile === TILE.CASHOUT ? "#6f4300" : "#fff";
       const special = SPECIAL_TILE_META[tile];
@@ -3706,8 +3807,16 @@
       const style = special
         ? `background:linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02) 42%), ${bg}; border-color:${special.accent}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 1px ${special.accent}, 0 0 14px rgba(0,0,0,0.18)${missionFrame}; color:${fg};`
         : `background:${bg}; color:${fg};`;
-      return `<span class="previewCell filled" style="${style}">${label}</span>`;
-    }).join("");
+      cellEl.setAttribute("style", style);
+      if(VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(tile)){
+        cellEl.classList.add("previewCell--animal");
+        cellEl.textContent = "";
+        cellEl.appendChild(createAnimalIconCanvas(tile, "animalIconCanvas previewAnimalCanvas", animalWord(tile)));
+      } else {
+        cellEl.textContent = label;
+      }
+      el.appendChild(cellEl);
+    });
   }
 
   function helpPieceFromSpec(spec, kind="HELP"){
@@ -3871,6 +3980,78 @@
     return runsStarted >= requiredRuns && jobsDone >= requiredJobs;
   }
 
+  function isEarlyAnimalMission(entry){
+    return !!entry &&
+      REFRESH_V2_ENABLED &&
+      V2_MISSION_LADDER_ENABLED &&
+      entry.tier === "early" &&
+      entry.family === "animal" &&
+      entry.type === "animal_herds" &&
+      ANIMALS.includes(entry.animal);
+  }
+
+  function scaledMissionTarget(entry, runsStarted=v2RunsStarted(), jobsDone=v2JobsCompletedLifetime()){
+    const rawTarget = Math.max(1, Number(entry?.target) || 1);
+    if(isEarlyAnimalMission(entry) && (jobsDone < 2 || runsStarted <= 2)) return 1;
+    return rawTarget;
+  }
+
+  function animalHerdObjective(animal, target){
+    const word = animalWord(animal);
+    if(target <= 1) return `Clear one ${word} herd`;
+    return `Clear ${target} ${word} herds`;
+  }
+
+  function animalHerdHint(animal, target){
+    const word = animalWord(animal);
+    if(target <= 1) return `clear 1 ${word} herd`;
+    return `clear ${word} herds`;
+  }
+
+  function missionObjectiveSettleLimit(sourceMission=mission){
+    if(!REFRESH_V2_ENABLED || !V2_JOB_PATIENCE_ENABLED || !sourceMission) return 0;
+    if(Number.isFinite(sourceMission.objectiveSettleLimit)) return Math.max(1, sourceMission.objectiveSettleLimit|0);
+    if(sourceMission.id === "v2_first_flock") return V2_PATIENCE_LIMITS.firstFlock;
+    if(sourceMission.id === "angry_wolves") return V2_PATIENCE_LIMITS.angryWolves;
+    if(sourceMission.id === "v2_egg_rush") return V2_PATIENCE_LIMITS.eggRush;
+    if(sourceMission.id === "v2_mud_season") return V2_PATIENCE_LIMITS.mudSeason;
+    if(sourceMission.id === "v2_salt_party") return V2_PATIENCE_LIMITS.saltParty;
+    if(sourceMission.id === "v2_rooster_riot") return V2_PATIENCE_LIMITS.roosterRiot;
+    if(sourceMission.id === "v2_wolf_alert") return V2_PATIENCE_LIMITS.wolfAlert;
+    if(sourceMission.id === "v2_barn_cash") return V2_PATIENCE_LIMITS.barnCash;
+    if(sourceMission.family === "animal" || sourceMission.type === "animal_herds"){
+      return sourceMission.target <= 1
+        ? V2_PATIENCE_LIMITS.earlyAnimalOneHerd
+        : V2_PATIENCE_LIMITS.animalTwoHerds;
+    }
+    return V2_PATIENCE_LIMITS.default;
+  }
+
+  function initializeMissionPatience(sourceMission=mission){
+    if(!sourceMission || !V2_JOB_PATIENCE_ENABLED) return sourceMission;
+    const limit = missionObjectiveSettleLimit(sourceMission);
+    sourceMission.objectiveSettleLimit = limit;
+    sourceMission.patienceRemaining = limit;
+    sourceMission.patienceAtComplete = limit;
+    sourceMission.lowPatienceWarned = false;
+    return sourceMission;
+  }
+
+  function missionPatienceSuffix(sourceMission=mission){
+    if(!V2_JOB_PATIENCE_ENABLED || !sourceMission || sourceMission.ready || sourceMission.done) return "";
+    const left = Math.max(0, Number(sourceMission.patienceRemaining) || 0);
+    return ` · ${left} left`;
+  }
+
+  function missionFreshJobBonus(sourceMission=mission){
+    if(!REFRESH_V2_ENABLED || !V2_FRESH_JOB_BONUS_ENABLED || !sourceMission) return 0;
+    const remaining = Math.max(0, Number(sourceMission.patienceAtComplete) || 0);
+    if(remaining >= 13) return 75;
+    if(remaining >= 8) return 50;
+    if(remaining >= 4) return 25;
+    return 0;
+  }
+
   function v2MissionPool(runsStarted=v2RunsStarted(), opts={}){
     const jobsDone = Number.isFinite(opts.jobsDone) ? opts.jobsDone : v2JobsCompletedLifetime();
     if(V2_ONBOARDING_ENABLED && !v2OnboardingSeen()){
@@ -3925,6 +4106,7 @@
     const selectionPool = pool.length ? pool : ACTIVE_MISSION_DEFS;
     const def = debugDef || weightedChoice(selectionPool, adjustedMissionWeight);
     if(REFRESH_V2_ENABLED && def?.onboarding && !debugDef) markV2OnboardingSeen();
+    const jobsDone = v2JobsCompletedLifetime();
     const tunedBonus = V2_MISSION_LADDER_ENABLED && REFRESH_V2_ENABLED
       ? Math.max(def?.marquee ? 240 : 70, Math.round(def.bonus))
       : Math.max(def?.marquee ? 200 : 80, Math.round(def.bonus * 0.6));
@@ -3944,14 +4126,29 @@
       ready: false,
       cashBonus: tunedBonus,
     };
+    const rawTarget = nextMission.target;
+    const scaledTarget = scaledMissionTarget(nextMission, runsStarted, jobsDone);
+    if(scaledTarget !== rawTarget){
+      nextMission.rawTarget = rawTarget;
+      nextMission.target = scaledTarget;
+      if(nextMission.type === "animal_herds"){
+        nextMission.objective = animalHerdObjective(nextMission.animal, scaledTarget);
+        nextMission.hint = animalHerdHint(nextMission.animal, scaledTarget);
+      }
+    }
+    initializeMissionPatience(nextMission);
     if(nextMission.id === "angry_wolves") angryWolvesAttempted = true;
     missionFlowDebugLog("mission:selected", {
       id: nextMission.id,
       title: nextMission.title,
       tier: missionUnlockTierFor(nextMission, runsStarted),
+      family: nextMission.family,
       runsStarted,
-      jobsDone: v2JobsCompletedLifetime(),
+      jobsDone,
       countRunStart,
+      rawTarget,
+      scaledTarget: nextMission.target,
+      objectiveSettleLimit: nextMission.objectiveSettleLimit || 0,
       pool: selectionPool.map((entry) => ({
         id: entry.id,
         tier: missionUnlockTierFor(entry, runsStarted),
@@ -4012,7 +4209,12 @@
   }
 
   function missionBriefRuleCopy(){
-    if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED) return `Finish the job, cash the reward herd, then keep the streak alive.`;
+    if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED){
+      const patience = V2_JOB_PATIENCE_ENABLED && mission?.objectiveSettleLimit
+        ? ` Patience: ${mission.objectiveSettleLimit} settles.`
+        : "";
+      return `Finish before patience runs out. Then clear the reward herd to cash out.${patience}`;
+    }
     if(REFRESH_V2_ENABLED) return `Finish the tiny job. Then cash the reward herd within ${REWARD_COUNTDOWN_START} settles.`;
     return `Goal first. Then clear the reward herd in ${REWARD_COUNTDOWN_START} settles.`;
   }
@@ -4052,7 +4254,7 @@
       case "salt_lick":
         return ["Nearby: pulls up to 2 animals in.", "If nobody moves: drops 1 egg."];
       case "rain_barrel":
-        return ["On lock: washes up to 4 eggs/turds/mud.", "If clean: drops 1 egg."];
+        return ["On lock: washes up to 4 mud traps.", "If clean: drops 1 egg."];
       case "rooster_call":
         return ["Nearby: flips up to 2 chickens to match.", "On lock: drops 2 eggs."];
       case "egg_basket":
@@ -4204,6 +4406,7 @@
       mission.ready = true;
       mission.done = false;
       mission.cashBonus = mission.bonus;
+      mission.patienceAtComplete = Math.max(8, Math.floor((mission.objectiveSettleLimit || 16) / 2));
       cashoutCharge = 0;
       rewardCountdown = Math.max(3, Math.min(7, REWARD_COUNTDOWN_START));
       clearRewardMap();
@@ -4218,6 +4421,33 @@
       }
       banner.text = `Debug: reward herd is live for ${mission.title}.`;
       banner.t = performance.now();
+    } else if(state === "low_patience"){
+      mission.patienceRemaining = Math.min(3, Math.max(1, mission.objectiveSettleLimit || 3));
+      mission.lowPatienceWarned = false;
+      warnLowMissionPatience();
+    } else if(state === "expired"){
+      mission.patienceRemaining = 0;
+      expireMissionJob();
+    } else if(state === "fresh_cashout"){
+      mission.progress = mission.target;
+      mission.ready = true;
+      mission.done = false;
+      mission.cashBonus = mission.bonus;
+      mission.patienceAtComplete = 12;
+      cashoutCharge = 0;
+      rewardCountdown = Math.max(4, Math.min(7, REWARD_COUNTDOWN_START));
+      clearRewardMap();
+      const animal = mission.animal || TILE.SHEEP;
+      const startX = clamp(Math.floor(COLS / 2) - 1, 0, Math.max(0, COLS - 2));
+      const startY = Math.max(0, ROWS - 2);
+      for(let y=startY; y<Math.min(ROWS, startY + 2); y++){
+        for(let x=startX; x<Math.min(COLS, startX + 2); x++){
+          board[y][x] = animal;
+          rewardMap[y][x] = true;
+        }
+      }
+      banner.text = `Debug: reward cashout can show Fresh job bonus +${missionFreshJobBonus(mission)}.`;
+      banner.t = performance.now();
     } else if(state === "next_job"){
       jobsCompleted = Math.max(jobsCompleted, 1);
       currentJobStreak = Math.max(currentJobStreak, 1);
@@ -4229,7 +4459,7 @@
       jobsCompleted = Math.max(jobsCompleted, 2);
       bestJobStreak = Math.max(bestJobStreak, 2);
       bankedMissionCoins = Math.max(bankedMissionCoins, mission.bonus);
-      runEndTitle = "Run Over 🐺";
+      runEndTitle = "Run Over";
       runEndNote = `Debug run ended after ${jobsCompleted} jobs. Best job streak: x${bestJobStreak}.`;
       gameOverNow({ title: runEndTitle, note: runEndNote, delayMs: 0, waitForBoard: false, playSound: false });
     }
@@ -4242,6 +4472,104 @@
 
   function missionReadyLockBonus(){
     return 3 + level;
+  }
+
+  function missionTransitionPauseActive(){
+    return V2_NEXT_JOB_CEREMONY_ENABLED && performance.now() < nextJobCeremonyUntil;
+  }
+
+  function boardCarryoverSummary(){
+    let eggs = 0;
+    let turds = 0;
+    let mud = 0;
+    for(let y=0; y<ROWS; y++){
+      for(let x=0; x<COLS; x++){
+        if(overlay[y][x] === POWER.EGG) eggs++;
+        if(overlay[y][x] === POWER.TURD) turds++;
+        if(overlay[y][x] === POWER.MUD) mud++;
+      }
+    }
+    const parts = [];
+    if(eggs) parts.push(`${eggs} egg${eggs === 1 ? "" : "s"}`);
+    if(turds) parts.push(`${turds} turd${turds === 1 ? "" : "s"}`);
+    if(mud) parts.push(`${mud} mud`);
+    return { eggs, turds, mud, text: parts.join(" and ") };
+  }
+
+  function startNextJobCeremony(opts={}){
+    if(!V2_NEXT_JOB_CEREMONY_ENABLED) return 0;
+    const carry = boardCarryoverSummary();
+    const kind = opts.expired ? "expired" : opts.cashed ? "cashed" : "missed";
+    const intro = kind === "cashed"
+      ? randChoice(["Job paid. Same barn, new chore.", "Barn boss paid up. Next job."])
+      : kind === "expired"
+        ? randChoice(["Job went stale. Next chore.", "Too much loitering. Next chore."])
+        : randChoice(["Bonus missed. Same mess, new chore.", "The barn boss moved on."]);
+    const carryText = carry.text ? ` ${carry.text} carry over.` : " Same barn floor. New chore.";
+    const text = `${intro}${carryText}`;
+    banner.text = text;
+    banner.t = performance.now();
+    showToast(text, 2600);
+    playGameEventSound("next_job", {
+      kind,
+      missionId: opts.missionId || mission?.id || "",
+      previousMissionId: opts.previousMissionId || "",
+      eggs: carry.eggs,
+      turds: carry.turds,
+      mud: carry.mud
+    });
+    nextJobCeremonyUntil = performance.now() + 1050;
+    if(stageMissionBarEl){
+      stageMissionBarEl.classList.add("missionCeremonyPulse");
+      if(nextJobCeremonyTimer) clearTimeout(nextJobCeremonyTimer);
+      nextJobCeremonyTimer = window.setTimeout(() => {
+        nextJobCeremonyTimer = 0;
+        stageMissionBarEl.classList.remove("missionCeremonyPulse");
+        syncPausedState();
+        updateHUD();
+        draw();
+      }, 1080);
+    }
+    return 1050;
+  }
+
+  function warnLowMissionPatience(){
+    if(!mission || mission.lowPatienceWarned) return;
+    mission.lowPatienceWarned = true;
+    const text = randChoice(["Job going stale.", "Barn boss is watching.", "Move it, farmer."]);
+    banner.text = text;
+    banner.t = performance.now();
+    showToast(text, 1600);
+    playGameEventSound("mission_failed", { missionId: mission.id, warning:true });
+  }
+
+  function expireMissionJob(){
+    if(!REFRESH_V2_ENABLED || !V2_CHAINED_MISSIONS_ENABLED || !mission || mission.ready || mission.done) return false;
+    const expiredMission = mission;
+    jobsExpired++;
+    currentJobStreak = 0;
+    playGameEventSound("mission_failed", { missionId: expiredMission.id, expired:true });
+    startNextMissionJob({ expired:true, previousMission: expiredMission });
+    missionFlowDebugLog("job:expired", {
+      missionId: expiredMission.id,
+      jobsExpired,
+      currentJobStreak
+    });
+    return true;
+  }
+
+  function decrementMissionPatience(opts={}){
+    if(!V2_JOB_PATIENCE_ENABLED || !runStarted || !mission || mission.ready || mission.done || opts.skipMissionCharge) return false;
+    if(!Number.isFinite(mission.patienceRemaining)) initializeMissionPatience(mission);
+    mission.patienceRemaining = Math.max(0, mission.patienceRemaining - 1);
+    missionFlowDebugLog("patience:tick", {
+      missionId: mission.id,
+      remaining: mission.patienceRemaining,
+      limit: mission.objectiveSettleLimit
+    });
+    if(mission.patienceRemaining <= 4 && mission.patienceRemaining > 0) warnLowMissionPatience();
+    if(mission.patienceRemaining <= 0) mission.expireAfterResolution = true;
+    return false;
   }
 
   function speedRampLockCount(){
@@ -4258,6 +4586,12 @@
 
   function registerLockCycle(opts={}){
     locks++;
+    const expired = decrementMissionPatience(opts);
+    if(expired){
+      syncPassiveMissionProgress();
+      updateLevel();
+      return;
+    }
     if(mission && !mission.done){
       if(mission.ready){
         const rewardCoinWaiting = hasRewardCoinOnBoard();
@@ -4377,7 +4711,7 @@
   }
 
   function gameplayShouldPause(){
-    return !!(gameOver || manualPaused || modalOpenCount > 0 || missionDrawerOpen || (REFRESH_V2_ENABLED && !runStarted));
+    return !!(gameOver || manualPaused || modalOpenCount > 0 || missionDrawerOpen || missionTransitionPauseActive() || (REFRESH_V2_ENABLED && !runStarted));
   }
 
   function syncPausedState(){
@@ -4469,22 +4803,23 @@
 
   function missionReadyStatusText(){
     return hasRewardCoinOnBoard()
-      ? `Clear the reward herd in ${rewardCountdownLabel()} for +${mission.cashBonus}.`
-      : `Goal hit. Coin in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus}.`;
+      ? `Clear reward herd: ${rewardCountdownLabel()} for +${mission.cashBonus}.`
+      : `Reward herd coming in ${Math.max(0, missionCashoutEvery() - cashoutCharge)} settles. Bonus +${mission.cashBonus}.`;
   }
 
   function missionActiveStatusText(){
     if(!mission) return "Start dropping pieces";
+    const patience = missionPatienceSuffix();
     if(REFRESH_V2_ENABLED){
-      if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}`;
-      if(mission.type === "animal_herds") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} herds`;
-      if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} herds`;
-      if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species`;
-      if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds`;
-      if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} messes`;
-      if(mission.type === "mud_cleaned") return `${missionProgressText(mission.progress, mission.target)} mud`;
-      if(mission.type === "wolf" || mission.type === "wolf_event") return `${missionProgressText(mission.progress, mission.target)} howls`;
-      if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} big herds`;
+      if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)}${patience}`;
+      if(mission.type === "animal_herds") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} herds${patience}`;
+      if(mission.type === "clears") return `${missionProgressText(mission.progress, mission.target)} herds${patience}`;
+      if(mission.type === "variety") return `${missionProgressText(mission.progress, mission.target)} species${patience}`;
+      if(mission.type === "egg_clear") return `${missionProgressText(mission.progress, mission.target)} egg herds${patience}`;
+      if(mission.type === "turds") return `${missionProgressText(mission.progress, mission.target)} messes${patience}`;
+      if(mission.type === "mud_cleaned") return `${missionProgressText(mission.progress, mission.target)} mud${patience}`;
+      if(mission.type === "wolf" || mission.type === "wolf_event") return `${missionProgressText(mission.progress, mission.target)} howls${patience}`;
+      if(mission.type === "large_clears") return `${missionProgressText(mission.progress, mission.target)} big herds${patience}`;
     }
     if(mission.type === "animal") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} cleared`;
     if(mission.type === "animal_herds") return `${missionProgressText(mission.progress, mission.target)} ${animalWord(mission.animal)} herds`;
@@ -4585,15 +4920,25 @@
   function completeMission(){
     if(!mission || mission.done || mission.ready) return;
     mission.ready = true;
+    mission.expireAfterResolution = false;
     mission.cashBonus = mission.bonus;
+    mission.patienceAtComplete = Number.isFinite(mission.patienceRemaining)
+      ? mission.patienceRemaining
+      : mission.objectiveSettleLimit || 0;
     missionSpecialPending = false;
     queuedMissionSpecial = null;
     missionSpecialCharge = 0;
     cashoutCharge = 0;
     rewardCountdown = null;
-    banner.text = `Objective met. Coin next. Clear the reward herd within ${REWARD_COUNTDOWN_START} settles for +${mission.cashBonus}.`;
+    banner.text = `Reward herd coming. Clear it within ${REWARD_COUNTDOWN_START} settles for +${mission.cashBonus}.`;
     banner.t = performance.now();
-    playGameEventSound("mission_ready", { missionId: mission.id, reward: mission.cashBonus });
+    playGameEventSound("mission_ready", { missionId: mission.id, reward: mission.cashBonus, patienceRemaining: mission.patienceAtComplete });
+    missionFlowDebugLog("objective:complete", {
+      missionId: mission.id,
+      target: mission.target,
+      patienceRemaining: mission.patienceAtComplete,
+      reward: mission.cashBonus
+    });
     playMissionJingle();
     updateMissionUI();
     updateHUD();
@@ -4796,19 +5141,49 @@
       ? `${level} · jobs ${jobsCompleted}`
       : level;
     if(finalClearsEl) finalClearsEl.textContent = herdsCleared;
-    if(finalBestEl) finalBestEl.innerHTML = bestHerdSummary(bestHerd);
+    if(finalBestEl){
+      finalBestEl.innerHTML = bestHerdSummary(bestHerd);
+      renderInlineAnimalIcons(finalBestEl);
+    }
     if(finalComboEl) finalComboEl.textContent = REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED
       ? `${fmtChain(bestCombo)} · streak x${bestJobStreak}`
       : fmtChain(bestCombo);
+    if(scoreReceiptEl){
+      if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED){
+        const rows = [
+          ["Herding coins", herdingCoins],
+          ["Chain bonus", chainCoins],
+          ["Mission rewards", bankedMissionCoins],
+          ["Fresh job bonus", freshJobBonusTotal],
+          ["Streak bonus", bankedStreakCoins],
+          ["Drop coins", dropCoins],
+          ["Jobs completed", jobsCompleted],
+          ["Jobs expired", jobsExpired],
+          ["Rewards missed", rewardsMissed],
+          ["Best chain", fmtChain(bestCombo)],
+          ["Biggest herd", bestHerd ? `${bestHerd.count} ${animalWord(bestHerd.animal)}` : "-"],
+          ["Biggest cascade", biggestCascade ? fmtChain(biggestCascade) : "x0"],
+          ["Angry Wolves", angryWolvesCompleted ? "completed" : angryWolvesAttempted ? "attempted" : "not seen"]
+        ];
+        scoreReceiptEl.innerHTML = rows.map(([label, value]) => `
+          <div class="scoreReceiptRow">
+            <span>${label}</span>
+            <strong>${value}</strong>
+          </div>
+        `).join("");
+      } else {
+        scoreReceiptEl.innerHTML = "";
+      }
+    }
     syncLeaderboardViews();
     syncScoreSubmissionUI();
   }
 
   function defaultRunEndTitle(){
-    if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED) return "Run Over 🐺";
-    if(mission && mission.done) return "Mission Succeeded! 🐺";
+    if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED) return "Run Over";
+    if(mission && mission.done) return "Mission Succeeded!";
     if(mission && mission.ready && !mission.done) return "Mission Failed 💥";
-    return "Run Over 🐺";
+    return "Run Over";
   }
 
   function defaultRunEndNote(){
@@ -4828,10 +5203,10 @@
   }
 
   function shareMissionStatus(){
-    if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED) return runEndTitle || "Run Over 🐺";
-    if(mission && mission.done) return "Mission Succeeded! 🐺";
+    if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED) return runEndTitle || "Run Over";
+    if(mission && mission.done) return "Mission Succeeded!";
     if(mission) return "Mission Failed 💥";
-    return runEndTitle || "Run Over 🐺";
+    return runEndTitle || "Run Over";
   }
 
   function missionStreakBonus(streak=currentJobStreak){
@@ -4858,11 +5233,19 @@
     if(isMissionSpecialPiece(next) || next?.kind === "MISSION_CASHOUT") next = newPiece();
     primeDebugMissionSpecial();
     const label = missionDisplayLabel(mission);
-    const bannerPrefix = opts.cashed ? "Next job" : "Next job, no bonus";
-    banner.text = `${bannerPrefix}: ${label}.`;
-    banner.t = performance.now();
-    showToast(opts.cashed ? `Next job: ${mission.title}` : `Bonus missed. Next job: ${mission.title}`, 2300);
-    playGameEventSound("next_job", { missionId: mission.id, previousMissionId: previousMission?.id || "" });
+    const ceremonyMs = startNextJobCeremony({
+      cashed: !!opts.cashed,
+      expired: !!opts.expired,
+      missionId: mission.id,
+      previousMissionId: previousMission?.id || ""
+    });
+    if(!ceremonyMs){
+      const bannerPrefix = opts.cashed ? "Next job" : opts.expired ? "Job expired" : "Next job, no bonus";
+      banner.text = `${bannerPrefix}: ${label}.`;
+      banner.t = performance.now();
+      showToast(opts.cashed ? `Next job: ${mission.title}` : `Next job: ${mission.title}`, 2300);
+      playGameEventSound("next_job", { missionId: mission.id, previousMissionId: previousMission?.id || "" });
+    }
     if(mission?.id === "angry_wolves"){
       playGameEventSound("angry_wolves_start");
       setMissionDrawerOpen(true);
@@ -4884,23 +5267,33 @@
       bestMissionTitle = earnedMission.title;
       bumpV2JobsCompletedLifetime();
       const streakBonus = missionStreakBonus(currentJobStreak);
+      const freshBonus = missionFreshJobBonus(earnedMission);
       const missionPayout = Math.max(0, earnedMission.cashBonus|0);
-      score += missionPayout + streakBonus;
+      score += missionPayout + streakBonus + freshBonus;
       bankedMissionCoins += missionPayout;
       bankedStreakCoins += streakBonus;
+      freshJobBonusTotal += freshBonus;
       if(earnedMission.id === "angry_wolves"){
         angryWolvesCompleted = true;
         playWolfHowl({ style:"angry_victory", intensity:1.25, source:"angry_wolves_complete", animateBadge:true });
       } else {
-        playGameEventSound("reward_cashout", { missionId: earnedMission.id, streak: currentJobStreak });
+        playGameEventSound("reward_cashout", { missionId: earnedMission.id, streak: currentJobStreak, freshBonus });
       }
       if(streakBonus > 0) playGameEventSound("job_streak", { streak: currentJobStreak, bonus: streakBonus });
-      banner.text = `${earnedMission.title} paid +${missionPayout}${streakBonus ? ` · Job streak x${currentJobStreak}: +${streakBonus}` : ""}.`;
+      missionFlowDebugLog("reward:cashed", {
+        missionId: earnedMission.id,
+        missionPayout,
+        freshBonus,
+        streakBonus,
+        jobsCompleted,
+        currentJobStreak
+      });
+      banner.text = `Reward cashed +${missionPayout}${freshBonus ? ` · Fresh job bonus +${freshBonus}` : ""}${streakBonus ? ` · Job streak x${currentJobStreak}: +${streakBonus}` : ""}.`;
       banner.t = performance.now();
-      showToast(`${earnedMission.title} cashed · +${missionPayout}${streakBonus ? ` · streak +${streakBonus}` : ""}`, 2800);
+      showToast(`${earnedMission.title} cashed · +${missionPayout}${freshBonus ? ` · fresh +${freshBonus}` : ""}${streakBonus ? ` · streak +${streakBonus}` : ""}`, 3000);
       startNextMissionJob({ cashed:true, previousMission: earnedMission });
       current = null;
-      nextSpawnAt = performance.now() + Math.max(260, (summary?.animationWaitMs || 0) + 180);
+      nextSpawnAt = performance.now() + Math.max(V2_NEXT_JOB_CEREMONY_ENABLED ? 1050 : 260, (summary?.animationWaitMs || 0) + 180);
       updateHUD();
       draw();
       return;
@@ -4909,7 +5302,7 @@
     updateHUD();
     const howlStyle = mission?.id === "angry_wolves" ? "angry_victory" : "victory";
     gameOverNow({
-      title: "Mission Succeeded! 🐺",
+      title: "Mission Succeeded!",
       note: `${mission.title} paid out +${mission.cashBonus} coins after the reward group cleared.`,
       playSound: false,
       howl: true,
@@ -4998,6 +5391,9 @@
 
   function sprinkleOverlayGeometric(){
     overlay = makeOverlay();
+    if(REFRESH_V2_ENABLED && mission?.id === "v2_first_flock" && !DEBUG_BOARD){
+      return;
+    }
 
     const startRow = Math.floor(ROWS * 0.45); // only lower part
     const eggPhase  = Math.floor(Math.random()*6);
@@ -5171,22 +5567,28 @@
     if(!mission || mission.done || !mission.ready || !hasRewardCoinOnBoard() || !Number.isFinite(rewardCountdown)) return false;
     rewardCountdown = Math.max(0, rewardCountdown - 1);
     if(rewardCountdown > 0){
-      banner.text = `Reward clock: ${rewardCountdownLabel()}. Clear the pulsing group before it expires.`;
+      banner.text = `Clear reward herd: ${rewardCountdownLabel()}.`;
       banner.t = performance.now();
       updateHUD();
       return false;
     }
-    banner.text = `Reward clock: ${rewardCountdownLabel()}. Mission failed.`;
+    banner.text = `Reward missed. Streak reset.`;
     banner.t = performance.now();
     updateHUD();
     if(REFRESH_V2_ENABLED && V2_CHAINED_MISSIONS_ENABLED){
       const missedMission = mission;
       currentJobStreak = 0;
+      rewardsMissed++;
       rewardCountdown = null;
       clearRewardMap();
       playGameEventSound("reward_missed", { missionId: missedMission?.id || "" });
       playGameEventSound("mission_failed", { missionId: missedMission?.id || "" });
-      showToast(`Bonus missed. Streak reset.`, 2400);
+      showToast(`Reward missed. Streak reset.`, 2400);
+      missionFlowDebugLog("reward:missed", {
+        missionId: missedMission?.id || "",
+        rewardsMissed,
+        currentJobStreak
+      });
       startNextMissionJob({ cashed:false, previousMission: missedMission });
       return false;
     }
@@ -5204,11 +5606,19 @@
       return true;
     }
     if(advanceRewardCountdown()) return true;
+    if(mission?.expireAfterResolution && !mission.ready && !mission.done){
+      expireMissionJob();
+      current = null;
+      nextSpawnAt = performance.now() + Math.max(V2_NEXT_JOB_CEREMONY_ENABLED ? 1050 : 260, summary?.animationWaitMs || 0);
+      updateHUD();
+      draw();
+      return true;
+    }
     if(opts.settleAnimal && ANIMALS.includes(opts.settleAnimal)){
       const playedContactChaos = playBarnyardContactChaos(opts.contactChaos, opts.settleAnimal);
       if(!playedContactChaos) playBarnyard(opts.settleAnimal, 4, "settle");
     }
-    if(opts.playLockTick !== false) playLockTick();
+    if(opts.playLockTick !== false) playLockTick(opts.settleAnimal || null);
     if(!summary?.groupsCleared) maybePlayNearHerdMurmur();
     if(opts.hapticMs) haptic(opts.hapticMs);
     if(!gameOver){
@@ -5551,9 +5961,10 @@
     const count = summary.destroyed;
     bumpMission("turds", count);
     bumpMission("mud_cleaned", count);
-    banner.text = `${banner.text ? `${banner.text} ` : ""}Empty mud ate ${count} falling tile${count === 1 ? "" : "s"} and disappeared.`;
+    spawnPopParticles(summary.cells);
+    banner.text = `${banner.text ? `${banner.text} ` : ""}Mud ate ${count} tile${count === 1 ? "" : "s"}.`;
     banner.t = performance.now();
-    playGameEventSound("mud_tile_eaten") || playGameEventSound("turd_penalty");
+    playGameEventSound("mud_tile_eaten", { animal: summary.cells?.[0]?.[2] || null, count }) || playGameEventSound("turd_penalty");
     haptic(14);
   }
 
@@ -5593,6 +6004,21 @@
       if(overlay[y][x] === POWER.MUD) cleared.mud++;
       overlay[y][x] = POWER.NONE;
       if((cleared.eggs + cleared.turds + cleared.mud) >= max) break;
+    }
+    return cleared;
+  }
+
+  function clearNearbyMudTraps(piece, opts={}){
+    const max = opts.max ?? 4;
+    const radius = opts.radius ?? 2;
+    const candidates = nearbyCellsForPiece(piece, radius, { includeFootprint: true })
+      .filter(([x, y]) => overlay[y][x] === POWER.MUD);
+    const cleared = { eggs: 0, turds: 0, mud: 0 };
+    for(const [x, y] of candidates){
+      if(overlay[y][x] !== POWER.MUD) continue;
+      overlay[y][x] = POWER.NONE;
+      cleared.mud++;
+      if(cleared.mud >= max) break;
     }
     return cleared;
   }
@@ -5685,14 +6111,18 @@
     const avoidAnimal = opts.avoidAnimal ?? null;
     const candidates = nearbyAnimalCells(piece, opts.radius ?? 2);
     let panicked = 0;
+    const changedCells = [];
     for(const [x, y] of candidates){
       const currentAnimal = board[y][x];
       const pool = ANIMALS.filter((animal) => animal !== currentAnimal && animal !== avoidAnimal);
       if(!pool.length) continue;
-      board[y][x] = randChoice(pool);
+      const nextAnimal = randChoice(pool);
+      board[y][x] = nextAnimal;
+      changedCells.push([x, y, nextAnimal]);
       panicked++;
       if(panicked >= count) break;
     }
+    if(opts.returnCells) return { count: panicked, cells: changedCells };
     return panicked;
   }
 
@@ -5851,7 +6281,7 @@
         productMap[y][x] = 0;
       }
       spawnPopParticles(best.cells.map(([x,y]) => [x,y,best.animal]));
-      banner.text = `Cull Comb clipped ${best.cells.length} ${TILE_LABEL[best.animal]}.`;
+      banner.text = `Cull Comb clipped ${best.cells.length} ${animalWord(best.animal)}.`;
       banner.t = performance.now();
       if(!playSpecialCue("reaper", { hit:true, animal:best.animal, count:best.cells.length })){
         playTone({type:"triangle", f1:620, f2:260, dur:0.14, gain:0.10});
@@ -5859,14 +6289,14 @@
     }
     const landAnimal = chooseLandingAnimal(piece);
     placePieceAsAnimal(piece, landAnimal);
-    banner.text = `Cull Comb clipped and turned into ${TILE_LABEL[landAnimal]}.`;
+    banner.text = `Cull Comb clipped and turned into ${animalWord(landAnimal)}.`;
     banner.t = performance.now();
   }
 
   function missionMorphPiece(piece){
     const animal = chooseLandingAnimal(piece);
     placePieceAsAnimal(piece, animal);
-    banner.text = `Mystery Crate revealed ${TILE_LABEL[animal]}.`;
+    banner.text = `Mystery Crate revealed ${animalWord(animal)}.`;
     banner.t = performance.now();
     playSpecialCue("morph", { hit:true, animal }) || playBarnyard(animal, 6);
   }
@@ -5920,7 +6350,7 @@
         if(ANIMALS.includes(board[ny][nx])) board[ny][nx] = animal;
       }
     }
-    banner.text = `Branding Iron rallied a ${GROUP_NAME[animal] || "group"} of ${TILE_LABEL[animal]}.`;
+    banner.text = `Branding Iron rallied a ${GROUP_NAME[animal] || "group"} of ${animalWord(animal)}.`;
     banner.t = performance.now();
     playSpecialCue("brand", { hit:true, animal }) || playBarnyard(animal, 7);
   }
@@ -5962,11 +6392,15 @@
   function missionPackHowlPiece(piece){
     const animal = chooseLandingAnimal(piece);
     placePieceAsAnimal(piece, animal);
-    const panicked = panicNearbyAnimals(piece, 4, { radius: 2, avoidAnimal: animal });
+    const panic = panicNearbyAnimals(piece, 4, { radius: 2, avoidAnimal: animal, returnCells: true });
+    const panicked = panic.count || 0;
+    if(panic.cells?.length) spawnPopParticles(panic.cells);
     const sprayed = placeMudTrapsForPiece(piece, 1, { radius: 2 });
     banner.text = panicked > 0
-      ? `Pack Howl panicked ${panicked} animals${sprayed.turds ? ` and dropped ${sprayed.turds} mud trap${sprayed.turds === 1 ? "" : "s"}` : ""}.`
-      : "Pack Howl still scared the barn crooked.";
+      ? `Pack Howl scrambled ${panicked} animals${sprayed.turds ? ` and dropped ${sprayed.turds} mud trap${sprayed.turds === 1 ? "" : "s"}` : ""}.`
+      : sprayed.turds
+        ? `Pack Howl dropped ${sprayed.turds} mud trap and scared the barn crooked.`
+        : "Pack Howl scared the barn crooked.";
     banner.t = performance.now();
     if(!playSpecialCue("pack_howl", { hit:panicked > 0, count:panicked, style:"threat" })){
       if(USE_ENHANCED_CHAOS_AUDIO) playWolfHowl("tap");
@@ -5982,7 +6416,7 @@
     const converted = convertNearbyAnimalsTo(piece, animal, 2, { radius: 2 });
     if(converted === 0) markOneFootprintOverlay(piece, POWER.EGG);
     banner.text = converted > 0
-      ? `Salt Lick coaxed ${converted} nearby animal${converted === 1 ? "" : "s"} into ${TILE_LABEL[animal]}.`
+      ? `Salt Lick coaxed ${converted} nearby animal${converted === 1 ? "" : "s"} into ${animalWord(animal)}.`
       : "Salt Lick behaved and left one polite 🥚.";
     banner.t = performance.now();
     playSpecialCue("salt_lick", { hit:converted > 0, animal, count:converted }) || playBarnyard(animal, 7);
@@ -5991,19 +6425,20 @@
   function missionRainBarrelPiece(piece){
     const animal = chooseLandingAnimal(piece);
     placePieceAsAnimal(piece, animal);
-    const cleared = clearNearbyOverlays(piece, { max: 4, radius: 2 });
-    const clearedMesses = (cleared.turds || 0) + (cleared.mud || 0);
-    if(clearedMesses > 0) bumpMission("turds", clearedMesses);
-    if((cleared.mud || 0) > 0) bumpMission("mud_cleaned", cleared.mud);
-    if((cleared.eggs + clearedMesses) === 0){
+    const cleared = clearNearbyMudTraps(piece, { max: 4, radius: 2 });
+    if((cleared.mud || 0) > 0){
+      bumpMission("turds", cleared.mud);
+      bumpMission("mud_cleaned", cleared.mud);
+    }
+    if((cleared.mud || 0) === 0){
       markOneFootprintOverlay(piece, POWER.EGG);
       banner.text = "Rain Barrel found no mess, so it left one useful 🥚.";
     } else {
-      banner.text = `Rain Barrel washed ${clearedMesses} mess marker${clearedMesses === 1 ? "" : "s"} and ${cleared.eggs} egg${cleared.eggs === 1 ? "" : "s"}.`;
+      banner.text = `Rain Barrel washed ${cleared.mud} mud trap${cleared.mud === 1 ? "" : "s"}.`;
     }
     banner.t = performance.now();
-    if(clearedMesses > 0) playGameEventSound("mud_cleaned");
-    if(!playSpecialCue("rain_barrel", { hit:(cleared.eggs + clearedMesses) > 0, animal, cleared })){
+    if(cleared.mud > 0) playGameEventSound("mud_cleaned");
+    if(!playSpecialCue("rain_barrel", { hit:cleared.mud > 0, animal, cleared })){
       playTone({ type:"sine", f1:360, f2:180, dur:0.15, gain:0.07 });
     }
   }
@@ -6084,7 +6519,7 @@
       }
     } else {
       const mudPlaced = placeMudTrapsForPiece(piece, 1, { radius: 1 }).mud;
-      banner.text = `${product.specialTitle} missed and turned into ${TILE_LABEL[landingAnimal]} after dropping ${mudPlaced} mud trap${mudPlaced === 1 ? "" : "s"}.`;
+      banner.text = `${product.specialTitle} missed and turned into ${animalWord(landingAnimal)} after dropping ${mudPlaced} mud trap${mudPlaced === 1 ? "" : "s"}.`;
       banner.t = performance.now();
       if(!playSpecialCue("barn_goods", { hit:false, animal:landingAnimal })){
         playTone({type:"square", f1:240, f2:150, dur:0.08, gain:0.05});
@@ -6146,6 +6581,45 @@
     return Math.max(V2_TURD_MIN_MULTIPLIER, 1 - penalty);
   }
 
+  function compressHerdScore(rawScore){
+    const raw = Math.max(1, Math.round(rawScore));
+    if(!REFRESH_V2_ENABLED || !V2_HERD_SCORE_COMPRESSION_ENABLED) {
+      return { total: raw, softCapAdjustment: 0, hardCapAdjustment: 0 };
+    }
+    let compressed = raw;
+    let softCapAdjustment = 0;
+    if(raw > V2_HERD_SCORE_SOFT_CAP){
+      compressed = V2_HERD_SCORE_SOFT_CAP + (raw - V2_HERD_SCORE_SOFT_CAP) * V2_HERD_SCORE_SOFT_CAP_RATE;
+      compressed = Math.round(compressed);
+      softCapAdjustment = Math.max(0, raw - compressed);
+    }
+    const hardCapped = Math.min(V2_HERD_SCORE_HARD_CAP, compressed);
+    return {
+      total: Math.max(1, hardCapped),
+      softCapAdjustment,
+      hardCapAdjustment: Math.max(0, compressed - hardCapped)
+    };
+  }
+
+  function cascadePayoutMultiplier(depth){
+    if(!REFRESH_V2_ENABLED || !V2_CASCADE_COMPRESSION_ENABLED) return 1;
+    const safeDepth = Math.max(1, depth|0);
+    if(safeDepth >= 4) return V2_CASCADE_MULTIPLIERS[4];
+    return V2_CASCADE_MULTIPLIERS[safeDepth] ?? 1;
+  }
+
+  function applyCascadeCompression(scoreValue, depth){
+    const raw = Math.max(0, Math.round(scoreValue));
+    const multiplier = cascadePayoutMultiplier(depth);
+    const total = Math.max(raw > 0 ? 1 : 0, Math.round(raw * multiplier));
+    return {
+      raw,
+      multiplier,
+      total,
+      compression: Math.max(0, raw - total)
+    };
+  }
+
   function scoreHerdClear(count, eggs=0, turds=0){
     const base = herdBaseScore(count);
     const sizeBonus = herdSizeBonus(count);
@@ -6169,7 +6643,8 @@
     const eggMultiplier = herdEggMultiplier(eggs);
     const turdMultiplier = herdTurdMultiplier(turds);
     const afterEggs = beforeModifiers * eggMultiplier;
-    const total = Math.max(1, Math.round(afterEggs * turdMultiplier));
+    const preCompressionTotal = Math.max(1, Math.round(afterEggs * turdMultiplier));
+    const compressed = compressHerdScore(preCompressionTotal);
     return {
       count,
       base,
@@ -6179,8 +6654,11 @@
       eggMultiplier,
       turdMultiplier,
       eggBonus: Math.round(afterEggs - beforeModifiers),
-      turdPenalty: Math.max(0, Math.round(afterEggs - total)),
-      total
+      turdPenalty: Math.max(0, Math.round(afterEggs - preCompressionTotal)),
+      preCompressionTotal,
+      softCapAdjustment: compressed.softCapAdjustment,
+      hardCapAdjustment: compressed.hardCapAdjustment,
+      total: compressed.total
     };
   }
 
@@ -6208,6 +6686,9 @@
         eggMultiplier: row.eggMultiplier,
         turds: row.turds,
         turdMultiplier: row.turdMultiplier,
+        preCompressionTotal: row.preCompressionTotal ?? row.total,
+        softCapAdjustment: row.softCapAdjustment || 0,
+        hardCapAdjustment: row.hardCapAdjustment || 0,
         total: row.total
       }));
       console.table(rows);
@@ -6215,8 +6696,13 @@
         x2: chainBonusForDepth(2),
         x3: chainBonusForDepth(3),
         x4: chainBonusForDepth(4),
+        cascadeDepth2Multiplier: cascadePayoutMultiplier(2),
+        cascadeDepth3Multiplier: cascadePayoutMultiplier(3),
+        cascadeDepth4Multiplier: cascadePayoutMultiplier(4),
+        herdSoftCap: V2_HERD_SCORE_SOFT_CAP,
+        herdHardCap: V2_HERD_SCORE_HARD_CAP,
         normalMissionMin: 80,
-        angryWolves: Math.round(900 * 0.6)
+        angryWolves: 720
       });
     }catch{}
   }
@@ -6433,7 +6919,8 @@
         }
 
         const scoreBreakdown = scoreHerdClear(cells.length, eggs, turds);
-        const gain = scoreBreakdown.total;
+        const cascadeBreakdown = applyCascadeCompression(scoreBreakdown.total, cascadeDepth);
+        const gain = cascadeBreakdown.total;
         if(scoreBreakdown.sizeBonus > 0){
           bumpMission("big_group", 1);
         }
@@ -6449,7 +6936,10 @@
         debugScoreBreakdown("herd-clear", {
           animal: animalWord(animal),
           chainDepth: cascadeDepth,
-          ...scoreBreakdown
+          ...scoreBreakdown,
+          cascadeMultiplier: cascadeBreakdown.multiplier,
+          cascadeCompression: cascadeBreakdown.compression,
+          finalHerdScore: gain
         });
         const clearedReward = cells.some(([x,y]) => rewardMap[y][x]);
         if(clearedReward){
@@ -6466,6 +6956,7 @@
           banner.t = performance.now();
         }
         score += gain;
+        herdingCoins += gain;
         totalGain += gain;
         groupsCleared++;
         syncPassiveMissionProgress();
@@ -6477,7 +6968,7 @@
         bumpMission("clears", 1);
         if(gameOver) break;
         const chainTag = cascadeDepth > 1 ? `Chain ${fmtChain(cascadeDepth)}! ` : "";
-        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} ${TILE_LABEL[animal]} +${gain}${eggs?` 🥚+${scoreBreakdown.eggBonus}`:""}${turds?` 💩-${scoreBreakdown.turdPenalty}`:""}`;
+        banner.text = `${chainTag}${quipForAnimal(animal)} Cleared ${cells.length} ${animalWord(animal)} +${gain}${eggs?` egg +${scoreBreakdown.eggBonus}`:""}${turds?` turd -${scoreBreakdown.turdPenalty}`:""}`;
         banner.t = performance.now();
 
         spawnPopParticles(cells.map(([x,y]) => [x,y,animal]));
@@ -6570,13 +7061,15 @@
     if(chainBonus > 0){
       debugScoreBreakdown("chain-bonus", { chainDepth: cascadeDepth, chainBonus });
       score += chainBonus;
+      chainCoins += chainBonus;
       totalGain += chainBonus;
-      playChainBonusSting(cascadeDepth);
+      playChainBonusSting(cascadeDepth, bestHerd?.animal || null);
       if(!rewardEarned){
         banner.text = `Chain ${fmtChain(cascadeDepth)} paid out +${chainBonus} bonus coins.`;
         banner.t = performance.now();
       }
     }
+    if(cascadeDepth > 0) biggestCascade = Math.max(biggestCascade, cascadeDepth);
     syncPassiveMissionProgress();
     if(rewardEarned && mission && mission.ready && !mission.done){
       mission.done = true;
@@ -6587,7 +7080,7 @@
       rememberShareSnapshot(preResolveSnapshot);
       playMissionJingle();
       if(mission.id === "angry_wolves"){
-        showToast(`🐺 Angry Wolves tamed · +${mission.cashBonus}`, 3200);
+        showToast(`Angry Wolves tamed · +${mission.cashBonus}`, 3200);
         haptic(28);
       }
     } else {
@@ -6658,7 +7151,7 @@
       }
       startRewardCountdown();
       registerLockCycle({ skipCashout: true, skipMissionCharge: true });
-      banner.text = `Reward coin settled as ${TILE_LABEL[rewardAnimal]}. Clear that pulsing group within ${REWARD_COUNTDOWN_START} settles for +${mission.cashBonus}.`;
+      banner.text = `Reward herd live as ${animalWord(rewardAnimal)}. Clear it in ${REWARD_COUNTDOWN_START} settles for +${mission.cashBonus}.`;
       banner.t = performance.now();
       playGameEventSound("reward_spawn", { animal: rewardAnimal, reward: mission.cashBonus });
       if(!playGameEventSound("egg_bonus")){
@@ -6762,6 +7255,7 @@
     }
     if(moved){
       score += moved;
+      dropCoins += moved;
       if(!playGameEventSound("piece_hard_drop", { distance:moved })) playDropThump();
       syncPassiveMissionProgress();
     }
@@ -7147,50 +7641,50 @@
     ctx.restore();
   }
 
-  function drawTurdGlyph(cx, cy, size){
+  function drawTurdGlyph(cx, cy, size, targetCtx=ctx){
     const s = size;
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + s * 0.2, s * 0.34, s * 0.2, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx, cy - s * 0.02, s * 0.26, s * 0.17, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx, cy - s * 0.18, s * 0.17, s * 0.12, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx, cy - s * 0.31, s * 0.1, s * 0.08, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#7b4322";
-    ctx.fill();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.ellipse(cx + s * 0.06, cy + s * 0.06, s * 0.24, s * 0.15, -0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.28;
-    ctx.strokeStyle = "#f0b08d";
-    ctx.lineWidth = Math.max(1, s * 0.04);
-    ctx.beginPath();
-    ctx.arc(cx - s * 0.12, cy - s * 0.08, s * 0.12, Math.PI * 1.1, Math.PI * 1.88);
-    ctx.stroke();
-    ctx.restore();
+    targetCtx.save();
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy + s * 0.2, s * 0.34, s * 0.2, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(cx, cy - s * 0.02, s * 0.26, s * 0.17, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(cx, cy - s * 0.18, s * 0.17, s * 0.12, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(cx, cy - s * 0.31, s * 0.1, s * 0.08, 0, 0, Math.PI * 2);
+    targetCtx.fillStyle = "#7b4322";
+    targetCtx.fill();
+    targetCtx.globalAlpha = 0.22;
+    targetCtx.fillStyle = "#000";
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx + s * 0.06, cy + s * 0.06, s * 0.24, s * 0.15, -0.3, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.globalAlpha = 0.28;
+    targetCtx.strokeStyle = "#f0b08d";
+    targetCtx.lineWidth = Math.max(1, s * 0.04);
+    targetCtx.beginPath();
+    targetCtx.arc(cx - s * 0.12, cy - s * 0.08, s * 0.12, Math.PI * 1.1, Math.PI * 1.88);
+    targetCtx.stroke();
+    targetCtx.restore();
   }
 
-  function drawEggGlyph(cx, cy, size){
+  function drawEggGlyph(cx, cy, size, targetCtx=ctx){
     const s = size;
-    ctx.save();
-    const grad = ctx.createRadialGradient(cx - s * 0.12, cy - s * 0.18, s * 0.05, cx, cy, s * 0.42);
+    targetCtx.save();
+    const grad = targetCtx.createRadialGradient(cx - s * 0.12, cy - s * 0.18, s * 0.05, cx, cy, s * 0.42);
     grad.addColorStop(0, "#fff8cf");
     grad.addColorStop(0.52, "#ffe279");
     grad.addColorStop(1, "#d99a28");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, s * 0.31, s * 0.42, 0.12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(96, 59, 10, 0.42)";
-    ctx.lineWidth = Math.max(1, s * 0.05);
-    ctx.stroke();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = "#fffbe3";
-    ctx.beginPath();
-    ctx.ellipse(cx - s * 0.1, cy - s * 0.16, s * 0.09, s * 0.13, 0.45, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    targetCtx.fillStyle = grad;
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy, s * 0.31, s * 0.42, 0.12, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.strokeStyle = "rgba(96, 59, 10, 0.42)";
+    targetCtx.lineWidth = Math.max(1, s * 0.05);
+    targetCtx.stroke();
+    targetCtx.globalAlpha = 0.5;
+    targetCtx.fillStyle = "#fffbe3";
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx - s * 0.1, cy - s * 0.16, s * 0.09, s * 0.13, 0.45, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.restore();
   }
 
   function overlayMarkerGeometry(gx, gy, size=cell, power=POWER.EGG, opts={}){
@@ -7205,14 +7699,14 @@
     };
   }
 
-  function drawMudSplatGlyph(cx, cy, size){
+  function drawMudSplatGlyph(cx, cy, size, targetCtx=ctx){
     const s = size;
-    ctx.save();
-    ctx.globalAlpha *= 0.98;
-    ctx.fillStyle = "rgba(47, 28, 15, 0.22)";
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + s * 0.1, s * 0.5, s * 0.2, 0.05, 0, Math.PI * 2);
-    ctx.fill();
+    targetCtx.save();
+    targetCtx.globalAlpha *= 0.98;
+    targetCtx.fillStyle = "rgba(47, 28, 15, 0.22)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy + s * 0.1, s * 0.5, s * 0.2, 0.05, 0, Math.PI * 2);
+    targetCtx.fill();
 
     const spots = [
       [0, 0, 0.34, 0.24, 0.12],
@@ -7226,39 +7720,39 @@
       [0.2, -0.27, 0.07, 0.05, 0]
     ];
 
-    ctx.fillStyle = "#6b3b20";
+    targetCtx.fillStyle = "#6b3b20";
     for(const [dx, dy, rx, ry, rot] of spots){
-      ctx.beginPath();
-      ctx.ellipse(cx + s * dx, cy + s * dy, s * rx, s * ry, rot, 0, Math.PI * 2);
-      ctx.fill();
+      targetCtx.beginPath();
+      targetCtx.ellipse(cx + s * dx, cy + s * dy, s * rx, s * ry, rot, 0, Math.PI * 2);
+      targetCtx.fill();
     }
 
-    ctx.globalAlpha *= 0.28;
-    ctx.fillStyle = "#f1b26b";
-    ctx.beginPath();
-    ctx.ellipse(cx - s * 0.12, cy - s * 0.08, s * 0.16, s * 0.07, -0.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    targetCtx.globalAlpha *= 0.28;
+    targetCtx.fillStyle = "#f1b26b";
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx - s * 0.12, cy - s * 0.08, s * 0.16, s * 0.07, -0.35, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.restore();
   }
 
-  function drawPowerMarker(cx, cy, size, power, opts={}){
+  function drawPowerMarker(cx, cy, size, power, opts={}, targetCtx=ctx){
     const egg = power === POWER.EGG;
     const mudTrap = power === POWER.MUD && REFRESH_V2_ENABLED && !opts.aboveTiles;
     const halo = egg
       ? "rgba(255, 216, 77, 0.28)"
       : (mudTrap ? "rgba(92, 54, 28, 0.2)" : "rgba(126, 71, 36, 0.3)");
-    ctx.save();
-    ctx.globalAlpha *= opts.aboveTiles ? 0.96 : (mudTrap ? 0.9 : 0.78);
-    ctx.fillStyle = halo;
-    ctx.beginPath();
-    if(mudTrap) ctx.ellipse(cx, cy + size * 0.04, size * 0.56, size * 0.38, 0, 0, Math.PI * 2);
-    else ctx.arc(cx, cy, size * 0.52, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha *= opts.aboveTiles ? 1 : 0.92;
-    if(egg) drawEggGlyph(cx, cy, size);
-    else if(mudTrap) drawMudSplatGlyph(cx, cy, size);
-    else drawTurdGlyph(cx, cy + size * 0.02, size * 0.86);
-    ctx.restore();
+    targetCtx.save();
+    targetCtx.globalAlpha *= opts.aboveTiles ? 0.96 : (mudTrap ? 0.9 : 0.78);
+    targetCtx.fillStyle = halo;
+    targetCtx.beginPath();
+    if(mudTrap) targetCtx.ellipse(cx, cy + size * 0.04, size * 0.56, size * 0.38, 0, 0, Math.PI * 2);
+    else targetCtx.arc(cx, cy, size * 0.52, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.globalAlpha *= opts.aboveTiles ? 1 : 0.92;
+    if(egg) drawEggGlyph(cx, cy, size, targetCtx);
+    else if(mudTrap) drawMudSplatGlyph(cx, cy, size, targetCtx);
+    else drawTurdGlyph(cx, cy + size * 0.02, size * 0.86, targetCtx);
+    targetCtx.restore();
   }
 
   function isVectorAnimalTile(tile){
@@ -7278,37 +7772,53 @@
     return 1;
   }
 
+  let activeVectorTokenCtx = null;
+  function vectorTokenCtx(){
+    return activeVectorTokenCtx || ctx;
+  }
+  function withVectorTokenCtx(targetCtx, drawFn){
+    const previousCtx = activeVectorTokenCtx;
+    activeVectorTokenCtx = targetCtx || ctx;
+    try{
+      return drawFn();
+    } finally {
+      activeVectorTokenCtx = previousCtx;
+    }
+  }
+
   function drawTokenShadow(cx, cy, s, state={}){
     if(state.ghost) return;
-    ctx.save();
-    ctx.globalAlpha = state.active ? 0.26 : 0.16;
-    ctx.fillStyle = "#0c1308";
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + s * 0.24, s * 0.3, s * 0.12, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    const targetCtx = vectorTokenCtx();
+    targetCtx.save();
+    targetCtx.globalAlpha = state.active ? 0.26 : 0.16;
+    targetCtx.fillStyle = "#0c1308";
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy + s * 0.24, s * 0.3, s * 0.12, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.restore();
   }
 
   function drawTokenBase(cx, cy, s, meta, state={}){
-    const fill = ctx.createRadialGradient(cx - s*0.16, cy - s*0.18, s*0.07, cx, cy, s*0.42);
+    const targetCtx = vectorTokenCtx();
+    const fill = targetCtx.createRadialGradient(cx - s*0.16, cy - s*0.18, s*0.07, cx, cy, s*0.42);
     fill.addColorStop(0, meta.accent);
     fill.addColorStop(0.38, meta.base);
     fill.addColorStop(1, meta.shade);
 
-    ctx.save();
-    ctx.globalAlpha *= state.ghost ? V2_GHOST_TOKEN_BASE_ALPHA : 1;
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + s * 0.02, s * 0.31, s * 0.27, 0, 0, Math.PI * 2);
-    ctx.fill();
+    targetCtx.save();
+    targetCtx.globalAlpha *= state.ghost ? V2_GHOST_TOKEN_BASE_ALPHA : 1;
+    targetCtx.fillStyle = fill;
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy + s * 0.02, s * 0.31, s * 0.27, 0, 0, Math.PI * 2);
+    targetCtx.fill();
     if(!state.ghost){
-      ctx.globalAlpha *= 0.16;
-      ctx.fillStyle = "#fff8df";
-      ctx.beginPath();
-      ctx.ellipse(cx - s * 0.1, cy - s * 0.12, s * 0.13, s * 0.08, -0.35, 0, Math.PI * 2);
-      ctx.fill();
+      targetCtx.globalAlpha *= 0.16;
+      targetCtx.fillStyle = "#fff8df";
+      targetCtx.beginPath();
+      targetCtx.ellipse(cx - s * 0.1, cy - s * 0.12, s * 0.13, s * 0.08, -0.35, 0, Math.PI * 2);
+      targetCtx.fill();
     }
-    ctx.restore();
+    targetCtx.restore();
   }
 
   function drawTokenEyes(cx, cy, s, opts={}){
@@ -7319,45 +7829,48 @@
       ink = "#1a110d",
       scared = false
     } = opts;
-    ctx.save();
-    ctx.fillStyle = scared ? "#fff8dc" : ink;
-    ctx.beginPath();
-    ctx.arc(cx - dx, cy + y, scared ? r * 1.65 : r, 0, Math.PI * 2);
-    ctx.arc(cx + dx, cy + y, scared ? r * 1.65 : r, 0, Math.PI * 2);
-    ctx.fill();
+    const targetCtx = vectorTokenCtx();
+    targetCtx.save();
+    targetCtx.fillStyle = scared ? "#fff8dc" : ink;
+    targetCtx.beginPath();
+    targetCtx.arc(cx - dx, cy + y, scared ? r * 1.65 : r, 0, Math.PI * 2);
+    targetCtx.arc(cx + dx, cy + y, scared ? r * 1.65 : r, 0, Math.PI * 2);
+    targetCtx.fill();
     if(scared){
-      ctx.fillStyle = ink;
-      ctx.beginPath();
-      ctx.arc(cx - dx, cy + y, r * 0.62, 0, Math.PI * 2);
-      ctx.arc(cx + dx, cy + y, r * 0.62, 0, Math.PI * 2);
-      ctx.fill();
+      targetCtx.fillStyle = ink;
+      targetCtx.beginPath();
+      targetCtx.arc(cx - dx, cy + y, r * 0.62, 0, Math.PI * 2);
+      targetCtx.arc(cx + dx, cy + y, r * 0.62, 0, Math.PI * 2);
+      targetCtx.fill();
     }
-    ctx.restore();
+    targetCtx.restore();
   }
 
   function drawTokenModifierBadges(cx, cy, s, state={}){
     if(!state.bonus && !state.muddy && !state.scared) return;
-    ctx.save();
+    const targetCtx = vectorTokenCtx();
+    targetCtx.save();
     if(state.bonus || state.muddy){
       const power = state.bonus ? POWER.EGG : POWER.TURD;
       const marker = overlayMarkerGeometry(cx - s / 2, cy - s / 2, s, power, { aboveTiles:true });
-      drawPowerMarker(marker.cx, marker.cy, marker.size, state.bonus ? POWER.EGG : POWER.TURD, { aboveTiles:true });
+      drawPowerMarker(marker.cx, marker.cy, marker.size, state.bonus ? POWER.EGG : POWER.TURD, { aboveTiles:true }, targetCtx);
     }
     if(state.scared){
-      ctx.fillStyle = "#f8f2d8";
-      ctx.font = `900 ${Math.floor(s * 0.18)}px system-ui, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("!", cx + s * 0.31, cy - s * 0.28);
+      targetCtx.fillStyle = "#f8f2d8";
+      targetCtx.font = `900 ${Math.floor(s * 0.18)}px system-ui, sans-serif`;
+      targetCtx.textAlign = "center";
+      targetCtx.textBaseline = "middle";
+      targetCtx.fillText("!", cx + s * 0.31, cy - s * 0.28);
     }
-    ctx.restore();
+    targetCtx.restore();
   }
 
   function renderSheepToken(targetCtx, x, y, size, state={}){
+    targetCtx = targetCtx || vectorTokenCtx();
     const s = size;
     const meta = VECTOR_TOKEN_META[state.blackSheep ? TILE.BLACK_SHEEP : TILE.SHEEP];
     drawTokenBase(x, y + s * 0.03, s * 0.72, meta, state);
-    ctx.save();
+    targetCtx.save();
     const woolFill = state.blackSheep ? "#242b35" : "#fff6dc";
     const woolShade = state.blackSheep ? "#171c24" : "#eadfc0";
     const woolStroke = state.blackSheep ? "rgba(8, 10, 14, 0.42)" : "rgba(116, 93, 59, 0.22)";
@@ -7369,220 +7882,219 @@
       [-0.11,0.07,0.18], [0.08,0.05,0.18], [0.26,0.12,0.13],
       [-0.12,0.25,0.12], [0.08,0.27,0.12]
     ];
-    ctx.lineWidth = Math.max(1, s * 0.026);
+    targetCtx.lineWidth = Math.max(1, s * 0.026);
     puffs.forEach(([dx, dy, r], index)=>{
-      ctx.fillStyle = index % 3 === 0 ? woolShade : woolFill;
-      ctx.strokeStyle = woolStroke;
-      ctx.beginPath();
-      ctx.ellipse(x + s*dx, y + s*dy, s*r, s*r*0.9, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      targetCtx.fillStyle = index % 3 === 0 ? woolShade : woolFill;
+      targetCtx.strokeStyle = woolStroke;
+      targetCtx.beginPath();
+      targetCtx.ellipse(x + s*dx, y + s*dy, s*r, s*r*0.9, 0, 0, Math.PI * 2);
+      targetCtx.fill();
+      targetCtx.stroke();
     });
-    ctx.fillStyle = faceFill;
-    ctx.beginPath();
-    ctx.ellipse(x + s*0.17, y + s*0.03, s*0.12, s*0.15, -0.14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(x - s*0.18, y + s*0.31, s*0.04, s*0.025, 0, 0, Math.PI * 2);
-    ctx.ellipse(x + s*0.09, y + s*0.32, s*0.04, s*0.025, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = eyeFill;
-    ctx.beginPath();
-    ctx.arc(x + s*0.2, y - s*0.01, s*0.018, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    void targetCtx;
+    targetCtx.fillStyle = faceFill;
+    targetCtx.beginPath();
+    targetCtx.ellipse(x + s*0.17, y + s*0.03, s*0.12, s*0.15, -0.14, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.beginPath();
+    targetCtx.ellipse(x - s*0.18, y + s*0.31, s*0.04, s*0.025, 0, 0, Math.PI * 2);
+    targetCtx.ellipse(x + s*0.09, y + s*0.32, s*0.04, s*0.025, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.fillStyle = eyeFill;
+    targetCtx.beginPath();
+    targetCtx.arc(x + s*0.2, y - s*0.01, s*0.018, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.restore();
   }
 
   function renderGoatToken(targetCtx, x, y, size, state={}){
+    targetCtx = targetCtx || vectorTokenCtx();
     const s = size;
     const meta = VECTOR_TOKEN_META[TILE.GOAT];
     drawTokenBase(x, y + s * 0.02, s * 0.78, meta, state);
-    ctx.save();
+    targetCtx.save();
     const outline = "rgba(80, 50, 27, 0.38)";
-    ctx.lineWidth = Math.max(1, s * 0.026);
-    ctx.fillStyle = "#f0dbc0";
-    ctx.strokeStyle = outline;
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.1, y - s*0.2);
-    ctx.lineTo(x - s*0.34, y - s*0.46);
-    ctx.lineTo(x - s*0.24, y - s*0.12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x + s*0.1, y - s*0.2);
-    ctx.lineTo(x + s*0.34, y - s*0.46);
-    ctx.lineTo(x + s*0.24, y - s*0.12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = meta.base;
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.24, y - s*0.06);
-    ctx.lineTo(x - s*0.43, y + s*0.01);
-    ctx.lineTo(x - s*0.21, y + s*0.1);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x + s*0.24, y - s*0.06);
-    ctx.lineTo(x + s*0.43, y + s*0.01);
-    ctx.lineTo(x + s*0.21, y + s*0.1);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = meta.base;
-    ctx.strokeStyle = outline;
-    ctx.beginPath();
-    ctx.moveTo(x, y - s*0.28);
-    ctx.lineTo(x + s*0.24, y - s*0.11);
-    ctx.lineTo(x + s*0.18, y + s*0.17);
-    ctx.lineTo(x + s*0.04, y + s*0.31);
-    ctx.lineTo(x - s*0.17, y + s*0.19);
-    ctx.lineTo(x - s*0.23, y - s*0.11);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "#f1d2a5";
-    ctx.beginPath();
-    ctx.ellipse(x + s*0.02, y + s*0.13, s*0.13, s*0.09, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = meta.accent;
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.02, y + s*0.28);
-    ctx.lineTo(x + s*0.11, y + s*0.28);
-    ctx.lineTo(x + s*0.04, y + s*0.45);
-    ctx.closePath();
-    ctx.fill();
+    targetCtx.lineWidth = Math.max(1, s * 0.026);
+    targetCtx.fillStyle = "#f0dbc0";
+    targetCtx.strokeStyle = outline;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.1, y - s*0.2);
+    targetCtx.lineTo(x - s*0.34, y - s*0.46);
+    targetCtx.lineTo(x - s*0.24, y - s*0.12);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + s*0.1, y - s*0.2);
+    targetCtx.lineTo(x + s*0.34, y - s*0.46);
+    targetCtx.lineTo(x + s*0.24, y - s*0.12);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+    targetCtx.fillStyle = meta.base;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.24, y - s*0.06);
+    targetCtx.lineTo(x - s*0.43, y + s*0.01);
+    targetCtx.lineTo(x - s*0.21, y + s*0.1);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + s*0.24, y - s*0.06);
+    targetCtx.lineTo(x + s*0.43, y + s*0.01);
+    targetCtx.lineTo(x + s*0.21, y + s*0.1);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.fillStyle = meta.base;
+    targetCtx.strokeStyle = outline;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x, y - s*0.28);
+    targetCtx.lineTo(x + s*0.24, y - s*0.11);
+    targetCtx.lineTo(x + s*0.18, y + s*0.17);
+    targetCtx.lineTo(x + s*0.04, y + s*0.31);
+    targetCtx.lineTo(x - s*0.17, y + s*0.19);
+    targetCtx.lineTo(x - s*0.23, y - s*0.11);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+    targetCtx.fillStyle = "#f1d2a5";
+    targetCtx.beginPath();
+    targetCtx.ellipse(x + s*0.02, y + s*0.13, s*0.13, s*0.09, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.fillStyle = meta.accent;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.02, y + s*0.28);
+    targetCtx.lineTo(x + s*0.11, y + s*0.28);
+    targetCtx.lineTo(x + s*0.04, y + s*0.45);
+    targetCtx.closePath();
+    targetCtx.fill();
     drawTokenEyes(x, y, s, { dx:s*0.1, y:-s*0.03, r:s*0.025, ink:meta.ink, scared: state.scared });
-    ctx.fillStyle = meta.ink;
-    ctx.beginPath();
-    ctx.ellipse(x + s*0.02, y + s*0.15, s*0.026, s*0.018, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    void targetCtx;
+    targetCtx.fillStyle = meta.ink;
+    targetCtx.beginPath();
+    targetCtx.ellipse(x + s*0.02, y + s*0.15, s*0.026, s*0.018, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.restore();
   }
 
   function renderChickenToken(targetCtx, x, y, size, state={}){
+    targetCtx = targetCtx || vectorTokenCtx();
     const s = size;
     const meta = VECTOR_TOKEN_META[TILE.CHICKEN];
     drawTokenBase(x, y, s, meta, state);
-    ctx.save();
-    ctx.fillStyle = meta.accent;
+    targetCtx.save();
+    targetCtx.fillStyle = meta.accent;
     for(const [dx, dy, r] of [[-0.11, -0.32, 0.06], [0, -0.4, 0.075], [0.12, -0.32, 0.06]]){
-      ctx.beginPath();
-      ctx.arc(x + s*dx, y + s*dy, s*r, 0, Math.PI * 2);
-      ctx.fill();
+      targetCtx.beginPath();
+      targetCtx.arc(x + s*dx, y + s*dy, s*r, 0, Math.PI * 2);
+      targetCtx.fill();
     }
-    ctx.fillStyle = "#f07a22";
-    ctx.beginPath();
-    ctx.moveTo(x + s*0.19, y - s*0.03);
-    ctx.lineTo(x + s*0.42, y + s*0.04);
-    ctx.lineTo(x + s*0.19, y + s*0.12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "rgba(111, 74, 25, 0.28)";
-    ctx.lineWidth = Math.max(1, s * 0.025);
-    ctx.stroke();
-    ctx.fillStyle = "#fff5bf";
-    ctx.beginPath();
-    ctx.ellipse(x - s*0.08, y + s*0.08, s*0.12, s*0.18, -0.2, 0, Math.PI * 2);
-    ctx.fill();
+    targetCtx.fillStyle = "#f07a22";
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + s*0.19, y - s*0.03);
+    targetCtx.lineTo(x + s*0.42, y + s*0.04);
+    targetCtx.lineTo(x + s*0.19, y + s*0.12);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.strokeStyle = "rgba(111, 74, 25, 0.28)";
+    targetCtx.lineWidth = Math.max(1, s * 0.025);
+    targetCtx.stroke();
+    targetCtx.fillStyle = "#fff5bf";
+    targetCtx.beginPath();
+    targetCtx.ellipse(x - s*0.08, y + s*0.08, s*0.12, s*0.18, -0.2, 0, Math.PI * 2);
+    targetCtx.fill();
     drawTokenEyes(x, y, s, { dx:s*0.075, y:-s*0.08, r:s*0.024, ink:meta.ink, scared: state.scared });
-    ctx.restore();
-    void targetCtx;
+    targetCtx.restore();
   }
 
   function renderCowToken(targetCtx, x, y, size, state={}){
+    targetCtx = targetCtx || vectorTokenCtx();
     const s = size;
     const meta = VECTOR_TOKEN_META[TILE.COW];
     drawTokenBase(x, y, s, meta, state);
-    ctx.save();
-    ctx.fillStyle = meta.shade;
-    ctx.beginPath();
-    ctx.ellipse(x - s*0.16, y - s*0.02, s*0.1, s*0.08, -0.35, 0, Math.PI * 2);
-    ctx.ellipse(x + s*0.18, y + s*0.08, s*0.12, s*0.09, 0.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#e8d7aa";
-    ctx.lineWidth = Math.max(2, s*0.035);
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.18, y - s*0.24);
-    ctx.lineTo(x - s*0.28, y - s*0.34);
-    ctx.moveTo(x + s*0.18, y - s*0.24);
-    ctx.lineTo(x + s*0.28, y - s*0.34);
-    ctx.stroke();
-    ctx.fillStyle = "#e8c9b4";
-    ctx.beginPath();
-    ctx.ellipse(x, y + s*0.13, s*0.17, s*0.1, 0, 0, Math.PI * 2);
-    ctx.fill();
+    targetCtx.save();
+    targetCtx.fillStyle = meta.shade;
+    targetCtx.beginPath();
+    targetCtx.ellipse(x - s*0.16, y - s*0.02, s*0.1, s*0.08, -0.35, 0, Math.PI * 2);
+    targetCtx.ellipse(x + s*0.18, y + s*0.08, s*0.12, s*0.09, 0.2, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.strokeStyle = "#e8d7aa";
+    targetCtx.lineWidth = Math.max(2, s*0.035);
+    targetCtx.lineCap = "round";
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.18, y - s*0.24);
+    targetCtx.lineTo(x - s*0.28, y - s*0.34);
+    targetCtx.moveTo(x + s*0.18, y - s*0.24);
+    targetCtx.lineTo(x + s*0.28, y - s*0.34);
+    targetCtx.stroke();
+    targetCtx.fillStyle = "#e8c9b4";
+    targetCtx.beginPath();
+    targetCtx.ellipse(x, y + s*0.13, s*0.17, s*0.1, 0, 0, Math.PI * 2);
+    targetCtx.fill();
     drawTokenEyes(x, y, s, { dx:s*0.1, y:-s*0.07, r:s*0.024, ink:meta.ink, scared: state.scared });
-    ctx.restore();
-    void targetCtx;
+    targetCtx.restore();
   }
 
   function renderPigToken(targetCtx, x, y, size, state={}){
+    targetCtx = targetCtx || vectorTokenCtx();
     const s = size;
     const meta = VECTOR_TOKEN_META[TILE.PIG];
     drawTokenBase(x, y, s, meta, state);
-    ctx.save();
-    ctx.fillStyle = meta.base;
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.28, y - s*0.18);
-    ctx.lineTo(x - s*0.4, y - s*0.28);
-    ctx.lineTo(x - s*0.34, y - s*0.04);
-    ctx.moveTo(x + s*0.28, y - s*0.18);
-    ctx.lineTo(x + s*0.4, y - s*0.28);
-    ctx.lineTo(x + s*0.34, y - s*0.04);
-    ctx.fill();
-    ctx.fillStyle = meta.accent;
-    ctx.beginPath();
-    ctx.ellipse(x, y + s*0.08, s*0.18, s*0.12, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = meta.ink;
-    ctx.beginPath();
-    ctx.arc(x - s*0.055, y + s*0.08, s*0.018, 0, Math.PI * 2);
-    ctx.arc(x + s*0.055, y + s*0.08, s*0.018, 0, Math.PI * 2);
-    ctx.fill();
+    targetCtx.save();
+    targetCtx.fillStyle = meta.base;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.28, y - s*0.18);
+    targetCtx.lineTo(x - s*0.4, y - s*0.28);
+    targetCtx.lineTo(x - s*0.34, y - s*0.04);
+    targetCtx.moveTo(x + s*0.28, y - s*0.18);
+    targetCtx.lineTo(x + s*0.4, y - s*0.28);
+    targetCtx.lineTo(x + s*0.34, y - s*0.04);
+    targetCtx.fill();
+    targetCtx.fillStyle = meta.accent;
+    targetCtx.beginPath();
+    targetCtx.ellipse(x, y + s*0.08, s*0.18, s*0.12, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.fillStyle = meta.ink;
+    targetCtx.beginPath();
+    targetCtx.arc(x - s*0.055, y + s*0.08, s*0.018, 0, Math.PI * 2);
+    targetCtx.arc(x + s*0.055, y + s*0.08, s*0.018, 0, Math.PI * 2);
+    targetCtx.fill();
     drawTokenEyes(x, y, s, { dx:s*0.1, y:-s*0.08, r:s*0.024, ink:meta.ink, scared: state.scared });
-    ctx.restore();
-    void targetCtx;
+    targetCtx.restore();
   }
 
   function renderWolfToken(targetCtx, x, y, size, state={}){
+    targetCtx = targetCtx || vectorTokenCtx();
     const s = size;
     const meta = VECTOR_TOKEN_META[TILE.WOLF];
     drawTokenBase(x, y, s, meta, state);
-    ctx.save();
-    ctx.fillStyle = meta.shade;
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.22, y - s*0.2);
-    ctx.lineTo(x - s*0.34, y - s*0.42);
-    ctx.lineTo(x - s*0.08, y - s*0.27);
-    ctx.moveTo(x + s*0.22, y - s*0.2);
-    ctx.lineTo(x + s*0.34, y - s*0.42);
-    ctx.lineTo(x + s*0.08, y - s*0.27);
-    ctx.fill();
-    ctx.fillStyle = meta.accent;
-    ctx.beginPath();
-    ctx.moveTo(x, y + s*0.03);
-    ctx.lineTo(x + s*0.16, y + s*0.11);
-    ctx.lineTo(x, y + s*0.18);
-    ctx.lineTo(x - s*0.16, y + s*0.11);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#17100c";
-    ctx.lineWidth = Math.max(1.4, s*0.025);
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.16, y - s*0.08);
-    ctx.lineTo(x - s*0.04, y - s*0.035);
-    ctx.moveTo(x + s*0.16, y - s*0.08);
-    ctx.lineTo(x + s*0.04, y - s*0.035);
-    ctx.moveTo(x - s*0.08, y + s*0.18);
-    ctx.quadraticCurveTo(x, y + s*0.25, x + s*0.12, y + s*0.18);
-    ctx.stroke();
-    ctx.restore();
-    void targetCtx;
+    targetCtx.save();
+    targetCtx.fillStyle = meta.shade;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.22, y - s*0.2);
+    targetCtx.lineTo(x - s*0.34, y - s*0.42);
+    targetCtx.lineTo(x - s*0.08, y - s*0.27);
+    targetCtx.moveTo(x + s*0.22, y - s*0.2);
+    targetCtx.lineTo(x + s*0.34, y - s*0.42);
+    targetCtx.lineTo(x + s*0.08, y - s*0.27);
+    targetCtx.fill();
+    targetCtx.fillStyle = meta.accent;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x, y + s*0.03);
+    targetCtx.lineTo(x + s*0.16, y + s*0.11);
+    targetCtx.lineTo(x, y + s*0.18);
+    targetCtx.lineTo(x - s*0.16, y + s*0.11);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.strokeStyle = "#17100c";
+    targetCtx.lineWidth = Math.max(1.4, s*0.025);
+    targetCtx.lineCap = "round";
+    targetCtx.beginPath();
+    targetCtx.moveTo(x - s*0.16, y - s*0.08);
+    targetCtx.lineTo(x - s*0.04, y - s*0.035);
+    targetCtx.moveTo(x + s*0.16, y - s*0.08);
+    targetCtx.lineTo(x + s*0.04, y - s*0.035);
+    targetCtx.moveTo(x - s*0.08, y + s*0.18);
+    targetCtx.quadraticCurveTo(x, y + s*0.25, x + s*0.12, y + s*0.18);
+    targetCtx.stroke();
+    targetCtx.restore();
   }
 
   const VECTOR_TOKEN_RENDERERS = {
@@ -7595,22 +8107,24 @@
     [TILE.BLACK_SHEEP]: (targetCtx, x, y, size, state={}) => renderSheepToken(targetCtx, x, y, size, { ...state, blackSheep: true })
   };
 
-  function drawVectorAnimalToken(tile, gx, gy, size, state={}){
+  function drawVectorAnimalToken(tile, gx, gy, size, state={}, targetCtx=ctx){
     const renderer = VECTOR_TOKEN_RENDERERS[tile];
     if(!renderer) return false;
     const cx = gx + size / 2;
     const cy = gy + size / 2;
     const scale = tokenScaleForState(state);
     const alpha = tokenAlphaForState(state);
-    ctx.save();
-    ctx.globalAlpha *= alpha;
-    ctx.translate(cx, cy);
-    ctx.scale(scale, scale);
-    ctx.translate(-cx, -cy);
-    drawTokenShadow(cx, cy, size, state);
-    renderer(ctx, cx, cy, size * 0.92, state);
-    drawTokenModifierBadges(cx, cy, size, state);
-    ctx.restore();
+    withVectorTokenCtx(targetCtx, () => {
+      targetCtx.save();
+      targetCtx.globalAlpha *= alpha;
+      targetCtx.translate(cx, cy);
+      targetCtx.scale(scale, scale);
+      targetCtx.translate(-cx, -cy);
+      drawTokenShadow(cx, cy, size, state);
+      renderer(targetCtx, cx, cy, size * 0.92, state);
+      drawTokenModifierBadges(cx, cy, size, state);
+      targetCtx.restore();
+    });
     return true;
   }
 
@@ -8325,15 +8839,13 @@
         if(!rewardMap[y][x]) continue;
         const gx = px + x * cell;
         const gy = px + y * cell;
-        ctx.globalAlpha = 0.3 + pulse * 0.28;
+        ctx.globalAlpha = 0.12 + pulse * 0.1;
         ctx.fillStyle = "#ffd86f";
-        ctx.beginPath();
-        ctx.arc(gx + cell/2, gy + cell/2, cell * (0.34 + pulse * 0.1), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 0.2 + pulse * 0.2;
+        roundRectFill(gx + 5, gy + 5, cell - 10, cell - 10, Math.max(8, cell * 0.16), "#ffd86f");
+        ctx.globalAlpha = 0.28 + pulse * 0.22;
         ctx.strokeStyle = `rgba(255, 214, 90, ${0.55 + pulse * 0.4})`;
-        ctx.lineWidth = Math.max(2, Math.floor(cell * 0.08));
-        roundRectStroke(gx + 2, gy + 2, cell - 4, cell - 4, 10);
+        ctx.lineWidth = Math.max(1.5, Math.floor(cell * 0.052));
+        roundRectStroke(gx + 3, gy + 3, cell - 6, cell - 6, 10);
         ctx.globalAlpha = 0.92;
         ctx.strokeStyle = `rgba(255, 247, 191, ${0.78 + pulse * 0.18})`;
         ctx.lineWidth = Math.max(2, Math.floor(cell * 0.05));
@@ -8454,6 +8966,11 @@
     }
 
     roundRectStrokeFor(targetCtx, gx+2, gy+2, tileSize-4, tileSize-4, 9, specialMeta ? specialMeta.accent : "rgba(255,255,255,0.26)", Math.max(1, Math.floor(tileSize*0.05)));
+
+    if(VECTOR_ANIMAL_TOKENS_ENABLED && isVectorAnimalTile(tile)){
+      drawVectorAnimalToken(tile, gx, gy, tileSize, {}, targetCtx);
+      return;
+    }
 
     if(tile === TILE.CASHOUT){
       drawShareCoinGlyph(targetCtx, gx + tileSize/2, gy + tileSize/2, tileSize * 0.28);
@@ -8659,10 +9176,7 @@
     targetCtx.arc(cx, cy, radius - 1, 0, Math.PI * 2);
     targetCtx.stroke();
 
-    targetCtx.font = `900 ${Math.floor(size * 0.72)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-    targetCtx.textAlign = "center";
-    targetCtx.textBaseline = "middle";
-    targetCtx.fillText("🐺", cx, cy + size * 0.04);
+    drawVectorAnimalToken(TILE.WOLF, cx - size / 2, cy - size / 2, size, {}, targetCtx);
 
     targetCtx.strokeStyle = "rgba(24,17,15,0.94)";
     targetCtx.lineWidth = Math.max(3, size * 0.07);
@@ -9122,20 +9636,27 @@
       if(coreFold){
         coreFold.innerHTML = `
           <div class="helpMiniDiagram" aria-hidden="true">
-            <span>🐑</span><span>🐑</span><span>🐑</span><span>+</span><span>⬇</span><span>=</span><span>🪙</span>
+            ${animalIconHTML(TILE.SHEEP, "help", "sheep")}
+            ${animalIconHTML(TILE.SHEEP, "help", "sheep")}
+            ${animalIconHTML(TILE.SHEEP, "help", "sheep")}
+            <span>+</span><span>⬇</span><span>=</span><span>🪙</span>
           </div>
           <p class="helpText">Make <b>${ACTIVE_CLEAR_THRESHOLD}+</b> matching animals touch. That clears a herd for coins.</p>
           <p class="helpText">Bigger herd = more coins. Gravity can drop animals into a new herd for a chain bonus.</p>
           <p class="helpText">🥚 boosts a herd. 💩 turds trim herd coins.</p>
           <p class="helpText">Wolf mud splats eat one falling tile, then disappear.</p>
         `;
+        renderInlineAnimalIcons(coreFold);
       }
       const missionFold = helpFoldByTitle("Missions")?.querySelector(".helpFoldBody");
       if(missionFold){
         missionFold.innerHTML = `
           <p class="helpText">The strip above the board shows one tiny job. Finish it, cash the reward herd, then take the next job.</p>
+          <p class="helpText">Jobs have patience. Finish before it runs out.</p>
+          <p class="helpText">Clear the reward herd to cash out. If you miss it, the next job starts with no bonus.</p>
           <p class="helpText">Early missions stay simple. Wolf nonsense arrives later, because manners.</p>
           <p class="helpText"><b>Egg Basket</b> plants 4 eggs. <b>Muck Wagon</b> splashes 3 mud traps.</p>
+          <p class="helpText"><b>Rain Barrel</b> washes mud. <b>Pack Howl</b> scrambles animals. <b>Angry Wolf</b> blasts tiles and leaves mud.</p>
           <p class="helpText">Special pieces always appear in the real <b>Next</b> tray.</p>
         `;
       }
@@ -9400,6 +9921,7 @@
     flushPendingTap(now);
     stepBoardAnimations(now);
     stepBoardAudioCues(now);
+    syncPausedState();
     if(paused || gameOver){
       if(particles.length || boardAnimations.length || (mission && mission.ready && !mission.done && hasRewardCoinOnBoard()) || pendingGameOverRevealTimer){
         draw();
@@ -9449,17 +9971,17 @@
     clearHoldTouchTimer();
     gesture = null;
     board = makeBoard();
-    sprinkleOverlayGeometric();
-    applyDebugBoardPreset();
     clearRewardMap();
     clearProductMarks();
     mission = newMission();
+    sprinkleOverlayGeometric();
+    applyDebugBoardPreset();
     missionSpecialCharge = 0;
     missionSpecialPending = false;
     queuedMissionSpecial = null;
     cashoutCharge = 0;
     rewardCountdown = null;
-    runEndTitle = "Run Over 🐺";
+    runEndTitle = "Run Over";
     runEndNote = "The barn got crowded.";
     score=0; level=1; locks=0; herdsCleared=0;
     jobsCompleted = 0;
@@ -9467,14 +9989,27 @@
     bestJobStreak = 0;
     bankedMissionCoins = 0;
     bankedStreakCoins = 0;
+    herdingCoins = 0;
+    chainCoins = 0;
+    dropCoins = 0;
+    freshJobBonusTotal = 0;
+    jobsExpired = 0;
+    rewardsMissed = 0;
+    biggestCascade = 0;
     bestMissionTitle = "";
     angryWolvesAttempted = false;
     angryWolvesCompleted = false;
+    if(mission?.id === "angry_wolves") angryWolvesAttempted = true;
     bestHerd = null;
     held=null; currentCombo=0; bestCombo=0; holdUsed=false;
     fallInterval = BASE_FALL_MS;
     fallTimer = 0;
     nextSpawnAt = 0;
+    nextJobCeremonyUntil = 0;
+    if(nextJobCeremonyTimer){
+      clearTimeout(nextJobCeremonyTimer);
+      nextJobCeremonyTimer = 0;
+    }
     rotateSlowUntil = 0;
     rotateSlowUses = 4;
     ambienceClock = 0;
@@ -9512,16 +10047,17 @@
     injectViewportCSS();
     applyRefreshV2Shell();
     patchHelpLine();
+    renderInlineAnimalIcons(document);
     syncSwapHints();
     installToastObserver();
     syncMasterGain();
     renderHelpSpecials();
 
-    sprinkleOverlayGeometric();
-    applyDebugBoardPreset();
     clearRewardMap();
     clearProductMarks();
     mission = newMission();
+    sprinkleOverlayGeometric();
+    applyDebugBoardPreset();
     missionSpecialCharge = 0;
     missionSpecialPending = false;
     queuedMissionSpecial = null;
@@ -9533,9 +10069,17 @@
     bestJobStreak = 0;
     bankedMissionCoins = 0;
     bankedStreakCoins = 0;
+    herdingCoins = 0;
+    chainCoins = 0;
+    dropCoins = 0;
+    freshJobBonusTotal = 0;
+    jobsExpired = 0;
+    rewardsMissed = 0;
+    biggestCascade = 0;
     bestMissionTitle = "";
     angryWolvesAttempted = false;
     angryWolvesCompleted = false;
+    if(mission?.id === "angry_wolves") angryWolvesAttempted = true;
     lastMissionMeterAudio = null;
     pendingTap = null;
     boardAnimations = [];
@@ -9543,6 +10087,11 @@
     nextSpawnAt = 0;
     pendingGameOverRevealTimer = 0;
     runEndPulseActive = false;
+    nextJobCeremonyUntil = 0;
+    if(nextJobCeremonyTimer){
+      clearTimeout(nextJobCeremonyTimer);
+      nextJobCeremonyTimer = 0;
+    }
     runStarted = !REFRESH_V2_ENABLED;
     manualPaused = false;
     missionDrawerOpen = false;
