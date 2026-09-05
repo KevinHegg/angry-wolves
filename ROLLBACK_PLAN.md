@@ -671,3 +671,10 @@ Native sharing sends a PNG plus the game URL, with no duplicate score caption. T
 - `herdPoints(count)` is shared by score awards and previews. Base scoring and the existing score category remain unchanged; this release does not clear earlier leaderboard entries.
 - Player profiles preload locked when three saved initials exist. Change player unlocks fields. Existing scores retain the identity used for their submission. Without authenticated player ownership, initials are not a safe key for renaming or deleting old records.
 - Dialog buttons use native click activation instead of touch-release position checks, with a short duplicate-click guard. This avoids rejecting taps when Safari’s visible viewport moves during a touch.
+
+
+## Rescue 2.4 — woodland details
+
+Visual-only update: decorative overhead wire fence with wooden posts around dialog headings, plus inline SVG barnyard and conifer trail endpoints. The heading still receives programmatic focus for screen-reader announcements; only its default outline is suppressed. Interactive controls retain their focus indicators. Existing game rules are unchanged. Previous release remains in `play/2.3/`.
+
+Verified the intro and active field visually at 393 × 650; all 37 existing tests pass.
