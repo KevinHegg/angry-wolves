@@ -13,13 +13,19 @@ function controls(){
  return {handlers,context,count:()=>count,setTime:value=>clock=value};
 }
 test('first gate click works immediately after page load',()=>{
- const c=controls();c.handlers.click({detail:1});assert.equal(c.count(),1);
+ const c=controls();c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),1);
 });
 test('native taps after scrolling work without pointer-coordinate assumptions',()=>{
- const c=controls();assert.equal(c.handlers.pointerup,undefined);c.handlers.click({detail:1});assert.equal(c.count(),1);
- c.setTime(1100);c.handlers.click({detail:1});assert.equal(c.count(),2);
+ const c=controls();assert.equal(c.handlers.pointerup,undefined);c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),1);
+ c.setTime(1100);c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),2);
 });
 test('duplicate taps cannot trigger the next screen and keyboard activation remains available',()=>{
- const c=controls();c.handlers.click({detail:1});c.context.dialogGeneration++;c.handlers.click({detail:1});assert.equal(c.count(),1);
+ const c=controls();c.handlers.pointerdown();c.handlers.click({detail:1});c.context.dialogGeneration++;c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),1);
  c.handlers.click({detail:0});assert.equal(c.count(),2);
+});
+
+test('a tap begun before the loss dialog cannot press Play again',()=>{
+ const c=controls();c.handlers.click({detail:1});assert.equal(c.count(),0);
+ c.handlers.pointerdown();c.context.dialogGeneration++;c.handlers.click({detail:1});assert.equal(c.count(),0);
+ c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),1);
 });

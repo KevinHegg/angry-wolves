@@ -16,7 +16,7 @@ function harness(){
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?{value:'0'}:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
  const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(r);entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:true}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
- const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
+ const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
  vm.runInNewContext(source,{window,document,localStorage:{getItem(){return null},setItem(){}},ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
  return{...window.test,api:window.test,nodes,get,posted};
 }
@@ -42,4 +42,14 @@ test('two complete adventures each offer score entry and replay resets all field
   a.showResults();assert.match(h.get('result-status').textContent,/#1/);a.action();
  }
  assert.equal(h.posted.length,2);assert.equal(a.state.chapter,0);assert.equal(a.result,null);
+});
+
+test('losing offers restart or rest; rest leaves the board inert and restart begins field one',()=>{
+ const h=harness(),a=h.api;a.start();a.state.chapter=2;a.state.status='lost';a.state.distance=0;
+ const board=a.state.board.slice();a.finishField();
+ assert.match(h.get('dialog-action').textContent,/field 1/);assert.equal(h.get('dialog-secondary').textContent,'Not now');
+ a.secondary();assert.equal(h.get('story-dialog').open,false);assert.equal(a.state.status,'lost');
+ a.select(30);a.commit();assert.deepEqual(a.state.board,board);assert.match(h.get('feedback').textContent,/Adventure over/);
+ h.get('retry').events.click();assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');assert.equal(a.state.score,0);
+ a.state.status='lost';a.finishField();a.action();assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');
 });

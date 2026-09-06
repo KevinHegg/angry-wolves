@@ -698,3 +698,14 @@ Selective tuning: `rescue-engine.js` exports `CAT_SETTINGS`: enabled=true, first
 The cat has type CAT=4, distinct from normal animal types 0–3; its artwork is icon 5 because icon 4 already represents the wolf. It never counts toward goals, points, herds or animal sound selection. Spawn only replaces a newly generated refill, at most one cat exists, and forced legal-herd generation preserves it. Successful rescues age it; mere selection, invalid moves and Pip do not advance the turn counter. Expiry and Pip removal use the same collapse/refill function as herds. Pip keeps the +3 wolf-distance effect but preserves other columns when removing a cat instead of shuffling them. A retry restores that field’s entry board and cat countdown.
 
 Verification: 45 tests pass, including cat lifetime, no scoring, exact gravity, carry-over, one-cat limit, first-field exclusion and invalid actions. Browser play verified a naturally spawned black cat, its help text, Pip dismissal, and a separate 2→1→vanished lifecycle with no console errors. Simulated goal-aware whole-adventure completion with emergency Pip usage is 626/1000 versus 736/1000 before this experiment; no-Pip completion is 384/1000 versus 475/1000. Simulations are tuning evidence, not predicted human outcomes.
+
+
+## Rescue 2.7 — explicit loss ending and more cat visits
+
+Previous full release remains at `play/2.6/`; the cat-free checkpoint `checkpoint/pre-magic-cat-2.5` is unchanged.
+
+A loss now sets play inactive and offers Play again from field one or Not now. Not now closes the dialog but leaves the lost board and controls disabled, with a clear finished message and a Play again link. Escape follows the same rest behavior. Replay resets the entire adventure, not only the lost field. Pointer clicks on dialog buttons must begin in that dialog generation; no screen-coordinate checks are used. This prevents a gesture begun on an earlier screen activating a newly appeared button.
+
+Cat tuning: chance .25→.5, minimum field rescues 2→1, cooldown 2→1. One-cat cap and 2–4 rescue lifespan are unchanged. Restore those three settings to reduce frequency independently of the loss-flow fix.
+
+47 tests pass. Browser play produced a real loss and verified the two choices, all-disabled resting board, and replay at the pasture with zero animals home. The exact Safari touch behavior remains subject to physical-device confirmation.
