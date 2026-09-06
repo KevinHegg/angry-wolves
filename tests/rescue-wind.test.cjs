@@ -37,7 +37,7 @@ test('new gusts start empty, never rotate on arrival, and replace cat visits',()
  const rng=seeded(seed),s=R.create(0,rng);
  while(s.status==='playing'){
  const r=R.rescue(s,R.groups(s.board)[0][0],rng);assert.ok(!s.board.some(R.isCat));assert.ok(Object.keys(s.cats).length<=1);
- if(r.catAppeared>=0){seen++;assert.ok(r.catAppeared<6);assert.equal(s.board[r.catAppeared],R.DUST);assert.equal(s.cats[r.catAppeared],3);assert.equal(r.rotations.length,0);}
+ if(r.catAppeared>=0){seen++;assert.ok(r.catAppeared>=1&&r.catAppeared<=4);assert.equal(s.board[r.catAppeared],R.DUST);assert.equal(s.cats[r.catAppeared],3);assert.equal(r.rotations.length,0);}
  }
  }assert.ok(seen>20);
 });
@@ -52,4 +52,10 @@ test('scheduled wait is 2–5 rescues, survives field carry, and resumes after P
 test('dust-free turns count down the wait; selections do not',()=>{
  const s=R.create(0,seeded(9));s.windWait=2;
  const r=R.rescue(s,R.groups(s.board)[0][0],seeded(8));assert.equal(r.catAppeared,-1);assert.equal(s.windWait,1);
+});
+test('gust defers arrival when only outside columns refill',()=>{
+ const s=R.create(2,seeded(5));s.board=Array.from({length:36},(_,i)=>(Math.floor(i/6)+i%6)%3);s.board[0]=s.board[6]=s.board[12]=3;s.windWait=1;s.distance=10;
+ const result=R.rescue(s,0,()=>.4);assert.equal(result.catAppeared,-1);assert.equal(s.windWait,0);assert.ok(!s.board.includes(R.DUST));
+ s.board[31]=s.board[32]=s.board[33]=3;
+ const next=R.rescue(s,31,()=>.4);assert.ok(next.catAppeared>=1&&next.catAppeared<=4);assert.equal(s.cats[next.catAppeared],3);
 });

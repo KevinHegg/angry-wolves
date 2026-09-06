@@ -797,3 +797,15 @@ This version remains local and unpublished. Previous production is 2.11 at `1f9b
 ### 2.12 publication authorization
 
 The user authorized publishing the delayed-scatter version. All 67 tests pass before deployment. Previous production is saved as `checkpoint/pre-scattering-wind-2.11` at `1f9b263` and in `play/2.11/`. This supersedes the local/unpublished status above. Publish only the game changes on the existing Pages branch; preserve unrelated Sheet/document edits.
+
+## Rescue 2.13 — selection clarity, middle-column arrivals, staged scatter (local)
+
+Selected scatter-neighbor tiles now explicitly retain the normal solid yellow outline and shadow; the dotted warning no longer overrides selection. No freezing is added. Gusts spawn only on newly refilled top-row cells in columns 2–5. If the scheduled arrival finds only outside-column refills, it waits at zero until an interior opening appears, preserving existing board tiles.
+
+The scatter animates through two temporary permutations with short pauses before settling into the actual shuffled result (1400ms). These intermediate arrangements are visual only and consume no game RNG. Board interaction stays locked until 1500ms, and an end-of-field dialog waits 1700ms so it cannot hide the scatter. Generation guards prevent stale timers from acting on a restarted adventure. Reduced-motion users get the final arrangement immediately. Existing whoosh remains.
+
+68 tests pass, including deferred edge-only refills and middle-column arrival bounds. Browser play verified a marked/selected animal has a solid 3px yellow outline, scatter feedback completes, and controls recover without console errors. Previous production remains 2.12 (`0188010`, `play/2.12/`); changes are local and unpublished. Revert the engine arrival filter and controller/CSS animation-selection changes to restore prior behavior, then package a new release.
+
+### 2.13 publication authorization and version label
+
+The user authorized publishing and requested a subtle version number. The opening screen now shows a small muted version label derived from `RescueServices.VERSION`, keeping it consistent with submissions and release packaging. Previous production is saved at `checkpoint/pre-scatter-clarity-2.12` (`0188010`) and `play/2.12/`. This supersedes the local/unpublished status above. All 68 tests pass before publication.
