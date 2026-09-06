@@ -817,3 +817,13 @@ Publication explicitly authorized. Leaderboard hides the decorative animal heade
 Scatter now runs three temporary shuffle passes before the final result, lasting 2400ms. Input unlocks at 2500ms; field completion waits 2700ms. The synthesized wind sound lasts 2.4 seconds, with gentle noise pulses and faded ends, using existing sound toggle and Safari media routing. Rules and final permutation are unchanged.
 
 68 tests pass. Browser verification at 393×550 with live read-only leaderboard data found five fully visible rows, a 240px list with 384px scroll content, and the return button bottom at y=498. Return action closes the dialog; version reads v2.14. Physical iPhone sound requires device acceptance. Previous production checkpoint: `checkpoint/pre-compact-scores-2.13` at `37c8cb9`, complete prior release at `play/2.13/`. No Sheet/backend edits are included.
+
+## Rescue 2.15 — whole-tile scatter and longer adventures
+
+Publication explicitly authorized. Scatter moves the complete animal buttons (background, border and figure), with grid bounds captured before animations begin. Existing three temporary arrangements, 2.4-second wind audio and input lock remain. Pip shows 'Send wolf back 3 steps' plus one filled/empty availability dot labeled as one bark per field; it is not a recharge timer.
+
+First-field starting wolf distance is now 5, the middle of the 0–10 track. Subsequent transitions still preserve the final wolf position. Rescue goals rise from 12 / 12+12 / 10 of each to 14 / 16+16 / 12 of each (94 required animals versus 76). No scoring formula, rest bonus or wind frequency changes.
+
+69 tests pass, including complete-tile scatter destinations, final-step victory, replay and distance carryover. Browser checked at 393×650: controls fit, initial wolf at 5, Pip use moved the wolf from 6 to 9 and emptied its indicator. No browser console errors. Seeded 1,000-adventure goal-aware simulations: emergency-bark policy 631 wins vs 774 previously; never-bark 358 vs 582. These are tuning comparisons, not human success rates. A larger trial goal increase was too severe and was reduced before release.
+
+Rollback checkpoint: checkpoint/pre-longer-adventure-2.14 at efa784a; complete old release remains at play/2.14/. To undo just difficulty, restore CHAPTERS goals/story and initial distance in rescue-engine.js, then package a new release. To revert everything, point index.html and classic.html redirects to play/2.14/ and commit/push on the publishing branch. Wind can still be disabled with WIND_SETTINGS.enabled=false and repackaging. No Sheet/backend edits included.

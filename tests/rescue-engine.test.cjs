@@ -37,10 +37,10 @@ test('bark is free, limited to one per field, and capped at ten steps', () => {
   const s=R.create(2); const before=[...s.board].sort();
   assert.equal(R.bark(s,random(1)),true); assert.equal(s.distance,R.CHAPTERS[2].distance+3); assert.equal(s.moves,0);
   assert.deepEqual([...s.board].sort(),before); assert.equal(R.bark(s),false);
-  const s2=R.create(); R.bark(s2); assert.equal(s2.distance,10);
+  const s2=R.create(); s2.distance=9; R.bark(s2); assert.equal(s2.distance,10);
 });
 test('last-step objective completion wins before wolf arrival', () => {
-  const s=setup(3,1); s.saved=[10,10,9,10]; R.rescue(s,0,random(8)); assert.equal(s.status,'won');
+  const s=setup(3,1); s.saved=R.CHAPTERS[2].goal.slice(); s.saved[2]-=3; R.rescue(s,0,random(8)); assert.equal(s.status,'won');
 });
 test('wolf arrival loses, and finished fields reject further actions', () => {
   const s=setup(3,1); R.rescue(s,0,random(8)); assert.equal(s.status,'lost');

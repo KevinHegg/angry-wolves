@@ -4,21 +4,23 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(){
- const nodes=new Map();
+function harness(reducedMotion=true){
+ const nodes=new Map(),animations=[];
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
   set innerHTML(html){this.html=html;for(const m of html.matchAll(/id="([^"]+)"/g))nodes.set(m[1],new Element());this.children=[...html.matchAll(/data-cell="(\d+)" data-type="(\d+)"/g)].map(m=>{const e=new Element();e.dataset={cell:m[1],type:m[2]};return e;});}
   get innerHTML(){return this.html;}
+  getBoundingClientRect(){const i=Number(this.dataset.cell)||0;return{left:(i%6)*50,top:Math.floor(i/6)*50};}
+  animate(frames,options){animations.push({cell:this,frames,options});}
   setAttribute(){} removeAttribute(){} addEventListener(k,fn){this.events[k]=fn;} focus(){document.activeElement=this;} showModal(){this.open=true;} close(){this.open=false;} replaceChildren(){this.children=[];} append(...els){this.children.push(...els);} remove(){for(const[k,v]of nodes)if(v===this)nodes.delete(k);}
  }
  const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?{value:'0'}:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(r);entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:true}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(r);entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
  const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
  vm.runInNewContext(source,{window,document,localStorage:{getItem(){return null},setItem(){}},ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
- return{...window.test,api:window.test,nodes,get,posted};
+ return{...window.test,api:window.test,nodes,get,posted,animations};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('two complete adventures each offer score entry and replay resets all fields and submission state',async(t)=>{
@@ -66,4 +68,18 @@ test('field transitions preserve the final wolf distance, retry preserves entry 
 test('wind visit wait survives field transition and retry',()=>{
  const h=harness(),a=h.api;a.start();a.state.windWait=1;a.state.status='won';a.finishField();a.action();assert.equal(a.state.windWait,1);
  a.state.windWait=4;h.get('retry').events.click();a.action();assert.equal(a.state.windWait,1);
+});
+
+test('scatter animates whole animal tiles and returns them to their grid positions',()=>{
+ const h=harness(false),a=h.api;a.start();
+ a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%3);
+ a.state.board[14]=R.DUST;a.state.cats={14:1};a.state.distance=10;
+ a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
+ a.select(30);a.commit();
+ assert.equal(h.animations.length,8);
+ for(const animation of h.animations){
+  assert.ok(animation.cell.dataset.cell!==undefined,'animate tile button, not its SVG');
+  assert.equal(animation.frames.at(-1).transform,'translate(0px,0px)');
+  assert.ok(animation.frames.some(f=>f.transform!=='translate(0px,0px)'));
+ }
 });
