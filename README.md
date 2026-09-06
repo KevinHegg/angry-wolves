@@ -18,6 +18,7 @@ Open `http://localhost:8000/`.
 - All four animals appear in every field, regardless of the current rescue goals. The opening board shuffles 8–10 of each species, totaling 36, with the count mix chosen without favoring any species. No sheep are added to force an opening herd. At least one herd is playable; larger groups occur naturally.
 - Adventures start with the wolf at the middle marker (5 steps). Rescue goals: 14 sheep, then 18 pigs and 18 hens, then 14 of each animal.
 - **Pip, bark!** pushes wolves back three steps and regroups the animals, once per field.
+- **Restart game** immediately abandons the current adventure and starts fresh at field one.
 - Complete the visible animal goals to continue with the same board of animals. A loss ends the adventure: Play again starts at field one; Not now leaves the finished board inactive.
 - Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
 - Later refills become more scattered. From whistle 18 in a field, wolves advance one extra step; from 26, two extra steps. Building herds is useful, but indefinite score farming is impossible.

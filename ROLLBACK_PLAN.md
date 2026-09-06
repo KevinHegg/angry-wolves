@@ -873,3 +873,9 @@ Requested curve: herd of 3 brings wolves one step closer; 4–6 hold them still;
 72 tests pass, including every changed herd-size boundary and interaction with late-field pressure. Same seeded 1,000-adventure goal-aware simulation before/after: emergency bark 21 -> 569 wins; never bark 0 -> 107 wins. This demonstrates a substantial easing while retaining Pip's value, not a human win-rate prediction. Standalone goal-aware field completion is 965/1000, 896/1000, 924/1000 with emergency bark; standalone starts do not model carried board/distance, so full-adventure results are the relevant comparison.
 
 Previous production checkpoint/pre-gentler-wolf-2.20 at e06395c; complete prior release play/2.20/. Repoint root/classic redirects there for rollback, or restore wolfStep and matching copy and package a new version. No Sheet/backend changes.
+
+## Rescue 2.22 — opening-only version and immediate game restart
+
+Version text is now only in the opening dialog. Removed the gameplay corner badge and desktop footer version; other dialogs hide the shared load-version element. Restart field becomes a larger 13px semibold Restart game link, preserving the existing footer height and board size. It immediately calls freshAdventure without a confirmation dialog, discarding unfinished progress and resetting field, score, wolf, Pip, wind and submission state. Existing generation guards invalidate delayed animations when restarting.
+
+74 tests pass, including unfinished field restart state reset and version-label visibility. Updated old field-retry tests to retain transition coverage without expecting a removed behavior. Prior production checkpoint/pre-restart-game-2.21 at f7b75e6, release play/2.21/, remain for rollback via root/classic redirects. No game balance or Sheet/backend edits.

@@ -59,18 +59,16 @@ test('losing offers restart or rest; rest leaves the board inert and restart beg
  a.state.status='lost';a.finishField();a.action();assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');
 });
 
-test('field transitions preserve the final wolf distance, retry preserves entry distance, fresh game resets it',()=>{
+test('field transitions preserve the final wolf distance and fresh games reset it',()=>{
  for(const distance of [0,1,4,8,10]){
   const h=harness(),a=h.api;a.start();a.state.distance=distance;a.state.status='won';a.finishField();a.action();
   assert.equal(a.state.chapter,1);assert.equal(a.state.distance,distance);
-  a.state.distance=2;h.get('retry').events.click();a.action();assert.equal(a.state.distance,distance);
   a.state.status='won';a.finishField();a.action();assert.equal(a.state.chapter,2);assert.equal(a.state.distance,distance);
   a.freshAdventure();assert.equal(a.state.distance,R.CHAPTERS[0].distance);
  }
 });
-test('wind visit wait survives field transition and retry',()=>{
+test('wind visit wait survives field transition',()=>{
  const h=harness(),a=h.api;a.start();a.state.windWait=1;a.state.status='won';a.finishField();a.action();assert.equal(a.state.windWait,1);
- a.state.windWait=4;h.get('retry').events.click();a.action();assert.equal(a.state.windWait,1);
 });
 
 test('scatter animates whole animal tiles and returns them to their grid positions',()=>{
@@ -94,4 +92,21 @@ test('Pip indicator starts open, fills when spent and resets for a new adventure
  assert.equal(a.state.bark,0);assert.match(h.get('bark').innerHTML,/class="filled"/);
  a.freshAdventure();assert.equal(a.state.bark,1);
  assert.doesNotMatch(h.get('bark').innerHTML,/class="filled"/);
+});
+
+test('Restart game immediately abandons an unfinished field and resets the adventure',()=>{
+ const h=harness(),a=h.api;a.start();a.state.status='won';a.finishField();a.action();
+ a.state.score=500;a.state.saved=[2,4,5,6];a.state.distance=1;a.state.moves=9;a.state.bark=0;
+ a.state.board[3]=R.DUST;a.state.cats={3:1};
+ h.get('retry').events.click();
+ assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');assert.equal(a.state.score,0);
+ assert.equal(a.state.distance,5);assert.equal(a.state.moves,0);assert.equal(a.state.bark,1);
+ assert.deepEqual(a.state.saved,[0,0,0,0]);assert.deepEqual(a.state.cats,{});
+ assert.equal(a.result,null);assert.equal(h.get('story-dialog').open,false);
+ assert.equal(h.get('retry').textContent,'Restart game');
+});
+test('version label belongs only to the opening dialog',()=>{
+ const h=harness(),a=h.api;assert.equal(h.get('load-version').hidden,false);
+ a.start();a.state.status='won';a.finishField();assert.equal(h.get('load-version').hidden,true);
+ a.showLeaderboard();assert.equal(h.get('load-version').hidden,true);
 });
