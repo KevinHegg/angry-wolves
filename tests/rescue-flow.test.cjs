@@ -31,6 +31,9 @@ test('two complete adventures each offer score entry and replay resets all field
   for(let moves=0;!a.result&&moves<1000;moves++){
    if(h.get('story-dialog').open){const previous=a.state.board.slice(),won=a.state.status==='won';a.action();if(won)assert.deepEqual(a.state.board,previous);continue;}
    const state=a.state,goal=R.CHAPTERS[state.chapter].goal;
+   // Controlled legal herds keep this a flow test, independent of survival difficulty.
+   const needed=goal.findIndex((n,type)=>state.saved[type]<n);
+   state.board.fill(needed);state.cats={};
    const groups=R.groups(state.board).sort((x,y)=>{
     const value=g=>g.length+2*Math.min(g.length,Math.max(0,goal[state.board[g[0]]]-state.saved[state.board[g[0]]]));return value(y)-value(x);
    });

@@ -857,3 +857,11 @@ Score entry opens first and expanded. The Post Score button is associated with s
 70 tests pass. Browser play at 393×650 verified a constant 292px board while warning text appeared/disappeared, including field carryover. Completed an adventure, opened score entry, and verified Post Score at y=423–467 on a 393×550 viewport. At height 350, Post Score ended at y=267 and return at y=319. Empty submission correctly focused initials via native form validation; no test score sent. Browser console had no errors. Shared URLs are tested as the literal root URL.
 
 Prior production checkpoint/pre-stable-layout-2.18 at c11bcb7, complete release play/2.18/. Root/classic redirects can restore that version. No game-rule or Sheet/backend changes included.
+
+## Rescue 2.20 — four animals throughout
+
+User explicitly chose all four animals in every field. Every chapter now uses four refill species. Opening counts are 8–10 of each, total 36, selected uniformly from 18 non-identical balanced count combinations, then shuffled. Count-preserving fallback still guarantees a legal herd of an unbiased random species. Field goals remain 14 sheep; 18 pigs and hens; 14 of each. Wolf rules, Pip, wind and board carryover remain unchanged. Help and final-field story no longer imply cows only arrive at the end.
+
+71 tests pass. Added deterministic checks for all four refill choices in every chapter and updated the 1,000-opening distribution test. The two-adventure UI flow test now uses controlled legal herds instead of relying on its old strategy surviving every difficulty revision. Fixed the existing distribution audit to carry wolf distance and wind wait exactly as production does. Across 2,000 audit runs, each species accounted for approximately 25% of refills in each field; final-field entry averaged 10.61 cows among 108 reached final fields instead of zero.
+
+Difficulty caveat communicated before publication: the simple seeded emergency-bark strategy won 21/1000 adventures; never-bark won 0/1000. This is not a human win-rate forecast. No compensating goal/wolf changes were made, so the requested four-species change can be judged independently. Prior production checkpoint/pre-all-animals-2.19 at b98b4ce and complete play/2.19/ remain for rollback. Restore root/classic redirects there to roll back. No Sheet/backend edits.
