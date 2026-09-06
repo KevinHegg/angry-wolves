@@ -53,3 +53,13 @@ test('losing offers restart or rest; rest leaves the board inert and restart beg
  h.get('retry').events.click();assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');assert.equal(a.state.score,0);
  a.state.status='lost';a.finishField();a.action();assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');
 });
+
+test('field transitions preserve the final wolf distance, retry preserves entry distance, fresh game resets it',()=>{
+ for(const distance of [0,1,4,8,10]){
+  const h=harness(),a=h.api;a.start();a.state.distance=distance;a.state.status='won';a.finishField();a.action();
+  assert.equal(a.state.chapter,1);assert.equal(a.state.distance,distance);
+  a.state.distance=2;h.get('retry').events.click();a.action();assert.equal(a.state.distance,distance);
+  a.state.status='won';a.finishField();a.action();assert.equal(a.state.chapter,2);assert.equal(a.state.distance,distance);
+  a.freshAdventure();assert.equal(a.state.distance,R.CHAPTERS[0].distance);
+ }
+});

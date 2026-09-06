@@ -19,7 +19,7 @@ Open `http://localhost:8000/`.
 - Complete the visible animal goals to continue with the same board of animals. A loss ends the adventure: Play again starts at field one; Not now leaves the finished board inactive.
 - Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
 - Later refills become more scattered. From whistle 18 in a field, wolves advance one extra step; from 26, two extra steps. Building herds is useful, but indefinite score farming is impossible.
-- From field two, one occasional black cat visits for 2–3 rescues. Most smile: they turn their own tile plus one adjacent animal into the largest connected herd, ready to whistle for points. Evil cats burst: neighbors go home without points and wolves advance one extra step. Pip quietly dismisses either cat, forfeiting a friendly gift. Cats and timers carry between fields.
+- From field two, an occasional dust devil turns its edge-neighbors clockwise after each rescue and refill. Three dots fill over three rotations; then only the gust becomes the animal forming the largest herd, with random choices between equally large options. Pip can clear the gust early. Progress and wolf distance carry between fields.
 - There is no real-time clock. Sound is optional; the speaker button shows its state.
 - Completed adventures can join the leaderboard with three letters and one of ten animal badges, or be shared as an illustrated score card.
 

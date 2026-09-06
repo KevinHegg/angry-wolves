@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),R=require('../rescue-engine');
 const seeded=n=>()=>((n=(n*1664525+1013904223)>>>0)/4294967296);
-function fixture(cats={12:3}){const s=R.create(1,()=>.4);s.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%3);s.cats={...cats};for(const i of Object.keys(cats))s.board[i]=R.CAT;s.board[33]=s.board[34]=s.board[35]=0;s.distance=10;return s;}
+function fixture(cats={12:3}){const s=R.create(1,()=>.4,null,{},R.CAT_SETTINGS);s.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%3);s.cats={...cats};for(const i of Object.keys(cats))s.board[i]=R.CAT;s.board[33]=s.board[34]=s.board[35]=0;s.distance=10;return s;}
 test('cats cannot form herds and invalid moves do not age them',()=>{
  const s=fixture(),before=structuredClone(s);assert.deepEqual(R.group(s.board,12),[]);assert.equal(R.rescue(s,12).ok,false);assert.deepEqual(s,before);
 });
@@ -35,7 +35,7 @@ test('carried cats retain independent lifetimes and the entry board is independe
 test('random arrivals cap at one with independent 2–3 rescue timers and never visit field one',()=>{
  let appeared=0,max=0;
  for(let seed=1;seed<=100;seed++)for(let chapter=0;chapter<3;chapter++){
-  const rng=seeded(seed),s=R.create(chapter,rng);
+  const rng=seeded(seed),s=R.create(chapter,rng,null,{},R.CAT_SETTINGS);
   while(s.status==='playing'&&s.moves<40){
    const groups=R.groups(s.board),r=R.rescue(s,groups[0][0],rng),count=Object.keys(s.cats).length;max=Math.max(max,count);
    assert.ok(count<=1);assert.equal(s.board.filter(t=>R.isCat(t)).length,count);assert.ok(R.groups(s.board).length);

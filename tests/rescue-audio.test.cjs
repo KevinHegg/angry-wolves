@@ -58,3 +58,8 @@ test('herd calls replace earlier selections and wolf reactions play on a separat
  assert.ok(context.sources.at(-1).at>rescue.at+.3);assert.equal(rescue.stopped,undefined);
  h.audio.setEnabled(false);assert.equal(context.state,'closed');
 });
+test('rotation whoosh uses a buffered voice after resume and respects mute',async()=>{
+ const h=harness();const pending=h.audio.play('whoosh');h.instances[0].ready();assert.equal(await pending,true);
+ assert.equal(h.instances[0].sources.length,2);assert.equal(h.instances[0].notes.length,0);
+ h.audio.setEnabled(false);assert.equal(await h.audio.play('whoosh'),false);
+});
