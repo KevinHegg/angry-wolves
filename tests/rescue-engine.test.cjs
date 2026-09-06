@@ -19,7 +19,7 @@ test('herd sizes apply exactly the displayed wolf movement', () => {
     const result=R.rescue(s,0,random(12));
     assert.equal(result.count,size);
     assert.equal(result.count,group);
-    assert.equal(s.distance,5+(group===3?-1:group<7?0:1));
+    assert.equal(s.distance,5+(group<=4?-1:group<7?0:1));
     assert.equal(s.saved[2],group);
   }
 });
@@ -115,6 +115,6 @@ test('pasture refills have three species and cows join from the orchard',()=>{
 test('late-field pressure still adds to the revised wolf movement',()=>{
  for(const moves of [17,25])for(const size of [3,4,6,7]){
   const s=setup(size);s.moves=moves;R.rescue(s,0,random(12));
-  assert.equal(s.distance,5+(size===3?-1:size<7?0:1)-(moves===17?1:2));
+  assert.equal(s.distance,5+(size<=4?-1:size<7?0:1)-(moves===17?1:2));
  }
 });

@@ -895,3 +895,9 @@ Requested progression: field one has only sheep, pigs and hens, with a shuffled 
 75 tests pass, including opening balance and every available refill type per chapter. Across 2,000 audit adventures, field-one refills were 32.98/33.41/33.61% and zero cows; orchard/final refills were about 25% each. Final-field entry averaged 9.43 cows. Same seeded 1,000-adventure strategy: emergency-bark wins 979 vs 735 in 2.23; no-bark wins 681 vs 107. This is substantially more forgiving and was explicitly communicated; these are simulation comparisons, not human win-rate claims.
 
 Previous production checkpoint/pre-orchard-cows-2.23 at 59a1428 and complete play/2.23/ remain for rollback via root/classic redirects. No Sheet/backend edits.
+
+## Rescue 2.25 — herds of four advance the wolf
+
+Requested base movement: 3–4 animals move wolves one step closer, 5–6 hold still, 7+ push back one. Updated shared rules, intro, help, desktop key and README. Existing late-field pressure, cows from the orchard, goals and three shared Pip barks remain unchanged.
+
+75 tests pass, including movement boundaries and late pressure. Same seeded 1,000-adventure simulation: emergency bark 846 wins (previously 979); no bark 245 (previously 681). These are strategy comparisons, not human success forecasts. Prior checkpoint/pre-four-herd-pressure-2.24 at 1957cf0 and play/2.24/ remain for rollback via root/classic redirects. No Sheet/backend edits.
