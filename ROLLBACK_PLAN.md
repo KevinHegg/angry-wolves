@@ -839,3 +839,11 @@ Prior production: checkpoint/pre-oink-goals-2.15 at dc150be, complete release pl
 ## Rescue 2.17 — Pip cannot disperse wind
 
 Correction to the published gameplay: Pip still sends wolves back three steps and shuffles animals, but dust devils stay at the same indices with unchanged countdowns and visit waits. Animal-only shuffle excludes special tiles. Removed gust disappearance animation and corrected feedback, accessibility labels and help. Legacy cat-only dismissal remains for rollback compatibility. All 70 tests pass, including gust position/timer/wait preservation through a bark. Previous release play/2.16/ and checkpoint/pre-pip-wind-2.16 at 8c2ff05 remain available for rollback via root/classic redirects.
+
+## Rescue 2.18 — balanced opening and lower pig grunt
+
+Opening boards choose one of the six permutations of counts 11/12/13 for sheep, pigs and hens, then Fisher–Yates shuffle the bag. No species is favored and no sheep are inserted. If no legal herd exists, count-preserving swaps gather a random species into a random horizontal triple. Larger herds are left to chance. Carried boards and normal refill rules remain unchanged. A four-species opening/refill experiment reduced simulated full-adventure completion to 21/1000 and was rejected; cows still join in field three. First-field goal-aware average rescues rose from about 4.84 to 6.2; full-adventure emergency-bark wins 571/1000 vs 237/1000 without bark. Simulations are not human win-rate claims.
+
+Pig now uses a lower double grunt (620ms), rougher throat pulse and a brief nasal snort, with less vowel sweep; short preview 250ms. All 70 tests pass, including 1,000 balanced opening boards, species-count variation, playable herds, audio bounds and all carryover/flow tests. Physical-phone listening remains to be judged by the user.
+
+Prior production checkpoint/pre-balanced-opening-2.17 at 1be3e43; old playable release play/2.17/. Restore redirects there and publish to roll back completely, or restore opening board construction and pig synthesis independently and package a fresh release. No Sheet/backend edits.

@@ -86,8 +86,14 @@ test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
  assert.equal(R.pressure(17),0);assert.equal(R.pressure(18),1);assert.equal(R.pressure(26),2);
 });
 
-test('first field guarantees three sheep while leaving the fourth tile random',()=>{
- const s=R.create(0,()=>.9);
- assert.deepEqual(s.board.slice(30,33),[0,0,0]);assert.equal(s.board[33],2);
- assert.equal(R.group(s.board,30).length,3);
+test('opening boards balance all three animals without favoring sheep and always offer a herd',()=>{
+ const totals=[0,0,0],mixes=new Set();
+ for(let seed=1;seed<=1000;seed++){
+  const s=R.create(0,random((seed*2654435761)>>>0)),counts=[0,0,0];s.board.forEach(t=>counts[t]++);
+  assert.equal(s.board.length,36);assert.ok(counts.every(n=>n>=11&&n<=13));
+  assert.ok(!counts.every(n=>n===12));assert.ok(R.groups(s.board).length);
+  counts.forEach((n,t)=>totals[t]+=n);mixes.add(counts.join(','));
+ }
+ assert.equal(mixes.size,6);assert.ok(Math.max(...totals)-Math.min(...totals)<500);
+ for(const rng of [()=>0,()=>.5,()=>.999])assert.ok(R.groups(R.create(0,rng).board).length);
 });
