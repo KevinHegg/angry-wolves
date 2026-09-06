@@ -729,3 +729,37 @@ Defaults: maxCats=1 (was 3), chance=.25 (was .5), minMoves=2, goodChance=.65, mi
 Evil cats retain the prior burst, neighbor-goal credit/no points, and extra wolf step. After the normal rescue and gravity, an expiring friendly cat converts itself plus its orthogonal animal neighbors into the type creating the largest connected herd through its tile. It tries each available animal; ties favor the largest unfinished goal, then animal order. Other cats are never converted. Transformation grants no immediate score, goal credit or extra wolf movement; players must whistle the resulting herd. A warm glow marks the gift. Distinct black faces show a wide grin/curved eyes versus amber eyes/fangs, with green versus plum tile treatments.
 
 52 tests pass, including largest-herd selection, no immediate friendly score, cat exclusion, disabled arrivals, cap/timer invariants and existing evil behavior/flow. Browser play verified the friendly face, countdown and an 18-sheep gift with no console errors. Seeded whole-adventure goal-aware completion: emergency Pip 681/1000 (2.8:444); no Pip 479/1000 (2.8:222). This is comparative tuning evidence, not human-play prediction. All earlier checkpoints and unrelated Sheet changes are preserved.
+
+## Rescue 2.10 — face-safe counters and visible evil-cat neighbors
+
+Local UI update; production remains 2.9 pending publication. Prior release is preserved at `play/2.9/`, commit `6e851bc`. No gameplay or distribution rules changed. Cat countdowns are three dots in a reserved strip below the SVG face; lit dots indicate rescues remaining and the accessible label retains the exact number. Evil-cat neighbors have dashed outlines throughout the countdown, strengthened on the final rescue. They remain playable; freezing was a brainstorm, not an implemented rule. Guide copy makes this explicit.
+
+Distribution audit: `node scripts/audit-animal-distribution.cjs` observes actual refills across 2,000 seeded adventures without changing RNG calls. Of 136,350 last-field refills: sheep 24.92%, pigs 25.14%, hens 24.86%, cows 25.08%. All 1,997 adventures reaching that field entered with zero cows: fields one and two contain only three species and the board carries forward. These are refill proportions before cat replacement or friendly transformation, not a guarantee of equal board counts at every moment. No cow weighting change was made.
+
+52 existing tests pass. Browser verification at 393×650 confirmed the cat face ends two pixels above its counter strip, the grin stays visible, and the whistle remains within the viewport. No physical iPhone test is claimed.
+
+### 2.10 follow-up — any three tiles, no freezing
+
+The good cat now evaluates every available three-tile subset of its tile plus orthogonal animal neighbors, and every available animal type. It selects the largest resulting connected herd touching a chosen tile, with the existing unfinished-goal tie-break. If its own tile is excluded, it disappears and its column collapses/refills normally. Candidate evaluation accounts for that fall, treating the unknown new top tile as nonmatching; the actual random refill may extend the resulting herd. Only three tiles are assigned, and no immediate points or goal credit are awarded. Other cats remain untouched. Pip still dismisses it without a gift. Animal probabilities and challenge modes are unchanged.
+
+`catNeighbors()` now supplies the visible evil-cat warning from arrival, including left/right/below on the top row and all four neighbors in the interior. The final-turn burst preview uses the same board geometry. These are playable marked tiles, not frozen tiles.
+
+54 tests pass, including top-row/interior warning geometry, gifts that exclude the cat, gravity, and surviving tile validity. Seeded adventure completion with emergency Pip: 690/1000; median base score 2356 (unchanged versus 2.9). Without Pip: 475/1000, median base 2352 (2.9:2376). This change limits tiles converted but does not guarantee smaller herds or lower scores. Local changes remain unpublished; published rollback remains 2.9 (`6e851bc`).
+
+### 2.10 final tuning — cat plus two neighbors
+
+Supersedes the any-three follow-up above: the good cat always includes its own tile plus two orthogonal animal neighbors. It searches neighbor pairs and available animal types for the largest connected herd, retaining the unfinished-goal tie-break. It transforms in place, so there is no secondary collapse/refill. Existing evil warning and dot-counter changes remain. Production is still 2.9; this change is local.
+
+55 tests pass, including all 36 cat positions and seeded transformations without extra movement. Comparing the same seeded tuning runs with the prior any-three implementation: mean gift herd 10.41 → 10.36, median 10 → 10, 95th percentile 17 → 17. Emergency-Pip whole-adventure completion 690/1000 → 693/1000; median base score 2356 → 2346. No-Pip completion and median base remained 475/1000 and 2352. This simplifies tile movement but does not appreciably reduce large herds or scoring.
+
+### 2.10 latest tuning — cat plus one neighbor
+
+Supersedes the cat-plus-two tuning above. The good cat transforms its own tile plus one orthogonal animal neighbor, choosing the animal and neighbor that form the largest connected herd. No secondary gap, gravity or immediate score is introduced. Guide, selection message, README and release package match this rule.
+
+55 tests pass. Same seeded comparison: average gift herd 10.36 → 9.34, median 10 → 9, 95th percentile 17 → 16. Emergency-Pip adventure median base score 2346 → 2298, completion 693/1000 → 679/1000; no-Pip median base 2352 → 2322, completion 475/1000 → 470/1000. This modestly reduces gift strength while retaining large connections when the existing board supports them. Still local and unpublished; live remains 2.9.
+
+### 2.10 publication — smaller opening herd
+
+Publication authorized by the user. First-field setup now guarantees three sheep rather than four; the fourth tile retains its random animal, so naturally larger groups can still form. Carried boards and later-field rules are unchanged. Together with the cat-plus-one gift, face-safe dots and arrival-time evil warning, this is release 2.10. Previous production is saved at `checkpoint/pre-small-gift-2.9` (`6e851bc`) and `play/2.9/`. Disable cats via `CAT_SETTINGS.enabled=false` and package/deploy a fresh release if desired.
+
+56 tests pass. Seeded first-field goal-aware play averages 4.02 rescues versus 3.47 before reducing the guaranteed sheep. First-field completion remains 1000/1000 for this strategy; this is a gentler opening adjustment, not a major difficulty increase. Whole-adventure emergency-Pip completion is 676/1000. Earlier 'local/unpublished' notes above describe preparation stages, superseded by this publication authorization.

@@ -85,3 +85,9 @@ test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
  assert.equal(state.status,'lost');assert.ok(state.moves<=40);
  assert.equal(R.pressure(17),0);assert.equal(R.pressure(18),1);assert.equal(R.pressure(26),2);
 });
+
+test('first field guarantees three sheep while leaving the fourth tile random',()=>{
+ const s=R.create(0,()=>.9);
+ assert.deepEqual(s.board.slice(30,33),[0,0,0]);assert.equal(s.board[33],2);
+ assert.equal(R.group(s.board,30).length,3);
+});
