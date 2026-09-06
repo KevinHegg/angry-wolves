@@ -53,7 +53,7 @@ test('thousands of turns stay valid and always offer a legal herd', () => {
       const gs=R.groups(s.board); assert.ok(gs.length);
       if(s.distance<=2 && s.bark) R.bark(s,rng);
       const legal=R.groups(s.board); R.rescue(s,legal[Math.floor(rng()*legal.length)][0],rng);
-      assert.equal(s.board.length,36); assert.ok(s.board.every(t=>t===R.CAT || (t>=0 && t<R.CHAPTERS[chapter].types)));
+      assert.equal(s.board.length,36); assert.ok(s.board.every(t=>R.isCat(t) || (t>=0 && t<R.CHAPTERS[chapter].types)));
       assert.ok(s.distance>=0 && s.distance<=10); assert.ok(Number.isFinite(s.score));
     }
   }

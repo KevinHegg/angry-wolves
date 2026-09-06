@@ -29,20 +29,39 @@ test('Pip quietly removes every cat without scoring, advancing timers, or shuffl
  for(let i=0;i<36;i++)if(i%6>1)assert.equal(s.board[i],before[i]);assert.equal(R.bark(s),false);
 });
 test('carried cats retain independent lifetimes and the entry board is independent',()=>{
- const s=fixture({12:2,13:4}),next=R.create(2,()=>.7,s.board,s.cats);assert.deepEqual(next.cats,s.cats);assert.deepEqual(next.board,s.board);assert.notEqual(next.board,s.board);
- R.rescue(next,33,()=>.7);assert.deepEqual(Object.values(next.cats).sort(),[1,3]);assert.deepEqual(s.cats,{12:2,13:4});
+ const s=fixture({12:2,13:3}),next=R.create(2,()=>.7,s.board,s.cats);assert.deepEqual(next.cats,s.cats);assert.deepEqual(next.board,s.board);assert.notEqual(next.board,s.board);
+ R.rescue(next,33,()=>.7);assert.deepEqual(Object.values(next.cats).sort(),[1,2]);assert.deepEqual(s.cats,{12:2,13:3});
 });
-test('random arrivals cap at three with independent 2–4 rescue timers and never visit field one',()=>{
+test('random arrivals cap at one with independent 2–3 rescue timers and never visit field one',()=>{
  let appeared=0,max=0;
  for(let seed=1;seed<=100;seed++)for(let chapter=0;chapter<3;chapter++){
   const rng=seeded(seed),s=R.create(chapter,rng);
   while(s.status==='playing'&&s.moves<40){
    const groups=R.groups(s.board),r=R.rescue(s,groups[0][0],rng),count=Object.keys(s.cats).length;max=Math.max(max,count);
-   assert.ok(count<=3);assert.equal(s.board.filter(t=>t===R.CAT).length,count);assert.ok(R.groups(s.board).length);
-   for(const [i,t] of Object.entries(s.cats)){assert.equal(s.board[i],R.CAT);assert.ok(t>=1&&t<=4);}
+   assert.ok(count<=1);assert.equal(s.board.filter(t=>R.isCat(t)).length,count);assert.ok(R.groups(s.board).length);
+   for(const [i,t] of Object.entries(s.cats)){assert.ok(R.isCat(s.board[i]));assert.ok(t>=1&&t<=3);}
    if(chapter===0)assert.equal(count,0);
-   if(r.catAppeared>=0){appeared++;assert.ok(s.cats[r.catAppeared]>=2&&s.cats[r.catAppeared]<=4);}
+   if(r.catAppeared>=0){appeared++;assert.ok(s.cats[r.catAppeared]>=2&&s.cats[r.catAppeared]<=3);}
   }
  }
- assert.ok(appeared>50);assert.equal(max,3);
+ assert.ok(appeared>50);assert.equal(max,1);
+});
+test('smiling cat converts itself and neighbors into the largest possible connected herd',()=>{
+ const s=fixture({12:1});s.board[12]=R.GOOD_CAT;
+ const count=R.group(s.board,33).length,result=R.rescue(s,33,()=>.7);
+ assert.equal(result.burstCats.length,0);assert.equal(result.gifts.length,1);assert.equal(s.distance,10+R.wolfStep(count));
+ const gift=result.gifts[0];assert.equal(gift.cells.length,4);assert.ok(gift.cells.every(i=>s.board[i]===gift.type));
+ assert.equal(R.group(s.board,gift.cells[0]).length,gift.size);assert.equal(s.score,R.herdPoints(count));assert.equal(s.saved.reduce((a,b)=>a+b),count);
+ for(let type=0;type<3;type++){let board=s.board.slice();gift.cells.forEach(i=>board[i]=type);assert.ok(R.group(board,gift.cells[0]).length<=gift.size);}
+});
+test('friendly gift preserves other cats and Pip forfeits the gift',()=>{
+ const s=fixture({12:1,13:2});s.board[12]=R.GOOD_CAT;
+ const gift=R.bestGift(s,12);assert.ok(!gift.cells.includes(13));
+ R.bark(s,()=>.7);assert.deepEqual(s.cats,{});assert.deepEqual(s.saved,[0,0,0,0]);assert.equal(s.score,0);
+});
+test('cat switch disables arrivals without changing core herd rules',()=>{
+ for(let seed=1;seed<=50;seed++){
+ const rng=seeded(seed),s=R.create(2,rng,null,{}, {...R.CAT_SETTINGS,enabled:false});
+ while(s.status==='playing'){R.rescue(s,R.groups(s.board)[0][0],rng);assert.ok(!s.board.some(R.isCat));}
+ }
 });
