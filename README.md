@@ -20,7 +20,7 @@ Open `http://localhost:8000/`.
 - Complete the visible animal goals to continue with the same board of animals. A loss ends the adventure: Play again starts at field one; Not now leaves the finished board inactive.
 - Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
 - Later refills become more scattered. From whistle 18 in a field, wolves advance one extra step; from 26, two extra steps. Building herds is useful, but indefinite score farming is impossible.
-- Dust devils arrive in the four middle columns of the top row after a random 2–5-rescue wait, starting in field one. Arrival counts as zero; after three more rescues, the gust scatters up to eight surrounding animals (including diagonals), then becomes the animal forming the largest herd. Ties are random. Clear below it to move it toward an edge before the scatter. Pip can clear it early. Progress, visit waits and wolf distance carry between fields.
+- Dust devils arrive in the four middle columns of the top row after a random 2–5-rescue wait, starting in field one. Arrival counts as zero; after three more rescues, the gust scatters up to eight surrounding animals (including diagonals), then becomes the animal forming the largest herd. Ties are random. Clear below it to move it toward an edge before the scatter. Pip regroups animals but preserves the gust’s position and countdown. Progress, visit waits and wolf distance carry between fields.
 - There is no real-time clock. Sound is optional; the speaker button shows its state.
 - Completed adventures can join the leaderboard with three letters and one of ten animal badges, or be shared as an illustrated score card.
 

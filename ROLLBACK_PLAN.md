@@ -835,3 +835,7 @@ Publication explicitly authorized. Replaced the pig's generic pulsed voice with 
 Pip's dot is now open when available and filled when spent, with existing text labels preserved. Orchard requires 18 pigs and 18 hens; final field requires 14 of each animal. First field remains 14 sheep and starting wolf distance remains 5. Total minimum rescues: 106 animals. All 70 tests pass, including dot lifecycle and audio bounds/fades. Seeded tuning simulation gives 507/1000 wins with emergency bark and 264/1000 without, not a prediction of human success rates.
 
 Prior production: checkpoint/pre-oink-goals-2.15 at dc150be, complete release play/2.15/. Roll back by pointing root/classic redirects to play/2.15/ and committing/pushing the publishing branch. To undo only goals, restore CHAPTERS orchard/final goals and matching story copy, then package a new release. No Sheet/backend changes included.
+
+## Rescue 2.17 — Pip cannot disperse wind
+
+Correction to the published gameplay: Pip still sends wolves back three steps and shuffles animals, but dust devils stay at the same indices with unchanged countdowns and visit waits. Animal-only shuffle excludes special tiles. Removed gust disappearance animation and corrected feedback, accessibility labels and help. Legacy cat-only dismissal remains for rollback compatibility. All 70 tests pass, including gust position/timer/wait preservation through a bark. Previous release play/2.16/ and checkpoint/pre-pip-wind-2.16 at 8c2ff05 remain available for rollback via root/classic redirects.

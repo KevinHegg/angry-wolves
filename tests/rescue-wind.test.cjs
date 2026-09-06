@@ -26,10 +26,10 @@ test('replacement selects largest connected herd and randomly breaks equal-size 
  s.board=Array(36).fill(R.DUST);s.board[8]=0;s.board[20]=1;
  assert.equal(R.windGift(s,14,()=>0).type,0);assert.equal(R.windGift(s,14,()=>.999).type,1);
 });
-test('gusts carry progress, ignore selections, and Pip clears them without rotation',()=>{
+test('gusts carry progress, ignore selections, and Pip preserves their position and timer',()=>{
  const s=R.create(1,seeded(2));s.board[7]=R.DUST;s.cats={7:2};
  assert.deepEqual(R.group(s.board,7),[]);const before=structuredClone(s);assert.equal(R.rescue(s,7).ok,false);assert.deepEqual(s,before);
- const next=R.create(2,seeded(3),s.board,s.cats);assert.deepEqual(next.cats,{7:2});R.bark(next);assert.deepEqual(next.cats,{});assert.equal(next.moves,0);assert.equal(next.score,0);
+ const next=R.create(2,seeded(3),s.board,s.cats);assert.deepEqual(next.cats,{7:2});const wait=next.windWait;R.bark(next);assert.deepEqual(next.cats,{7:2});assert.equal(next.board[7],R.DUST);assert.equal(next.windWait,wait);assert.equal(next.moves,0);assert.equal(next.score,0);
 });
 test('new gusts start empty, never rotate on arrival, and replace cat visits',()=>{
  let seen=0;
@@ -42,11 +42,11 @@ test('new gusts start empty, never rotate on arrival, and replace cat visits',()
  }assert.ok(seen>20);
 });
 
-test('scheduled wait is 2–5 rescues, survives field carry, and resumes after Pip',()=>{
+test('scheduled wait is 2–5 rescues, survives field carry, and is unchanged by Pip',()=>{
  for(const rng of [()=>0,()=>.999]){
   const s=R.create(0,rng);assert.equal(s.windWait,rng()===0?2:5);
   const next=R.create(1,rng,s.board,s.cats,undefined,s.windWait);assert.equal(next.windWait,s.windWait);
-  next.board[2]=R.DUST;next.cats={2:3};R.bark(next,rng);assert.equal(next.windWait,rng()===0?2:5);
+  next.board[2]=R.DUST;next.cats={2:3};next.windWait=0;R.bark(next,rng);assert.equal(next.windWait,0);assert.deepEqual(next.cats,{2:3});assert.equal(next.board[2],R.DUST);
  }
 });
 test('dust-free turns count down the wait; selections do not',()=>{
