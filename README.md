@@ -15,7 +15,7 @@ Open `http://localhost:8000/`.
 - Select 3+ matching animals touching horizontally or vertically.
 - Press **Whistle** or select the same herd again to send them home.
 - Herds of 3 move wolves one step closer; 4–6 hold them still; 7+ push them one step toward the forest.
-- All four animals appear in every field, regardless of the current rescue goals. The opening board shuffles 8–10 of each species, totaling 36, with the count mix chosen without favoring any species. No sheep are added to force an opening herd. At least one herd is playable; larger groups occur naturally.
+- The pasture starts with 11, 12 and 13 sheep/pigs/hens, with those counts randomly assigned to species. Cows join the refills from the orchard onward, independently of the current rescue goals. No sheep are added to force an opening herd. At least one herd is playable; larger groups occur naturally.
 - Adventures start with the wolf at the middle marker (5 steps). Rescue goals: 14 sheep, then 18 pigs and 18 hens, then 14 of each animal.
 - **Pip, bark!** pushes wolves back three steps and regroups the animals. Three barks are shared across the whole adventure; spend them in any field. Open circles show available barks, filled circles show used barks.
 - **Restart game** immediately abandons the current adventure and starts fresh at field one.

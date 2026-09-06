@@ -87,26 +87,26 @@ test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
  assert.equal(R.pressure(17),0);assert.equal(R.pressure(18),1);assert.equal(R.pressure(26),2);
 });
 
-test('opening boards balance all four animals without favoring sheep and always offer a herd',()=>{
- const totals=[0,0,0,0],mixes=new Set();
+test('opening boards balance the three pasture animals without favoring sheep and always offer a herd',()=>{
+ const totals=[0,0,0],mixes=new Set();
  for(let seed=1;seed<=1000;seed++){
-  const s=R.create(0,random((seed*2654435761)>>>0)),counts=[0,0,0,0];s.board.forEach(t=>counts[t]++);
-  assert.equal(s.board.length,36);assert.ok(counts.every(n=>n>=8&&n<=10));
-  assert.ok(!counts.every(n=>n===9));assert.ok(R.groups(s.board).length);
+  const s=R.create(0,random((seed*2654435761)>>>0)),counts=[0,0,0];assert.ok(s.board.every(t=>t<3));s.board.forEach(t=>counts[t]++);
+  assert.equal(s.board.length,36);assert.ok(counts.every(n=>n>=11&&n<=13));
+  assert.ok(!counts.every(n=>n===12));assert.ok(R.groups(s.board).length);
   counts.forEach((n,t)=>totals[t]+=n);mixes.add(counts.join(','));
  }
- assert.equal(mixes.size,18);assert.ok(Math.max(...totals)-Math.min(...totals)<500);
+ assert.equal(mixes.size,6);assert.ok(Math.max(...totals)-Math.min(...totals)<500);
  for(const rng of [()=>0,()=>.5,()=>.999])assert.ok(R.groups(R.create(0,rng).board).length);
 });
 
-test('every field refills with all four animals independently of its goals',()=>{
+test('pasture refills have three species and cows join from the orchard',()=>{
  for(let chapter=0;chapter<3;chapter++){
-  assert.equal(R.CHAPTERS[chapter].types,4);
-  for(let type=0;type<4;type++){
+  const types=chapter===0?3:4;assert.equal(R.CHAPTERS[chapter].types,types);
+  for(let type=0;type<types;type++){
    const state=R.create(chapter,random(10));state.board=striped();
    state.board[30]=state.board[31]=state.board[32]=0;
    state.catSettings={...R.WIND_SETTINGS,enabled:false};
-   R.rescue(state,30,()=>(type+.5)/4);
+   R.rescue(state,30,()=>(type+.5)/types);
    assert.equal(state.board[0],type);assert.equal(state.board[1],type);assert.equal(state.board[2],type);
   }
  }

@@ -887,3 +887,11 @@ Pip starts each adventure with three barks, usable in any field. Each use decrem
 75 tests pass, including spending multiple barks in a field, carrying 1 and 0 charges between fields, rejecting a fourth use, restoring three on restart, and preserving field-based rest bonuses. The anti-farming bound rises to 44 moves because three barks can buy nine moves at full pressure. Simulation/audit tools now carry charges as production does and compute rests by whether a field consumed a charge. Same seeded 1,000-adventure emergency-bark strategy: 735 wins vs 569 with one bark per field; never-bark remains 107. Not a human win-rate claim.
 
 Previous release play/2.22/ and checkpoint/pre-shared-pip-2.22 at c66884c remain for rollback via root/classic redirects. No Sheet/backend edits.
+
+## Rescue 2.24 — cows join in the orchard
+
+Requested progression: field one has only sheep, pigs and hens, with a shuffled opening count mix of 11/12/13 assigned without species preference. Cows enter normal refills in field two and remain available in field three. The carried board is not replaced or seeded at transitions. Goals, wolf curve, shared three-bark pool, pressure and rest bonuses remain unchanged. Orchard story and help explain building cow herds ahead of the final field.
+
+75 tests pass, including opening balance and every available refill type per chapter. Across 2,000 audit adventures, field-one refills were 32.98/33.41/33.61% and zero cows; orchard/final refills were about 25% each. Final-field entry averaged 9.43 cows. Same seeded 1,000-adventure strategy: emergency-bark wins 979 vs 735 in 2.23; no-bark wins 681 vs 107. This is substantially more forgiving and was explicitly communicated; these are simulation comparisons, not human win-rate claims.
+
+Previous production checkpoint/pre-orchard-cows-2.23 at 59a1428 and complete play/2.23/ remain for rollback via root/classic redirects. No Sheet/backend edits.
