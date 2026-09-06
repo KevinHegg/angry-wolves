@@ -14,11 +14,11 @@ test('native share receives the prepared PNG and link without duplicate score te
  let sent;const h=harness({canShare:()=>true,share:data=>{sent=data;return Promise.resolve();}});
  assert.equal(await h.share(result,{blob:'prepared-image'}),'shared');
  assert.equal(sent.files[0].name,'angry-wolves-score.png');assert.equal(sent.files[0].type,'image/png');
- assert.equal(sent.text,undefined);assert.equal(sent.url,S.GAME_URL);
+ assert.equal(sent.text,undefined);assert.equal(sent.url,'https://kevinhegg.github.io/angry-wolves/');
 });
 test('text-only native sharing includes a public game URL',async()=>{
  let sent;const h=harness({canShare:()=>false,share:data=>{sent=data;return Promise.resolve();}});
- await h.share(result,null);assert.equal(sent.url,S.GAME_URL);assert.equal(sent.files,undefined);assert.equal(sent.text,undefined);
+ await h.share(result,null);assert.equal(sent.url,'https://kevinhegg.github.io/angry-wolves/');assert.equal(sent.files,undefined);assert.equal(sent.text,undefined);
 });
 test('unsupported sharing falls back and cancellation never claims success',async()=>{
  assert.equal(await harness({}).share(result,null),'fallback');

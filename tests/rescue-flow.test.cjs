@@ -39,8 +39,8 @@ test('two complete adventures each offer score entry and replay resets all field
   assert.ok(a.result,'adventure completed');await settle();
   assert.ok(h.nodes.has('post-score'));assert.ok(h.nodes.has('leaderboard'));assert.equal(h.get('story-dialog').scrollTop,0);
   assert.notEqual(a.result.nonce,priorNonce);priorNonce=a.result.nonce;
-  a.showLeaderboard();await settle();assert.ok(h.nodes.has('score-form'));h.get('score-initials').value='ABC';
-  await a.postScore({preventDefault(){}});await settle();assert.equal(a.submission.done,true);assert.equal(a.result.rank,1);
+  a.showLeaderboard();await settle();assert.ok(h.nodes.has('score-form'));assert.equal(h.get('submit-score').hidden,false);h.get('score-initials').value='ABC';
+  await a.postScore({preventDefault(){}});await settle();assert.equal(a.submission.done,true);assert.equal(h.get('submit-score').hidden,true);assert.equal(a.result.rank,1);
   a.showResults();assert.match(h.get('result-status').textContent,/#1/);a.action();
  }
  assert.equal(h.posted.length,2);assert.equal(a.state.chapter,0);assert.equal(a.result,null);

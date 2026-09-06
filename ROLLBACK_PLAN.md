@@ -847,3 +847,13 @@ Opening boards choose one of the six permutations of counts 11/12/13 for sheep, 
 Pig now uses a lower double grunt (620ms), rougher throat pulse and a brief nasal snort, with less vowel sweep; short preview 250ms. All 70 tests pass, including 1,000 balanced opening boards, species-count variation, playable herds, audio bounds and all carryover/flow tests. Physical-phone listening remains to be judged by the user.
 
 Prior production checkpoint/pre-balanced-opening-2.17 at 1be3e43; old playable release play/2.17/. Restore redirects there and publish to roll back completely, or restore opening board construction and pig synthesis independently and package a fresh release. No Sheet/backend edits.
+
+## Rescue 2.19 — stable board, root share link and visible score submission
+
+Mobile warning and rescue feedback now share a permanently reserved 48px message area below the board. Header spacing recovers the extra 16px, so the board is not reduced to make room. The fit calculation measures this fixed message area instead of the conditional warning. Long rescue feedback can scroll within its space without changing board geometry. The main share/copy/caption URL is now https://kevinhegg.github.io/angry-wolves/; versioned release loading is retained for Safari cache isolation.
+
+Score entry opens first and expanded. The Post Score button is associated with score-form using the HTML form attribute and placed outside the scrolling dialog details beside the existing return action. It hides on other views and after submission. Leaderboard dialogs anchor 12px from the visible viewport top. Scores remain scrollable. Restored the barn SVG's intended 2px stroke, which previous global version replacements had inadvertently changed.
+
+70 tests pass. Browser play at 393×650 verified a constant 292px board while warning text appeared/disappeared, including field carryover. Completed an adventure, opened score entry, and verified Post Score at y=423–467 on a 393×550 viewport. At height 350, Post Score ended at y=267 and return at y=319. Empty submission correctly focused initials via native form validation; no test score sent. Browser console had no errors. Shared URLs are tested as the literal root URL.
+
+Prior production checkpoint/pre-stable-layout-2.18 at c11bcb7, complete release play/2.18/. Root/classic redirects can restore that version. No game-rule or Sheet/backend changes included.
