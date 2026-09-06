@@ -685,3 +685,16 @@ Verified the intro and active field visually at 393 × 650; all 37 existing test
 Original locally synthesized sheep, pig, hen, cow, dog and wolf calls live in `rescue-voices.js`. Tune pitch, duration, modulation, noise and vocal formants in `VOICES`. `rescue-audio.js` caches the short/full buffers and replaces earlier herd calls instead of stacking them. Wolf responses follow actual distance changes, including Pip’s bark, and are delayed slightly after the herd sound. No response plays when distance is unchanged at a clamp. Muting/backgrounding closes the audio context and cancels sounds. The prior release remains intact in `play/2.4/`.
 
 39 tests pass, including non-silent bounded voice generation, short/full variants, replacement of selection sounds, delayed wolf playback, and existing gameplay/regression tests. These checks do not establish perceived realism or audible output on a physical iPhone. The help screen includes buttons to audition each voice.
+
+
+## Rescue 2.6 — reversible magic-cat trial
+
+Checkpoint tag: `checkpoint/pre-magic-cat-2.5`, commit `ef94e39`. Exact pre-experiment copies of the four changed core files are in `.codex-safety/pre-magic-cat/`. The existing unrelated Sheet/document changes were not included or reset.
+
+Full play rollback: change the root `index.html` redirect and both redirects/links in `classic.html` to `play/2.5/`, commit and publish those entry changes. The previous directory remains self-contained. Do not reset the working tree or overwrite unrelated files. Anyone already on a 2.6 link can use the 2.5 release directly after a rollback.
+
+Selective tuning: `rescue-engine.js` exports `CAT_SETTINGS`: enabled=true, firstChapter=1, chance=.25 per eligible rescue, minMoves=2, lifetime 2–4, cooldown=2. Set enabled=false to prevent new cats; an existing cat will still expire. To undo the extra wolf difficulty, restore chapter distances from 6/5 to 7/6 for fields two/three. Package edits into a new release directory before publishing.
+
+The cat has type CAT=4, distinct from normal animal types 0–3; its artwork is icon 5 because icon 4 already represents the wolf. It never counts toward goals, points, herds or animal sound selection. Spawn only replaces a newly generated refill, at most one cat exists, and forced legal-herd generation preserves it. Successful rescues age it; mere selection, invalid moves and Pip do not advance the turn counter. Expiry and Pip removal use the same collapse/refill function as herds. Pip keeps the +3 wolf-distance effect but preserves other columns when removing a cat instead of shuffling them. A retry restores that field’s entry board and cat countdown.
+
+Verification: 45 tests pass, including cat lifetime, no scoring, exact gravity, carry-over, one-cat limit, first-field exclusion and invalid actions. Browser play verified a naturally spawned black cat, its help text, Pip dismissal, and a separate 2→1→vanished lifecycle with no console errors. Simulated goal-aware whole-adventure completion with emergency Pip usage is 626/1000 versus 736/1000 before this experiment; no-Pip completion is 384/1000 versus 475/1000. Simulations are tuning evidence, not predicted human outcomes.

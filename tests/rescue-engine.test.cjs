@@ -35,7 +35,7 @@ test('gravity preserves remaining column order and fills only cleared slots', ()
 });
 test('bark is free, limited to one per field, and capped at ten steps', () => {
   const s=R.create(2); const before=[...s.board].sort();
-  assert.equal(R.bark(s,random(1)),true); assert.equal(s.distance,9); assert.equal(s.moves,0);
+  assert.equal(R.bark(s,random(1)),true); assert.equal(s.distance,R.CHAPTERS[2].distance+3); assert.equal(s.moves,0);
   assert.deepEqual([...s.board].sort(),before); assert.equal(R.bark(s),false);
   const s2=R.create(); R.bark(s2); assert.equal(s2.distance,10);
 });
@@ -53,7 +53,7 @@ test('thousands of turns stay valid and always offer a legal herd', () => {
       const gs=R.groups(s.board); assert.ok(gs.length);
       if(s.distance<=2 && s.bark) R.bark(s,rng);
       const legal=R.groups(s.board); R.rescue(s,legal[Math.floor(rng()*legal.length)][0],rng);
-      assert.equal(s.board.length,36); assert.ok(s.board.every(t=>t>=0 && t<R.CHAPTERS[chapter].types));
+      assert.equal(s.board.length,36); assert.ok(s.board.every(t=>t===R.CAT || (t>=0 && t<R.CHAPTERS[chapter].types)));
       assert.ok(s.distance>=0 && s.distance<=10); assert.ok(Number.isFinite(s.score));
     }
   }
