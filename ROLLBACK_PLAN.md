@@ -865,3 +865,11 @@ User explicitly chose all four animals in every field. Every chapter now uses fo
 71 tests pass. Added deterministic checks for all four refill choices in every chapter and updated the 1,000-opening distribution test. The two-adventure UI flow test now uses controlled legal herds instead of relying on its old strategy surviving every difficulty revision. Fixed the existing distribution audit to carry wolf distance and wind wait exactly as production does. Across 2,000 audit runs, each species accounted for approximately 25% of refills in each field; final-field entry averaged 10.61 cows among 108 reached final fields instead of zero.
 
 Difficulty caveat communicated before publication: the simple seeded emergency-bark strategy won 21/1000 adventures; never-bark won 0/1000. This is not a human win-rate forecast. No compensating goal/wolf changes were made, so the requested four-species change can be judged independently. Prior production checkpoint/pre-all-animals-2.19 at b98b4ce and complete play/2.19/ remain for rollback. Restore root/classic redirects there to roll back. No Sheet/backend edits.
+
+## Rescue 2.21 — gentler wolf movement
+
+Requested curve: herd of 3 brings wolves one step closer; 4–6 hold them still; 7+ push them one step toward the forest. Selection previews already use the shared wolfStep function. Intro, help, desktop rule key and README now agree. Four-species distribution, rescue goals, Pip bark, and extra pressure from whistles 18/26 are unchanged.
+
+72 tests pass, including every changed herd-size boundary and interaction with late-field pressure. Same seeded 1,000-adventure goal-aware simulation before/after: emergency bark 21 -> 569 wins; never bark 0 -> 107 wins. This demonstrates a substantial easing while retaining Pip's value, not a human win-rate prediction. Standalone goal-aware field completion is 965/1000, 896/1000, 924/1000 with emergency bark; standalone starts do not model carried board/distance, so full-adventure results are the relevant comparison.
+
+Previous production checkpoint/pre-gentler-wolf-2.20 at e06395c; complete prior release play/2.20/. Repoint root/classic redirects there for rollback, or restore wolfStep and matching copy and package a new version. No Sheet/backend changes.

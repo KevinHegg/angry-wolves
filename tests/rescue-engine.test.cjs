@@ -14,12 +14,12 @@ test('invalid and short groups are free and leave state unchanged', () => {
   assert.equal(R.rescue(s,0).ok,false); assert.equal(R.rescue(s,-1).ok,false); assert.deepEqual(s,before);
 });
 test('herd sizes apply exactly the displayed wolf movement', () => {
-  for (const size of [3,4,5,7,8]) {
+  for (const size of [3,4,5,6,7,8]) {
     const s=setup(size); const group=R.group(s.board,0).length;
     const result=R.rescue(s,0,random(12));
     assert.equal(result.count,size);
     assert.equal(result.count,group);
-    assert.equal(s.distance,5+(group===3?-2:group===4?-1:group<8?0:1));
+    assert.equal(s.distance,5+(group===3?-1:group<7?0:1));
     assert.equal(s.saved[2],group);
   }
 });
@@ -108,5 +108,12 @@ test('every field refills with all four animals independently of its goals',()=>
    R.rescue(state,30,()=>(type+.5)/4);
    assert.equal(state.board[0],type);assert.equal(state.board[1],type);assert.equal(state.board[2],type);
   }
+ }
+});
+
+test('late-field pressure still adds to the revised wolf movement',()=>{
+ for(const moves of [17,25])for(const size of [3,4,6,7]){
+  const s=setup(size);s.moves=moves;R.rescue(s,0,random(12));
+  assert.equal(s.distance,5+(size===3?-1:size<7?0:1)-(moves===17?1:2));
  }
 });
