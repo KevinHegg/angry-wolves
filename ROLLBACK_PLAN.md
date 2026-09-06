@@ -783,3 +783,17 @@ Inline SVG dust funnel and marked neighbors show the effect. Animal icons slide 
 ### 2.11 publication authorization
 
 The user authorized production publication of the tested dust-devil version. Publish on the existing Pages branch; no merge to main. Previous production checkpoint: `checkpoint/pre-dust-devil-2.10` at `a039399`, with the complete earlier release retained at `play/2.10/`. This supersedes the local/unpublished status above. All 64 tests pass before deployment.
+
+## Rescue 2.12 — delayed scattering dust devil (local)
+
+Supersedes the continuous clockwise rotation. Gusts now enter only newly refilled top-row cells, beginning in field one after a randomly chosen 2–5 successful-rescue wait. Arrival has zero filled dots and is not one of the three countdown turns. Existing gusts age after each successful rescue; nothing scatters on turns one/two. After turn three and normal gravity, a Fisher–Yates shuffle permutes the surrounding eight animal tiles, including diagonals (five at an edge, three at a corner). It preserves animal counts and may legitimately leave matching-looking tiles in place. The gust then becomes the animal creating the largest connected herd through its own tile, with uniform random tie-breaking. Only that tile is converted; no score/goal credit is awarded automatically. Whoosh and movement animation occur only at the scatter.
+
+A new 2–5 rescue wait begins after conversion or Pip dismissal; it does not advance while a gust exists. Active countdown, visit wait, board and wolf position all carry between fields. Retry restores the entry countdown and wait. Settings: `WIND_SETTINGS.enabled` disables new visits; waitMin/waitMax tune the interval. The active countdown remains three. User-facing guide, labels and outlined area reflect the new behavior.
+
+67 tests pass: 36 board positions, interior/edge/corner affected areas, animal conservation, no scatter until turn three, no aging on arrival, top-row entry, largest-herd ties, visit-wait carry/retry and sound behavior. Seeded goal-focused adventure results: emergency Pip 782/1000 completed, median base 2304; no Pip 593/1000, median base 2320. These are tuning checks, not human outcomes.
+
+This version remains local and unpublished. Previous production is 2.11 at `1f9b263`, fully preserved in `play/2.11/`; pre-edit engine/controller copies are in `.codex-safety/pre-scattering-wind/`. Restore the earlier release to revert, or disable arrivals and package a new version. No backend/leaderboard changes.
+
+### 2.12 publication authorization
+
+The user authorized publishing the delayed-scatter version. All 67 tests pass before deployment. Previous production is saved as `checkpoint/pre-scattering-wind-2.11` at `1f9b263` and in `play/2.11/`. This supersedes the local/unpublished status above. Publish only the game changes on the existing Pages branch; preserve unrelated Sheet/document edits.

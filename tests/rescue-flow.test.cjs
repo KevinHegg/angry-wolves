@@ -63,3 +63,7 @@ test('field transitions preserve the final wolf distance, retry preserves entry 
   a.freshAdventure();assert.equal(a.state.distance,R.CHAPTERS[0].distance);
  }
 });
+test('wind visit wait survives field transition and retry',()=>{
+ const h=harness(),a=h.api;a.start();a.state.windWait=1;a.state.status='won';a.finishField();a.action();assert.equal(a.state.windWait,1);
+ a.state.windWait=4;h.get('retry').events.click();a.action();assert.equal(a.state.windWait,1);
+});

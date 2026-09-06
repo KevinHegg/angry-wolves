@@ -71,7 +71,7 @@ test('biggest herd keeps its animal and survives smaller later rescues', () => {
 
 test('field transitions preserve every tile without aliasing the previous board',()=>{
  const before=R.create(0,()=>.2);before.board[12]=2;
- const next=R.create(1,()=>{throw Error('must not generate a new board')},before.board);
+ const next=R.create(1,()=>{throw Error('must not generate a new board')},before.board,before.cats,undefined,before.windWait);
  assert.deepEqual(next.board,before.board);assert.notEqual(next.board,before.board);
  assert.equal(next.chapter,1);assert.deepEqual(next.saved,[0,0,0,0]);assert.equal(next.moves,0);assert.equal(next.bark,1);
 });
