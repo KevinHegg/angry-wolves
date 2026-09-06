@@ -709,3 +709,13 @@ A loss now sets play inactive and offers Play again from field one or Not now. N
 Cat tuning: chance .25→.5, minimum field rescues 2→1, cooldown 2→1. One-cat cap and 2–4 rescue lifespan are unchanged. Restore those three settings to reduce frequency independently of the loss-flow fix.
 
 47 tests pass. Browser play produced a real loss and verified the two choices, all-disabled resting board, and replay at the pasture with zero animals home. The exact Safari touch behavior remains subject to physical-device confirmation.
+
+## Rescue 2.8 — multiple cats and magical bursts
+
+Local checkpoint: `checkpoint/pre-cat-bursts-2.7` at `4eb4ada`. The complete prior release remains in `play/2.7/`. To play the prior rules immediately, serve/open that directory. To undo this experiment in source, restore the runtime files, packaging script and relevant tests from the checkpoint, then package a new version; preserve unrelated Sheet/document edits. Publication authorized by the user after local acceptance; publish this release on the existing Pages branch with its rollback tag.
+
+`CAT_SETTINGS.maxCats=3` caps visitors. Each new cat has an independent 2–4 successful-rescue timer, carried with its tile through gravity and across fields. Existing arrival chance .5, firstChapter=1, minMoves=1 and cooldown=1 remain. Set enabled=false to stop new arrivals; existing cats still burst. Setting maxCats=1 reduces concurrency but retains bursts; use the checkpoint to restore harmless expiration.
+
+At timer zero, the cat and its orthogonal animal neighbors clear before gravity. Neighbors count toward goals but award no points; selected-herd animals and overlapping blast neighbors count once. Each burst adds one wolf step. Other cats never chain-react. Goal completion retains last-turn priority over wolf arrival. Pip removes all cats quietly with normal gravity and +3 wolf distance, consuming no move and adding no blast points, rescues or penalty. The next burst areas have dashed outlines and a text warning; the guide explains the rules.
+
+Verification: 49 dependency-free tests pass, including timer/board consistency over seeded games, overlapping bursts, no chain reactions, carry-over, Pip clearing all cats and the existing end-game flow. Browser play observed three simultaneous cats, a warning with three marked neighbors, a burst with two extra rescues, and Pip quietly dismissing the remaining two. Seeded goal-focused adventure completion was 444/1000 with emergency Pip versus 222/1000 resting him throughout; these are tuning checks, not human success predictions.
