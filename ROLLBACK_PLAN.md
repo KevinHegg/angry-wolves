@@ -809,3 +809,11 @@ The scatter animates through two temporary permutations with short pauses before
 ### 2.13 publication authorization and version label
 
 The user authorized publishing and requested a subtle version number. The opening screen now shows a small muted version label derived from `RescueServices.VERSION`, keeping it consistent with submissions and release packaging. Previous production is saved at `checkpoint/pre-scatter-clarity-2.12` (`0188010`) and `play/2.12/`. This supersedes the local/unpublished status above. All 68 tests pass before publication.
+
+## Rescue 2.14 — compact scores, corner version, longer wind
+
+Publication explicitly authorized. Leaderboard hides the decorative animal header, uses tighter title/copy/spacing, and puts scores into a 240px scroll block with five 48px rows visible. The return action stays outside the scrolling details. An eligible score form remains available under an 'Add your score' disclosure so it cannot push the initial five rows out of view. Opening-screen version text is replaced by subtle bottom-right labels on the game and dialogs.
+
+Scatter now runs three temporary shuffle passes before the final result, lasting 2400ms. Input unlocks at 2500ms; field completion waits 2700ms. The synthesized wind sound lasts 2.4 seconds, with gentle noise pulses and faded ends, using existing sound toggle and Safari media routing. Rules and final permutation are unchanged.
+
+68 tests pass. Browser verification at 393×550 with live read-only leaderboard data found five fully visible rows, a 240px list with 384px scroll content, and the return button bottom at y=498. Return action closes the dialog; version reads v2.14. Physical iPhone sound requires device acceptance. Previous production checkpoint: `checkpoint/pre-compact-scores-2.13` at `37c8cb9`, complete prior release at `play/2.13/`. No Sheet/backend edits are included.
