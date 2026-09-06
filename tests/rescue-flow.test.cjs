@@ -83,3 +83,12 @@ test('scatter animates whole animal tiles and returns them to their grid positio
   assert.ok(animation.frames.some(f=>f.transform!=='translate(0px,0px)'));
  }
 });
+
+test('Pip indicator starts open, fills when spent and resets for a new adventure',()=>{
+ const h=harness(),a=h.api;a.start();
+ assert.doesNotMatch(h.get('bark').innerHTML,/class="filled"/);
+ h.get('bark').events.click();
+ assert.equal(a.state.bark,0);assert.match(h.get('bark').innerHTML,/class="filled"/);
+ a.freshAdventure();assert.equal(a.state.bark,1);
+ assert.doesNotMatch(h.get('bark').innerHTML,/class="filled"/);
+});

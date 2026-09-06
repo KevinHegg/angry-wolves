@@ -827,3 +827,11 @@ First-field starting wolf distance is now 5, the middle of the 0–10 track. Sub
 69 tests pass, including complete-tile scatter destinations, final-step victory, replay and distance carryover. Browser checked at 393×650: controls fit, initial wolf at 5, Pip use moved the wolf from 6 to 9 and emptied its indicator. No browser console errors. Seeded 1,000-adventure goal-aware simulations: emergency-bark policy 631 wins vs 774 previously; never-bark 358 vs 582. These are tuning comparisons, not human success rates. A larger trial goal increase was too severe and was reduced before release.
 
 Rollback checkpoint: checkpoint/pre-longer-adventure-2.14 at efa784a; complete old release remains at play/2.14/. To undo just difficulty, restore CHAPTERS goals/story and initial distance in rescue-engine.js, then package a new release. To revert everything, point index.html and classic.html redirects to play/2.14/ and commit/push on the publishing branch. Wind can still be disabled with WIND_SETTINGS.enabled=false and repackaging. No Sheet/backend edits included.
+
+## Rescue 2.16 — nasal oinks, spent-bark dot and higher goals
+
+Publication explicitly authorized. Replaced the pig's generic pulsed voice with a dedicated two-part synthesized oink: moving rounded-to-nasal formants, rising/falling pitch, restrained throat noise and a pause between calls. Full sound lasts 720ms; short preview 300ms. Other voices and Safari playback routing are unchanged. Device listening remains the user's acceptance check.
+
+Pip's dot is now open when available and filled when spent, with existing text labels preserved. Orchard requires 18 pigs and 18 hens; final field requires 14 of each animal. First field remains 14 sheep and starting wolf distance remains 5. Total minimum rescues: 106 animals. All 70 tests pass, including dot lifecycle and audio bounds/fades. Seeded tuning simulation gives 507/1000 wins with emergency bark and 264/1000 without, not a prediction of human success rates.
+
+Prior production: checkpoint/pre-oink-goals-2.15 at dc150be, complete release play/2.15/. Roll back by pointing root/classic redirects to play/2.15/ and committing/pushing the publishing branch. To undo only goals, restore CHAPTERS orchard/final goals and matching story copy, then package a new release. No Sheet/backend changes included.

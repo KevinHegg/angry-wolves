@@ -15,7 +15,7 @@ Open `http://localhost:8000/`.
 - Select 3+ matching animals touching horizontally or vertically.
 - Press **Whistle** or select the same herd again to send them home.
 - Herds of 3 move wolves two steps closer; 4 moves them one step closer; 5–7 hold them off; 8+ push them back.
-- Adventures start with the wolf at the middle marker (5 steps). Rescue goals: 14 sheep, then 16 pigs and 16 hens, then 12 of each animal.
+- Adventures start with the wolf at the middle marker (5 steps). Rescue goals: 14 sheep, then 18 pigs and 18 hens, then 14 of each animal.
 - **Pip, bark!** pushes wolves back three steps and regroups the animals, once per field.
 - Complete the visible animal goals to continue with the same board of animals. A loss ends the adventure: Play again starts at field one; Not now leaves the finished board inactive.
 - Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
