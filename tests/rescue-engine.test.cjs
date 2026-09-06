@@ -33,10 +33,11 @@ test('gravity preserves remaining column order and fills only cleared slots', ()
     assert.deepEqual(now,remaining);
   }
 });
-test('bark is free, limited to one per field, and capped at ten steps', () => {
+test('bark is free, limited to three per game, and capped at ten steps', () => {
   const s=R.create(2); const before=[...s.board].sort();
   assert.equal(R.bark(s,random(1)),true); assert.equal(s.distance,R.CHAPTERS[2].distance+3); assert.equal(s.moves,0);
-  assert.deepEqual([...s.board].sort(),before); assert.equal(R.bark(s),false);
+  assert.deepEqual([...s.board].sort(),before);assert.equal(s.bark,2);
+  assert.equal(R.bark(s),true);assert.equal(R.bark(s),true);assert.equal(s.bark,0);assert.equal(R.bark(s),false);
   const s2=R.create(); s2.distance=9; R.bark(s2); assert.equal(s2.distance,10);
 });
 test('last-step objective completion wins before wolf arrival', () => {
@@ -73,7 +74,7 @@ test('field transitions preserve every tile without aliasing the previous board'
  const before=R.create(0,()=>.2);before.board[12]=2;
  const next=R.create(1,()=>{throw Error('must not generate a new board')},before.board,before.cats,undefined,before.windWait);
  assert.deepEqual(next.board,before.board);assert.notEqual(next.board,before.board);
- assert.equal(next.chapter,1);assert.deepEqual(next.saved,[0,0,0,0]);assert.equal(next.moves,0);assert.equal(next.bark,1);
+ assert.equal(next.chapter,1);assert.deepEqual(next.saved,[0,0,0,0]);assert.equal(next.moves,0);assert.equal(next.bark,3);
 });
 test('herd point previews equal the awarded score',()=>{
  const state=R.create(0,()=>.5);const herd=R.groups(state.board)[0];const expected=R.herdPoints(herd.length);
@@ -82,7 +83,7 @@ test('herd point previews equal the awarded score',()=>{
 test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
  const state=R.create(0,()=>.5);
  while(state.status==='playing'&&state.moves<50){state.board.fill(1);if(state.distance<=2&&state.bark)R.bark(state,()=>.5);R.rescue(state,0,()=>.5);}
- assert.equal(state.status,'lost');assert.ok(state.moves<=40);
+ assert.equal(state.status,'lost');assert.ok(state.moves<=44); // Three barks add at most nine extra moves under full pressure.
  assert.equal(R.pressure(17),0);assert.equal(R.pressure(18),1);assert.equal(R.pressure(26),2);
 });
 

@@ -25,8 +25,8 @@ test('animals shared by the selected herd and a burst count only once',()=>{
 });
 test('Pip quietly removes every cat without scoring, advancing timers, or shuffling other columns',()=>{
  const s=fixture({12:1,13:3,24:2}),before=s.board.slice();s.distance=3;assert.equal(R.bark(s,()=>.7),true);
- assert.deepEqual(s.cats,{});assert.ok(!s.board.includes(R.CAT));assert.equal(s.distance,6);assert.equal(s.bark,0);assert.equal(s.moves,0);assert.equal(s.score,0);assert.deepEqual(s.saved,[0,0,0,0]);
- for(let i=0;i<36;i++)if(i%6>1)assert.equal(s.board[i],before[i]);assert.equal(R.bark(s),false);
+ assert.deepEqual(s.cats,{});assert.ok(!s.board.includes(R.CAT));assert.equal(s.distance,6);assert.equal(s.bark,2);assert.equal(s.moves,0);assert.equal(s.score,0);assert.deepEqual(s.saved,[0,0,0,0]);
+ for(let i=0;i<36;i++)if(i%6>1)assert.equal(s.board[i],before[i]);assert.equal(R.bark(s),true);
 });
 test('carried cats retain independent lifetimes and the entry board is independent',()=>{
  const s=fixture({12:2,13:3}),next=R.create(2,()=>.7,s.board,s.cats);assert.deepEqual(next.cats,s.cats);assert.deepEqual(next.board,s.board);assert.notEqual(next.board,s.board);

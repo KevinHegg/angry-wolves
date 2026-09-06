@@ -879,3 +879,11 @@ Previous production checkpoint/pre-gentler-wolf-2.20 at e06395c; complete prior 
 Version text is now only in the opening dialog. Removed the gameplay corner badge and desktop footer version; other dialogs hide the shared load-version element. Restart field becomes a larger 13px semibold Restart game link, preserving the existing footer height and board size. It immediately calls freshAdventure without a confirmation dialog, discarding unfinished progress and resetting field, score, wolf, Pip, wind and submission state. Existing generation guards invalidate delayed animations when restarting.
 
 74 tests pass, including unfinished field restart state reset and version-label visibility. Updated old field-retry tests to retain transition coverage without expecting a removed behavior. Prior production checkpoint/pre-restart-game-2.21 at f7b75e6, release play/2.21/, remain for rollback via root/classic redirects. No game balance or Sheet/backend edits.
+
+## Rescue 2.23 — three shared Pip barks
+
+Pip starts each adventure with three barks, usable in any field. Each use decrements one charge; remaining charges carry through chapter transitions rather than replenishing. Three dots show open=available and filled=spent, plus a remaining-barks text label. Restart restores all three. Wolf retreat, animal regrouping and preservation of dust position/countdown are unchanged. Rest bonuses still count fields in which Pip was not used, not remaining charges. Updated help and chapter transition copy accordingly.
+
+75 tests pass, including spending multiple barks in a field, carrying 1 and 0 charges between fields, rejecting a fourth use, restoring three on restart, and preserving field-based rest bonuses. The anti-farming bound rises to 44 moves because three barks can buy nine moves at full pressure. Simulation/audit tools now carry charges as production does and compute rests by whether a field consumed a charge. Same seeded 1,000-adventure emergency-bark strategy: 735 wins vs 569 with one bark per field; never-bark remains 107. Not a human win-rate claim.
+
+Previous release play/2.22/ and checkpoint/pre-shared-pip-2.22 at c66884c remain for rollback via root/classic redirects. No Sheet/backend edits.

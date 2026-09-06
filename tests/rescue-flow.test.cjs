@@ -89,8 +89,8 @@ test('Pip indicator starts open, fills when spent and resets for a new adventure
  const h=harness(),a=h.api;a.start();
  assert.doesNotMatch(h.get('bark').innerHTML,/class="filled"/);
  h.get('bark').events.click();
- assert.equal(a.state.bark,0);assert.match(h.get('bark').innerHTML,/class="filled"/);
- a.freshAdventure();assert.equal(a.state.bark,1);
+ assert.equal(a.state.bark,2);assert.match(h.get('bark').innerHTML,/class="filled"/);
+ a.freshAdventure();assert.equal(a.state.bark,3);
  assert.doesNotMatch(h.get('bark').innerHTML,/class="filled"/);
 });
 
@@ -100,7 +100,7 @@ test('Restart game immediately abandons an unfinished field and resets the adven
  a.state.board[3]=R.DUST;a.state.cats={3:1};
  h.get('retry').events.click();
  assert.equal(a.state.chapter,0);assert.equal(a.state.status,'playing');assert.equal(a.state.score,0);
- assert.equal(a.state.distance,5);assert.equal(a.state.moves,0);assert.equal(a.state.bark,1);
+ assert.equal(a.state.distance,5);assert.equal(a.state.moves,0);assert.equal(a.state.bark,3);
  assert.deepEqual(a.state.saved,[0,0,0,0]);assert.deepEqual(a.state.cats,{});
  assert.equal(a.result,null);assert.equal(h.get('story-dialog').open,false);
  assert.equal(h.get('retry').textContent,'Restart game');
@@ -109,4 +109,17 @@ test('version label belongs only to the opening dialog',()=>{
  const h=harness(),a=h.api;assert.equal(h.get('load-version').hidden,false);
  a.start();a.state.status='won';a.finishField();assert.equal(h.get('load-version').hidden,true);
  a.showLeaderboard();assert.equal(h.get('load-version').hidden,true);
+});
+
+test('three Pip charges can be spent in one field and never refill at field boundaries',()=>{
+ const h=harness(),a=h.api;a.start();
+ assert.equal((h.get('bark').innerHTML.match(/<i class=/g)||[]).length,3);
+ h.get('bark').events.click();h.get('bark').events.click();assert.equal(a.state.bark,1);
+ a.state.status='won';a.finishField();a.action();assert.equal(a.state.bark,1);
+ h.get('bark').events.click();assert.equal(a.state.bark,0);assert.equal(h.get('bark').disabled,true);
+ assert.equal((h.get('bark').innerHTML.match(/class="filled"/g)||[]).length,3);
+ const before=structuredClone(a.state);h.get('bark').events.click();assert.deepEqual(a.state,before);
+ a.state.status='won';a.finishField();a.action();assert.equal(a.state.bark,0);
+ a.state.status='won';a.finishField();assert.equal(a.result.rested,1);assert.equal(a.result.bonus,100);
+ a.freshAdventure();assert.equal(a.state.bark,3);
 });
