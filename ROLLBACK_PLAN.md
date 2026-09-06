@@ -901,3 +901,11 @@ Previous production checkpoint/pre-orchard-cows-2.23 at 59a1428 and complete pla
 Requested base movement: 3–4 animals move wolves one step closer, 5–6 hold still, 7+ push back one. Updated shared rules, intro, help, desktop key and README. Existing late-field pressure, cows from the orchard, goals and three shared Pip barks remain unchanged.
 
 75 tests pass, including movement boundaries and late pressure. Same seeded 1,000-adventure simulation: emergency bark 846 wins (previously 979); no bark 245 (previously 681). These are strategy comparisons, not human success forecasts. Prior checkpoint/pre-four-herd-pressure-2.24 at 1957cf0 and play/2.24/ remain for rollback via root/classic redirects. No Sheet/backend edits.
+
+## Rescue 2.26 — customer URLs converge on the main game
+
+User requested version URLs redirect to the base URL. Root index now hosts the game directly and loads seven immutable assets under play/2.26/. All 26 customer version index pages (2.1–2.26), including explicit index.html visits, and classic.html redirect to the root using a refresh query to bypass stale cached root redirects. Root clears only refresh from the displayed URL. Added canonical links. Packaging now maintains these redirects automatically. All older JS/CSS assets are retained; no gameplay changes.
+
+76 tests pass. Browser verified play/2.21/ and play/2.1/index.html both end at the clean local root, show v2.26 opening screen and load 36 game tiles without console errors.
+
+IMPORTANT: prior rollback instructions that merely point root at an old play folder are superseded: those entry pages now redirect back to root. The complete prior deployment is preserved in checkpoint/pre-base-url-2.25 at 238a6aa. For a complete routing rollback, restore index.html, classic.html, scripts/package-rescue.cjs, tests/rescue-release.test.cjs, rescue-services.js and all play/*/index.html files from that checkpoint, preserving unrelated work, then commit/push. For future gameplay rollback while retaining base URLs, restore old runtime sources and package them as a new version. No Sheet/backend edits.

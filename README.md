@@ -64,3 +64,7 @@ From field two, one black cat can arrive in a puff of smoke. It cannot be herded
 Checkpoint: `checkpoint/pre-magic-cat-2.5` (`ef94e39`). The complete previous playable release remains at `play/2.5/`. See `ROLLBACK_PLAN.md` for selective rollback.
 
 The cat now has a 50% chance on eligible refills from the first rescue in fields two and three, with one rescue between visits. Only one cat can appear at a time.
+
+### Main URL and release packaging
+
+Players use `https://kevinhegg.github.io/angry-wolves/`. The root page loads assets from the current `play/<version>/` folder without navigating there. `node scripts/package-rescue.cjs` copies current runtime assets and turns every historical `play/2.x/index.html` plus `classic.html` into a redirect to the main URL. The temporary refresh query bypasses cached old root redirects; the main page removes it from the address bar. To roll back, restore a prior release's runtime and root HTML from its Git checkpoint and republish; historical customer URLs now intentionally open the current game.
