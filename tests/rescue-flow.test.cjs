@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(reducedMotion=true){
+function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}){
  const nodes=new Map(),animations=[];
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
@@ -15,12 +15,13 @@ function harness(reducedMotion=true){
   setAttribute(){} removeAttribute(){} addEventListener(k,fn){this.events[k]=fn;} focus(){document.activeElement=this;} showModal(){this.open=true;} close(){this.open=false;} replaceChildren(){this.children=[];} append(...els){this.children.push(...els);} remove(){for(const[k,v]of nodes)if(v===this)nodes.delete(k);}
  }
  const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
- const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?{value:'0'}:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
+ const badgeInput={value:'0'};
+ const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(r);entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
  const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
- vm.runInNewContext(source,{window,document,localStorage:{getItem(){return null},setItem(){}},ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
- return{...window.test,api:window.test,nodes,get,posted,animations};
+ vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
+ return{...window.test,api:window.test,nodes,get,posted,animations,badgeInput};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('two complete adventures each offer score entry and replay resets all fields and submission state',async(t)=>{
@@ -122,4 +123,21 @@ test('three Pip charges can be spent in one field and never refill at field boun
  a.state.status='won';a.finishField();a.action();assert.equal(a.state.bark,0);
  a.state.status='won';a.finishField();assert.equal(a.result.rested,1);assert.equal(a.result.bonus,100);
  a.freshAdventure();assert.equal(a.state.bark,3);
+});
+
+test('changed initials and badge post correctly, persist across reload, and post again',async()=>{
+ const values=new Map([['aw-rescue-initials','OLD'],['aw-rescue-badge','0']]);
+ const storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
+ for(let run=0;run<2;run++){
+  const h=harness(true,storage),a=h.api;a.start();a.state.chapter=2;a.state.status='won';a.state.score=5000;a.finishField();
+  a.showLeaderboard();await settle();h.get('player-fields').disabled=true;
+  if(run===0){
+   h.get('toggle-player-lock').events.click();assert.equal(h.get('player-fields').disabled,false);
+   const input=h.get('score-initials');input.value='new';input.events.input({target:input});
+   h.badgeInput.value='14';h.get('score-form').events.change({target:{name:'shepherd-badge',value:'14'}});
+   h.get('toggle-player-lock').events.click();assert.equal(h.get('player-fields').disabled,true);
+  }else{assert.equal(h.get('score-initials').value,'NEW');assert.equal(S.readProfile(storage).badge,14);h.badgeInput.value='14';}
+  await a.postScore({preventDefault(){}});await settle();assert.equal(h.posted[0].playerName,S.encodeName('NEW',14));
+  assert.equal(a.submission.done,true);assert.equal(a.result.playerLabel,'NEW 🐮');
+ }
 });

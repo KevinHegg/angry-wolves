@@ -909,3 +909,13 @@ User requested version URLs redirect to the base URL. Root index now hosts the g
 76 tests pass. Browser verified play/2.21/ and play/2.1/index.html both end at the clean local root, show v2.26 opening screen and load 36 game tiles without console errors.
 
 IMPORTANT: prior rollback instructions that merely point root at an old play folder are superseded: those entry pages now redirect back to root. The complete prior deployment is preserved in checkpoint/pre-base-url-2.25 at 238a6aa. For a complete routing rollback, restore index.html, classic.html, scripts/package-rescue.cjs, tests/rescue-release.test.cjs, rescue-services.js and all play/*/index.html files from that checkpoint, preserving unrelated work, then commit/push. For future gameplay rollback while retaining base URLs, restore old runtime sources and package them as a new version. No Sheet/backend edits.
+
+## Rescue 2.27 — visible submission feedback and smoother wind
+
+Investigated report that changing initials/badge would not post. Live read-only board was full with cutoff 3238; no production score was sent. Confirmed UI defect: eligibility, rejection and review messages were below the player form inside scrolling content while the submit button was pinned outside, so the reason for a disabled/unsuccessful post could be off-screen. Status now stays directly above Post Score, outside scrolling content, across errors, review and success. Submission normalizes and snapshots the displayed initials/badge and persists that exact draft before the request; saving feedback names the player. Specific cause of the user's past attempt remains unconfirmed without the requested initials/status message; no claim of a backend fix.
+
+Wind synthesis uses two swept low-pass stages plus a low-frequency/DC filter and three smooth swells over the same 2.4-second scatter. Lower sharp-change energy is regression tested. No gameplay or Sheet/backend changes.
+
+78 tests pass, including changed player -> lock -> post -> reload -> post again with the same badge, plus smooth wind bounds. Local browser fixture with stubbed score service (outside repo, not packaged) verified NEW with cow badge sends NEWE, shows rank confirmation, persists as locked across reload and submits again. No console errors and no test leaderboard writes. Existing moderation and top-20 qualification rules remain intact.
+
+Prior checkpoint/pre-player-feedback-wind-2.26 at 17ddd85. Roll back by restoring prior root/runtime/package files from Git and republishing; historical customer URLs intentionally redirect to root. Do not restore the old root-to-version redirect pattern in isolation.

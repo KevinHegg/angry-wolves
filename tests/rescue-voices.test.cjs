@@ -18,3 +18,11 @@ test('whoosh is finite, quiet, non-silent and fades at both ends',()=>{
  for(const x of voice){assert.ok(Number.isFinite(x)&&Math.abs(x)<.55);energy+=x*x;}
  assert.ok(energy/voice.length>.0001);assert.ok(Math.abs(voice[0])<.001&&Math.abs(voice.at(-1))<.001);
 });
+
+test('wind has low high-frequency energy instead of static-like sharp changes',()=>{
+ for(const short of [false,true]){
+  const samples=V.synthesize('whoosh',short);let energy=0,changes=0;
+  for(let i=1;i<samples.length;i++){energy+=samples[i]**2;changes+=(samples[i]-samples[i-1])**2;}
+  assert.ok(changes/energy<.04);assert.ok(energy>0);
+ }
+});
