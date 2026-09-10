@@ -983,3 +983,14 @@ Rescue, scatter and ending timers retain their remaining delay while sideways; r
 Validation: 103 Node tests pass, including seven new rotation/input cases. Browser fixture checks cover a selected herd and unchanged board size, a field popup restored with a working Continue button, initial landscape load and all eight scatter animations frozen at the same 100ms point across a long pause, then resumed to completion. Layout checks include 393×650 portrait, 844×320/393 landscape and a scrollable 568×220 landscape view. The desktop fixture omits the coarse-pointer media requirement so browser resizing can exercise phone behavior; this is not physical iPhone testing. The public build excludes the fixture. Hosting and repository visibility remain unchanged.
 
 To roll back, restore `index.html`, `rescue.js` and `rescue.css` from the checkpoint, then repackage under a new version with matching release references. Keep the existing public-file-only Pages workflow. Do not reset unrelated changes or merge to main.
+
+
+## v2.37 — The phone layout on larger screens
+
+Checkpoint: `checkpoint/pre-desktop-frame-2.36` at `af5fd6c`. The portrait layout now applies at every size. Screens wider than 700px place the game in a rounded cream frame over an inline SVG woodland scene. Frame dimensions follow the viewport up to 500×860px; larger interface text and controls apply only with at least 800px of height. Shorter laptop windows retain compact phone controls so the board has room. Help, transitions, results and the leaderboard are constrained to the frame. No dependencies, hosting changes or game-rule changes. Mouse and keyboard controls already existed and are preserved.
+
+Board fitting now measures the visible playing area on desktop as well as on phones. Hidden landscape boards are still skipped. The phone rotation pause and popup restoration remain in place. At 393×650, board, goals, header and action geometry match v2.36 exactly. The backdrop is hidden on phones.
+
+Validation: 103 Node tests pass. Browser checks cover 1024×600, 1366×768 and 1440×900 desktop windows, mouse selection/Whistle/Pip, the final field's four goals, Help and transition popups, and the player editor with pinned Save/Post/Back buttons. A local fixture with mock scores confirms that saving a player collapses the editor and shows five score rows; the fixture disables submissions and is excluded from the public build. No production test score was posted.
+
+To roll back, restore `index.html`, `rescue.css` and `rescue.js` from the checkpoint, then package under a fresh version with matching release references. Keep the existing public-file-only Pages workflow and preserve unrelated changes.

@@ -16,15 +16,25 @@
   </script>
   <title>Hungry Wolf · Bring them home</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E%F0%9F%90%BA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="play/2.36/rescue.css">
-  <script src="play/2.36/rescue-engine.js" defer></script>
-  <script src="play/2.36/rescue-services.js" defer></script>
-  <script src="play/2.36/rescue-share.js" defer></script>
-  <script src="play/2.36/rescue-voices.js" defer></script>
-  <script src="play/2.36/rescue-audio.js" defer></script>
-  <script src="play/2.36/rescue.js" defer></script>
+  <link rel="stylesheet" href="play/2.37/rescue.css">
+  <script src="play/2.37/rescue-engine.js" defer></script>
+  <script src="play/2.37/rescue-services.js" defer></script>
+  <script src="play/2.37/rescue-share.js" defer></script>
+  <script src="play/2.37/rescue-voices.js" defer></script>
+  <script src="play/2.37/rescue-audio.js" defer></script>
+  <script src="play/2.37/rescue.js" defer></script>
 </head>
 <body>
+  <svg class="desktop-backdrop" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <defs><linearGradient id="desktop-dusk" x2="0" y2="1"><stop stop-color="#2c4940"/><stop offset="1" stop-color="#152d28"/></linearGradient><g id="desktop-pine"><path d="M0 0L-20 34H-12L-31 64H-19L-42 103Q0 120 42 103L19 64H31L12 34H20Z"/><path d="M0 92V124" fill="none" stroke="currentColor" stroke-width="6"/></g></defs>
+    <path fill="url(#desktop-dusk)" d="M0 0H1440V1000H0Z"/>
+    <circle cx="1130" cy="165" r="47" fill="#ded5a5" opacity=".13"/>
+    <path d="M0 675Q230 480 545 740Q900 530 1440 620V1000H0Z" fill="#365747" opacity=".65"/>
+    <path d="M0 830Q430 640 820 880Q1180 610 1440 755V1000H0Z" fill="#28483a"/>
+    <g fill="#1b372e" color="#1b372e"><use href="#desktop-pine" transform="translate(140 590) scale(1.8)"/><use href="#desktop-pine" transform="translate(250 660) scale(1.2)"/><use href="#desktop-pine" transform="translate(1230 600) scale(1.6)"/><use href="#desktop-pine" transform="translate(1330 530) scale(2.3)"/></g>
+    <path d="M0 955Q350 770 700 963Q1080 825 1440 915V1000H0Z" fill="#17362d"/>
+    <g fill="#6d8364" opacity=".25"><path d="M83 922l-5-17 13 11zM110 910l4-20 7 23zM1288 900l-9-17 1 25zM1300 905l13-22-4 26z"/></g>
+  </svg>
   <main class="rescue-app">
     <header class="masthead">
       <div class="wordmark" aria-label="Hungry Wolf"><span class="brand-wolf" aria-hidden="true"></span><span>HUNGRY WOLF<small>BRING THEM HOME</small></span></div>
@@ -51,7 +61,7 @@
     </section>
     <footer class="page-footer"><span>A small adventure in three chapters.</span><span>© 2026 Kevin Hegg</span></footer>
   </main>
-  <dialog id="story-dialog" aria-labelledby="dialog-title"><div class="dialog-art" aria-hidden="true"></div><p id="dialog-eyebrow" class="eyebrow"></p><h2 id="dialog-title" tabindex="-1"></h2><p id="dialog-copy"></p><div id="dialog-details"></div><p id="submit-status" class="submission-status" role="status" aria-live="polite" hidden></p><button id="toggle-player-lock" class="primary player-save" type="button" hidden>Save player</button><button id="submit-score" class="primary" type="submit" form="score-form" hidden>Post score</button><button id="dialog-action" class="primary"></button><button id="dialog-secondary" class="text-button" hidden></button><a id="copyright-notice" class="copyright-notice" href="COPYRIGHT.txt" target="_blank" rel="noopener" hidden>© 2026 Kevin Hegg</a><span id="load-version" class="version-corner" hidden>v2.36</span></dialog>
+  <dialog id="story-dialog" aria-labelledby="dialog-title"><div class="dialog-art" aria-hidden="true"></div><p id="dialog-eyebrow" class="eyebrow"></p><h2 id="dialog-title" tabindex="-1"></h2><p id="dialog-copy"></p><div id="dialog-details"></div><p id="submit-status" class="submission-status" role="status" aria-live="polite" hidden></p><button id="toggle-player-lock" class="primary player-save" type="button" hidden>Save player</button><button id="submit-score" class="primary" type="submit" form="score-form" hidden>Post score</button><button id="dialog-action" class="primary"></button><button id="dialog-secondary" class="text-button" hidden></button><a id="copyright-notice" class="copyright-notice" href="COPYRIGHT.txt" target="_blank" rel="noopener" hidden>© 2026 Kevin Hegg</a><span id="load-version" class="version-corner" hidden>v2.37</span></dialog>
   <section id="landscape-info" class="landscape-info" aria-labelledby="landscape-title" tabindex="-1" hidden>
     <div class="landscape-card">
       <svg class="rotate-device" viewBox="0 0 112 112" aria-hidden="true" focusable="false"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="40" width="66" height="38" rx="7" stroke="#b7b496" stroke-width="2" stroke-dasharray="4 5"/><rect x="53" y="29" width="38" height="66" rx="7" fill="#f8f3e2" stroke="#315d49" stroke-width="3"/><path d="M66 36h12M69 87h6" stroke="#315d49" stroke-width="3"/><path d="M22 30C24 9 58 5 76 20M65 19l12 3-1-12" stroke="#b27750" stroke-width="3"/></g><path d="M61 63l8 8 15-18" fill="none" stroke="#315d49" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>

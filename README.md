@@ -16,7 +16,8 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 - The board, wolf distance, remaining barks and dust-devil countdown carry between fields. Only the field goals and move-pressure counter reset.
 - Dust devils arrive in one of the four middle columns of the top row after a random 2–5-rescue wait. If no middle column refills, the gust waits. Arrival does not fill a dot. After three further rescues, gravity falls first, then the gust scatters up to eight neighboring animals, including diagonals. It becomes the animal that forms the largest herd; ties are random. This transformation awards no immediate points. Pip leaves the gust's position and countdown unchanged.
 - Later refills become more scattered. From whistle 18 in a field, the wolf advances one extra step; from 26, two extra steps. Even large herds cannot hold it off indefinitely.
-- On phones, landscape shows a rotation prompt and quick instructions. Open popups, selections and in-flight game animations resume when you turn back to portrait. Desktop play is unchanged.
+- On phones, landscape shows a rotation prompt and quick instructions. Open popups, selections and in-flight game animations resume when you turn back to portrait.
+- On laptops and desktops, the same portrait interface sits inside a rounded frame over a woodland background. The board grows with the available height, with compact controls in short windows. Mouse clicks select a herd and operate every control; click Whistle or the selected herd again to rescue it.
 - There is no clock. Sound is optional; use the speaker control or the sound test under **?**.
 - **Restart game** immediately starts a fresh adventure. After a loss, **Play again** starts field one and **Not now** leaves the finished board inactive.
 - Winning adventures can join the top-20 leaderboard with three letters and an animal badge. Save player locks the choice; Change player unlocks it. Existing scores retain their original names. Share creates an illustrated score card and includes the main game URL.
@@ -56,7 +57,7 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.36**. Root HTML loads immutable assets from `play/2.36/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.37**. Root HTML loads immutable assets from `play/2.37/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
 For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
