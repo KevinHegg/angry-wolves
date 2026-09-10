@@ -59,3 +59,13 @@ test('profile drafts survive reopening and reloads without score submission',()=
  const blocked={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')}};
  assert.deepEqual(S.readProfile(blocked),{initials:'',badge:0});assert.doesNotThrow(()=>S.saveProfile({initials:'ABC',badge:1},blocked));
 });
+
+test('leaderboard retries a transient failure without writing a score',async()=>{
+ const old=global.fetch;let calls=0;const urls=[];
+ global.fetch=async(url,options)=>{calls++;urls.push(url);assert.notEqual(options.method,'POST');if(calls===1)throw new TypeError('Failed to fetch');return{ok:true,json:async()=>({ok:true,entries:[]})};};
+ try{assert.deepEqual(await S.leaderboard(),[]);assert.equal(calls,2);assert.notEqual(urls[0],urls[1]);}finally{global.fetch=old;}
+});
+test('leaderboard stops after two failed reads and reports a refresh error',async()=>{
+ const old=global.fetch;let calls=0;global.fetch=async()=>{calls++;return{ok:false,json:async()=>{throw Error('HTML response')}};};
+ try{await assert.rejects(S.leaderboard(),/Could not refresh/);assert.equal(calls,2);}finally{global.fetch=old;}
+});

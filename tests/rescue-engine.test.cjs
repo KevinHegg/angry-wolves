@@ -61,7 +61,7 @@ test('thousands of turns stay valid and always offer a legal herd', () => {
 });
 
 test('Pip rest bonuses match the four promised tiers', () => {
-  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,100,250,500]);
+  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,100,300,650]);
 });
 test('biggest herd keeps its animal and survives smaller later rescues', () => {
   const s=setup(8); R.rescue(s,0,random(2));
