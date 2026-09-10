@@ -7,13 +7,17 @@ function controls(){
  const begin=source.indexOf('  function bindDialogButton('),end=source.indexOf("  $('board').addEventListener",begin);
  assert.ok(begin>=0&&end>begin);
  const handlers={},button={addEventListener:(name,fn)=>handlers[name]=fn};let count=0,clock=100;
- const context={$:()=>button,performance:{now:()=>clock},dialogGeneration:1,Math};
+ const context={$:()=>button,performance:{now:()=>clock},dialogGeneration:1,sideways:false,Math};
  vm.createContext(context);vm.runInContext(source.slice(begin,end)+'\nthis.bind=bindDialogButton;',context);
  context.bind('gate',()=>()=>count++);
  return {handlers,context,count:()=>count,setTime:value=>clock=value};
 }
 test('first gate click works immediately after page load',()=>{
  const c=controls();c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),1);
+});
+test('a hidden popup cannot be activated while the phone is sideways',()=>{
+ const c=controls();c.context.sideways=true;c.handlers.pointerdown();c.handlers.click({detail:1});c.handlers.click({detail:0});assert.equal(c.count(),0);
+ c.context.sideways=false;c.handlers.click({detail:0});assert.equal(c.count(),1);
 });
 test('native taps after scrolling work without pointer-coordinate assumptions',()=>{
  const c=controls();assert.equal(c.handlers.pointerup,undefined);c.handlers.pointerdown();c.handlers.click({detail:1});assert.equal(c.count(),1);

@@ -972,3 +972,14 @@ Pages now uses `.github/workflows/pages.yml` and `scripts/build-site.cjs` to pub
 Validation: 96 Node tests pass, including output levels, finite samples, howl lengths, replacement-voice fades and the exact public file allowlist. Browser checks cover sound startup for all ten preview buttons and the opening/Help controls at 393×550 and 320×568. Physical iPhone listening remains a player acceptance check.
 
 To revert audio, restore `rescue-audio.js` and `rescue-voices.js` from the checkpoint and package under a fresh version; keep the public-file-only workflow. Full runtime rollback follows the usual fresh-version process. Do not revert Pages to copying the repository root merely to undo a sound change. `main` and unrelated Sheet/backend work remain untouched.
+
+
+## v2.36 — Phone landscape pause and popup restoration
+
+Checkpoint: `checkpoint/pre-phone-rotation-2.35` at `afb7183`. Touch devices in landscape with viewport height at most 600px show a parchment instruction card with a rotate-phone icon. The existing game becomes hidden and inert. An open dialog closes visually without clearing its contents, action, player draft or scroll position; it reopens when portrait returns. A popup prepared while sideways also waits for portrait. Desktop layouts and all gameplay rules are unchanged.
+
+Rescue, scatter and ending timers retain their remaining delay while sideways; running browser animations pause and resume alongside them. Rotation does not recreate the board, deselect a herd, consume a bark, move the wolf, advance the wind counter or restart the adventure. Responsive fitting skips the hidden board until portrait returns.
+
+Validation: 103 Node tests pass, including seven new rotation/input cases. Browser fixture checks cover a selected herd and unchanged board size, a field popup restored with a working Continue button, initial landscape load and all eight scatter animations frozen at the same 100ms point across a long pause, then resumed to completion. Layout checks include 393×650 portrait, 844×320/393 landscape and a scrollable 568×220 landscape view. The desktop fixture omits the coarse-pointer media requirement so browser resizing can exercise phone behavior; this is not physical iPhone testing. The public build excludes the fixture. Hosting and repository visibility remain unchanged.
+
+To roll back, restore `index.html`, `rescue.js` and `rescue.css` from the checkpoint, then repackage under a new version with matching release references. Keep the existing public-file-only Pages workflow. Do not reset unrelated changes or merge to main.

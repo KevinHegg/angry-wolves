@@ -4,12 +4,14 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={}){
+function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={},initialLandscape=false){
  const nodes=new Map(),animations=[],sounds=[];
+ const clock={now:1000},orientation={matches:initialLandscape,addEventListener(name,fn){this.changed=fn;}};
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
   set innerHTML(html){this.html=html;for(const m of html.matchAll(/id="([^"]+)"/g))nodes.set(m[1],new Element());this.children=[...html.matchAll(/data-cell="(\d+)" data-type="(\d+)"/g)].map(m=>{const e=new Element();e.dataset={cell:m[1],type:m[2]};return e;});}
   get innerHTML(){return this.html;}
+  querySelectorAll(){return [];}
   getBoundingClientRect(){const i=Number(this.dataset.cell)||0;return{left:(i%6)*50,top:Math.floor(i/6)*50};}
   animate(frames,options){animations.push({cell:this,frames,options});}
   setAttribute(){} removeAttribute(){} addEventListener(k,fn){this.events[k]=fn;} focus(){document.activeElement=this;} showModal(){this.open=true;} close(){this.open=false;} replaceChildren(){this.children=[];} append(...els){this.children.push(...els);} remove(){for(const[k,v]of nodes)if(v===this)nodes.delete(k);}
@@ -18,12 +20,80 @@ function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}
  const badgeInput={value:'0'};
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:query=>query.includes('orientation:')?orientation:{matches:query.includes('prefers-reduced-motion')?reducedMotion:false},addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
  const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
- vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>timers?timers.push({fn,delay}):fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
- return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput};
+ vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>{if(!timers)return fn();const timer={fn,delay};timers.push(timer);return timer;},clearTimeout:timer=>{if(timer)timer.cancelled=true;},URL:{revokeObjectURL(){}},performance:{now:()=>clock.now},Math,Date});
+ return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput,clock,document,rotate:landscape=>{orientation.matches=landscape;orientation.changed();}};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('phone rotation preserves a selected herd, animal tiles, wolf, Pip and wind state',()=>{
+ const h=harness(),a=h.api;a.start();
+ a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
+ a.state.board[8]=R.DUST;a.state.cats={8:2};a.state.windWait=3;a.state.bark=2;a.state.distance=7;
+ a.select(30);
+ const before=JSON.stringify(a.state),label=h.get('whistle-label').textContent,feedback=h.get('feedback').textContent;
+ h.rotate(true);
+ assert.equal(h.get('landscape-info').hidden,false);assert.equal(h.get('.rescue-app').inert,true);
+ a.select(8);a.commit();h.get('bark').events.click();h.get('retry').events.click();
+ assert.equal(JSON.stringify(a.state),before);
+ h.rotate(false);
+ assert.equal(h.get('landscape-info').hidden,true);assert.equal(h.get('.rescue-app').inert,false);
+ assert.equal(JSON.stringify(a.state),before);assert.equal(h.get('whistle-label').textContent,label);assert.equal(h.get('feedback').textContent,feedback);
+ assert.equal(h.get('whistle').disabled,false);
+ a.commit();assert.equal(a.state.moves,1,'the same selected herd can still be whistled');
+});
+test('a field popup is hidden during rotation and restored without rerendering or losing its action',()=>{
+ const h=harness(),a=h.api;a.start();a.state.status='won';a.finishField();
+ const dialog=h.get('story-dialog'),details=h.get('dialog-details'),action=h.get('dialog-action'),html=details.innerHTML;
+ dialog.querySelectorAll=()=>[details];details.scrollTop=140;details.scrollLeft=0;action.focus();
+ for(let i=0;i<3;i++){
+  h.rotate(true);assert.equal(dialog.open,false);assert.equal(a.state.chapter,0);
+  dialog.events.cancel?.({preventDefault(){}});
+  action.events.click({detail:0});assert.equal(a.state.chapter,0);
+  details.scrollTop=0;h.rotate(false);
+  assert.equal(dialog.open,true);assert.equal(h.get('dialog-details'),details);assert.equal(details.innerHTML,html);
+  assert.equal(details.scrollTop,140);assert.equal(h.document.activeElement,action);
+ }
+ action.events.click({detail:0});assert.equal(a.state.chapter,1);
+});
+test('loading or opening a popup in landscape waits for portrait',()=>{
+ const h=harness(true,undefined,null,{},true),a=h.api;
+ assert.equal(h.get('landscape-info').hidden,false);assert.ok(!h.get('story-dialog').open);
+ assert.equal(h.document.activeElement,h.get('landscape-info'));
+ h.rotate(false);assert.equal(h.get('story-dialog').open,true);assert.match(h.get('dialog-title').textContent,/gate was left open/);
+ a.action();h.rotate(true);a.state.status='lost';a.finishField();
+ assert.equal(h.get('story-dialog').open,false);assert.equal(h.document.activeElement,h.get('landscape-info'));
+ h.rotate(false);assert.equal(h.get('story-dialog').open,true);assert.match(h.get('dialog-title').textContent,/wolf caught up/);
+});
+test('rotation pauses a pending rescue and resumes its remaining delay once',()=>{
+ const timers=[],h=harness(false,undefined,timers),a=h.api;a.start();
+ a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.select(30);a.commit();
+ const before=JSON.stringify(a.state),rescue=timers.find(t=>t.delay===230);
+ h.clock.now+=80;h.rotate(true);assert.equal(rescue.cancelled,true);assert.equal(JSON.stringify(a.state),before);
+ h.clock.now+=10000;h.rotate(false);
+ const resumed=timers.at(-1);assert.equal(resumed.delay,150);h.clock.now+=50;h.rotate(true);assert.equal(resumed.cancelled,true);
+ h.clock.now+=10000;h.rotate(false);assert.equal(timers.at(-1).delay,100);
+ timers.at(-1).fn();assert.equal(a.state.moves,1);
+});
+test('ending animation and result delay wait together through landscape',()=>{
+ const timers=[],h=harness(false,undefined,timers),a=h.api;a.start();
+ a.state.chapter=2;a.state.distance=1;a.state.moves=26;
+ a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
+ a.select(30);a.commit();timers.find(t=>t.delay===230).fn();timers.find(t=>t.delay===0).fn();
+ const ending=timers.find(t=>t.delay===2000),animation={playState:'running',pause(){this.playState='paused';},play(){this.playState='running';}};
+ h.document.getAnimations=()=>[animation];h.clock.now+=600;h.rotate(true);
+ assert.equal(animation.playState,'paused');assert.equal(ending.cancelled,true);assert.equal(h.get('story-dialog').open,false);
+ h.clock.now+=10000;h.rotate(false);
+ assert.equal(animation.playState,'running');assert.equal(timers.at(-1).delay,1400);assert.equal(h.get('story-dialog').open,false);
+ timers.at(-1).fn();assert.equal(h.get('story-dialog').open,true);assert.equal(h.sounds.filter(s=>s==='howl-deep').length,1);
+});
+test('the leaderboard player draft survives a phone rotation',async()=>{
+ const h=harness(),a=h.api;a.start();a.state.chapter=2;a.state.status='won';a.state.score=5000;a.finishField();a.showLeaderboard();await settle();
+ const initials=h.get('score-initials'),fields=h.get('player-fields');initials.value='FAM';h.badgeInput.value='4';
+ const before=JSON.stringify(a.result);h.rotate(true);h.rotate(false);
+ assert.equal(h.get('score-initials'),initials);assert.equal(initials.value,'FAM');assert.equal(h.badgeInput.value,'4');
+ assert.equal(h.get('player-fields'),fields);assert.equal(JSON.stringify(a.result),before);assert.equal(h.get('story-dialog').open,true);
+});
 test('two complete adventures each offer score entry and replay resets all fields and submission state',async(t)=>{
  const originalRandom=Math.random;let seed=712;Math.random=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);t.after(()=>{Math.random=originalRandom;});
  const h=harness(),a=h.api;a.start();let priorNonce;
