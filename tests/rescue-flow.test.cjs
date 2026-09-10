@@ -178,11 +178,12 @@ test('ending pauses, calls once before the dialog, and restart cancels the pendi
  a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
  a.select(30);a.commit();timers.find(t=>t.delay===230).fn();
  assert.equal(a.state.status,'lost');assert.equal(h.get('story-dialog').open,false);
+ assert.equal(timers.some(t=>t.delay===2000),false,'panel timer starts only with the ending animation');
  if(restart)a.freshAdventure();
- timers.find(t=>t.delay===500).fn();
+ timers.find(t=>t.delay===0).fn();
  assert.equal(h.get('story-dialog').open,false);
  assert.equal(h.sounds.filter(s=>s==='howl-deep').length,restart?0:1);
- timers.find(t=>t.delay===2600).fn();
+ timers.find(t=>t.delay===2000)?.fn();
  assert.equal(h.get('story-dialog').open,!restart);
  assert.equal(h.sounds.filter(s=>s==='howl-deep').length,restart?0:1);
  }

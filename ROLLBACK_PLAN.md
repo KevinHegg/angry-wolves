@@ -937,3 +937,7 @@ Evidence: direct production read returned 20 rows in 1.6 seconds; old browser re
 Checkpoint `checkpoint/pre-wolf-ending-2.29` (6f5f161). Terminal rescues hold the board for 2.6 seconds. At 0.5 seconds the wolf retreats/diminishes on a win or lifts/enlarges on a loss, accompanied by a new rounded, pitch-shaped howl. Suppress ordinary movement calls on terminal moves and avoid repeating the howl when opening results. Reduced motion omits animation while retaining timing. Generation guards prevent an abandoned ending from opening after Restart game. No balance changes.
 
 Validation: 85 tests including deferred ending, exactly one call, restart cancellation, audio bounds, and terminal wind suppression; local browser victory and loss flow. To roll back, restore checkpoint runtime and package under a new version.
+
+## v2.31 — Two-second ending and singular wolf copy
+
+Checkpoint `checkpoint/pre-ending-timing-2.30` (c3fee4c). Start the result timer inside the ending animation callback and wait 2000 ms; omit the normal trail-motion animation on terminal turns. The immediate-panel report was not independently reproduced. Player-facing story, instructions, status and share-card wording now consistently use one wolf; repository URL is preserved. 85 tests pass, including verification that the result timer is not scheduled before the ending starts. Restore checkpoint runtime and repackage under a fresh version to roll back.
