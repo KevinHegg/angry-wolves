@@ -945,3 +945,17 @@ Checkpoint `checkpoint/pre-ending-timing-2.30` (c3fee4c). Start the result timer
 ## v2.32 — Remove opening herd preselection
 
 Remove the intro action's lingering select(30) call. Opening and restarting now leave selection empty and the whistle disabled until the player chooses a herd. 86 tests pass, including a controlled opening board that would previously select a herd. This was present in current source, not a fresh-link behavior. No balance change.
+
+## v2.33 — Clear select-then-whistle prompts
+
+Empty selection shows Choose a herd and Tap 3+ matching animals. A selected herd shows Whistle N home and Tap Whistle to bring them home. Opening preselection remains removed. Release commit `3dd0ed3`.
+
+## v2.34 — Bug, logic, mobile UI and language audit
+
+Checkpoint: `checkpoint/pre-audit-2.33` at `3dd0ed3`. Preserve the existing wolf rules, goals, dust-devil cadence and Pip bonus tiers. Dead-board/Pip fallback now swaps existing animals to gather a legal herd instead of overwriting species, correcting a count-preservation bug. Over the same 1,000-seed full-adventure strategies, emergency-Pip wins changed from 846 to 853 and never-Pip wins from 245 to 254; these are small simulation differences, not human win-rate estimates.
+
+Fixed partial legacy initials, editing during a pending post, hidden late submission errors, stale leaderboard responses and field-transition dialog races. Returning players start with a compact saved identity; Change player expands the keyboard-free editor, Save player collapses it, and its controls remain pinned above Post/Back. Dialog details scroll while primary actions remain visible on short screens. Large desktop screens put the chapter heading beside the playing area to lift controls without shrinking the board. Wolf feedback respects the endpoints; restarted adventures stop previous audio. Updated current instructions, sharing labels and README. Full evidence and recommendations: `HUNGRY_WOLF_AUDIT.md`.
+
+Validation: 93 Node tests pass and `git diff --check` passes. Browser checks at 393×650, 393×550 and 320×568; no production QA score posted. Local stub verified changed initials/badge sent as PEWE. Instrumented real browser ending delays were 2009ms for a win and 2003ms for a loss, with wolf animation and corresponding audio startup. This is not a physical iPhone listening check. No Sheet/backend changes, tracking, ads or monetization added.
+
+To roll back, restore the runtime sources and root HTML from the checkpoint, then package them as a new release with matching version references. Do not point the root at an old `play/2.x/` index: historical entry pages redirect home. Preserve unrelated work and backend edits.

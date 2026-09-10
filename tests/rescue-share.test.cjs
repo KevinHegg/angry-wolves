@@ -13,7 +13,7 @@ function harness(navigator){
 test('native share receives the prepared PNG and link without duplicate score text',async()=>{
  let sent;const h=harness({canShare:()=>true,share:data=>{sent=data;return Promise.resolve();}});
  assert.equal(await h.share(result,{blob:'prepared-image'}),'shared');
- assert.equal(sent.files[0].name,'angry-wolves-score.png');assert.equal(sent.files[0].type,'image/png');
+ assert.equal(sent.files[0].name,'hungry-wolf-score.png');assert.equal(sent.files[0].type,'image/png');
  assert.equal(sent.text,undefined);assert.equal(sent.url,'https://kevinhegg.github.io/angry-wolves/');
 });
 test('text-only native sharing includes a public game URL',async()=>{
@@ -29,6 +29,6 @@ test('score image draws verified rank and player, or personal best only',async()
  const window={RescueServices:S};
  vm.runInNewContext(fs.readFileSync(require.resolve('../rescue-share.js'),'utf8'),{window,document:{createElement:()=>({getContext:()=>ctx,toBlob:fn=>fn('png')})},Image:class{async decode(){}},URL:{createObjectURL:()=> 'blob:card'}});
  await window.RescueShare.makeCard({...result,rank:7,playerLabel:'ABC 🐑'},()=>'<svg></svg>');
- assert.ok(texts.includes('TOP 20 HIGH SCORE · #7'));assert.ok(texts.includes('ABC 🐑'));
+ assert.ok(texts.includes('TOP 20 HIGH SCORE · #7'));assert.ok(texts.includes('ABC 🐑'));assert.ok(texts.includes('TOTAL POINTS'));
  texts.length=0;await window.RescueShare.makeCard({...result,personalBest:true},()=>'<svg></svg>');assert.ok(texts.includes('NEW PERSONAL BEST'));assert.ok(!texts.some(t=>String(t).includes('TOP 20')));
 });

@@ -1,70 +1,64 @@
-# Angry Wolves · Bring them home
+# Hungry Wolf · Bring them home
 
-A small, mobile-first rescue puzzle in three chapters. The gate was left open; bring the animals through the pasture and orchard to the barn before the wolves arrive.
+A small, mobile-first rescue puzzle in three chapters. The gate was left open; bring the animals through the pasture and orchard to the barn before the wolf arrives.
 
-## Play
+[Play Hungry Wolf](https://kevinhegg.github.io/angry-wolves/). The repository keeps its original `angry-wolves` name.
 
-Serve this folder with any static web server, for example:
+## How to play
+
+- Select 3+ matching animals touching horizontally or vertically. Nothing is preselected when a game starts.
+- Press **Whistle** or select the same herd again to send it home. Empty spaces refill from above.
+- Herds of 3–4 bring the wolf one step closer; 5–6 hold it still; 7+ push it one step toward the forest. The wolf starts five steps away and cannot retreat beyond ten.
+- Field goals: **14 sheep**, then **18 pigs and 18 hens**, then **14 of each animal**.
+- The opening board has 11, 12 and 13 sheep/pigs/hens, with those counts randomly assigned to species. Cows join refills in the orchard. Rescue goals do not bias the refill species. At least one herd is playable; larger herds occur naturally.
+- **Pip, bark!** sends the wolf back up to three steps and regroups the existing animals without using a move. There are **three barks for the whole adventure**, usable in any field. Open circles are available; filled circles are spent. Barks never replenish between fields.
+- Pip's bonus is awarded once, on winning: **100 / 300 / 650 points** for **1 / 2 / 3 fields without a bark**; zero for using him in every field. This counts fields without a bark, not unused barks.
+- The board, wolf distance, remaining barks and dust-devil countdown carry between fields. Only the field goals and move-pressure counter reset.
+- Dust devils arrive in one of the four middle columns of the top row after a random 2–5-rescue wait. If no middle column refills, the gust waits. Arrival does not fill a dot. After three further rescues, gravity falls first, then the gust scatters up to eight neighboring animals, including diagonals. It becomes the animal that forms the largest herd; ties are random. This transformation awards no immediate points. Pip leaves the gust's position and countdown unchanged.
+- Later refills become more scattered. From whistle 18 in a field, the wolf advances one extra step; from 26, two extra steps. Even large herds cannot hold it off indefinitely.
+- There is no clock. Sound is optional; use the speaker control or the sound test under **?**.
+- **Restart game** immediately starts a fresh adventure. After a loss, **Play again** starts field one and **Not now** leaves the finished board inactive.
+- Winning adventures can join the top-20 leaderboard with three letters and an animal badge. Save player locks the choice; Change player unlocks it. Existing scores retain their original names. Share creates an illustrated score card and includes the main game URL.
+
+Keyboard: Tab into the board, arrow keys move focus, Enter selects, Space whistles, Escape clears selection.
+
+## Develop and verify
+
+No dependencies. Serve this folder with any static server:
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000/`.
+Open `http://localhost:8000/`. The root page uses the packaged release assets, so run the packager after editing runtime source files:
 
-- Select 3+ matching animals touching horizontally or vertically.
-- Press **Whistle** or select the same herd again to send them home.
-- Herds of 3 or 4 move wolves one step closer; 5–6 hold them still; 7+ push them one step toward the forest.
-- The pasture starts with 11, 12 and 13 sheep/pigs/hens, with those counts randomly assigned to species. Cows join the refills from the orchard onward, independently of the current rescue goals. No sheep are added to force an opening herd. At least one herd is playable; larger groups occur naturally.
-- Adventures start with the wolf at the middle marker (5 steps). Rescue goals: 14 sheep, then 18 pigs and 18 hens, then 14 of each animal.
-- **Pip, bark!** pushes wolves back three steps and regroups the animals. Three barks are shared across the whole adventure; spend them in any field. Open circles show available barks, filled circles show used barks.
-- **Restart game** immediately abandons the current adventure and starts fresh at field one.
-- Complete the visible animal goals to continue with the same board of animals. A loss ends the adventure: Play again starts at field one; Not now leaves the finished board inactive.
-- Let Pip rest in 1 / 2 / 3 fields for a final bonus of 100 / 250 / 500. A bark on any attempt counts, even after a retry.
-- Later refills become more scattered. From whistle 18 in a field, wolves advance one extra step; from 26, two extra steps. Building herds is useful, but indefinite score farming is impossible.
-- Dust devils arrive in the four middle columns of the top row after a random 2–5-rescue wait, starting in field one. Arrival counts as zero; after three more rescues, the gust scatters up to eight surrounding animals (including diagonals), then becomes the animal forming the largest herd. Ties are random. Clear below it to move it toward an edge before the scatter. Pip regroups animals but preserves the gust’s position and countdown. Progress, visit waits and wolf distance carry between fields.
-- There is no real-time clock. Sound is optional; the speaker button shows its state.
-- Completed adventures can join the leaderboard with three letters and one of ten animal badges, or be shared as an illustrated score card.
+```sh
+node scripts/package-rescue.cjs
+node --test tests/*.test.cjs
+node tests/rescue-balance.cjs
+node scripts/audit-animal-distribution.cjs
+git diff --check
+```
 
-Keyboard: Tab into the board, arrow keys to move focus, Enter to select, Space to whistle, Escape to clear a selection.
+The balance script compares seeded automated strategies, including complete adventures with carried state. These are tuning comparisons, not estimates of human win rates.
 
 ## Files
 
-- `index.html`, `rescue.css`, `rescue.js`: default rescue game and interface.
-- `rescue-engine.js`: independent, testable game rules.
-- `rescue-voices.js`: original synthesized animal calls.
-- `rescue-audio.js`: gesture-based audio initialization and recovery.
-- `rescue-services.js`: existing score-sheet connection, badge encoding, and share captions.
-- `rescue-share.js`: local PNG score-card generation and native sharing.
-- `classic.html`: redirects old bookmarks to the current rescue game. The old `game.js` and `styles.css` remain for restoration from Git history.
-- `RESCUE_STORY_NOTES.md`: design decisions, tuning evidence, and verification.
-- `ROLLBACK_PLAN.md`: restoration instructions.
+- `index.html`, `rescue.css`, `rescue.js`: game interface and adventure flow.
+- `rescue-engine.js`: independent game rules.
+- `rescue-voices.js`, `rescue-audio.js`: synthesized calls, gesture-based audio and recovery.
+- `rescue-services.js`: score-sheet connection, player encoding and submission payloads.
+- `rescue-share.js`: local PNG card generation and native sharing.
+- `scripts/package-rescue.cjs`: copies runtime assets and maintains historical URL redirects.
+- `HUNGRY_WOLF_AUDIT.md`: September 2026 audit, fixes, remaining priorities and launch recommendations.
+- `ROLLBACK_PLAN.md`: checkpoints and historical experiments, including the retired cats.
 
-No dependencies. After editing the root rescue files, run `node scripts/package-rescue.cjs` to refresh the self-contained `play/2.7/` release. Future releases should use a new directory and update the root redirect, classic redirect, share URL, and packaging version together. The folder remains compatible with static GitHub Pages hosting. The leaderboard uses the existing Apps Script deployment and sheet, filtered to the `rescue-v2` scoring category. Only an explicit player submission writes a score.
+## Release and rollback
 
-## Verify
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.34**. Root HTML loads immutable assets from `play/2.34/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
-```sh
-node --test tests/*.test.cjs
-node tests/rescue-balance.cjs
-```
+For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. Pages publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
-The second command simulates 1,000 seeded games per chapter for random and goal-aware strategies. It is a tuning aid, not a human playtest.
+To roll back, restore the chosen checkpoint's runtime sources and package them under a new release version. Historical customer URLs intentionally open the current game; they are not independent rollback targets. Preserve unrelated work and score-sheet changes.
 
-## Live game and rollback
-
-Play at https://kevinhegg.github.io/angry-wolves/play/2.7/. Pages publishes the current `tune/v2-clarity-economy-audio` branch. No merge to `main` is required.
-
-The old game is no longer linked in the interface. Its files remain available for rollback. See `ROLLBACK_PLAN.md` for restoration instructions and `RESCUE_V2_NOTES.md` for the scoring, Safari, leaderboard, and share update.
-
-## Magic cat experiment
-
-From field two, one black cat can arrive in a puff of smoke. It cannot be herded. After 2–4 successful rescues it vanishes, leaving a gap that collapses and refills. Pip can scare it away immediately; when a cat is present he clears it instead of shuffling the board. The cat’s countdown carries between fields. Wolves start one step closer in fields two and three.
-
-Checkpoint: `checkpoint/pre-magic-cat-2.5` (`ef94e39`). The complete previous playable release remains at `play/2.5/`. See `ROLLBACK_PLAN.md` for selective rollback.
-
-The cat now has a 50% chance on eligible refills from the first rescue in fields two and three, with one rescue between visits. Only one cat can appear at a time.
-
-### Main URL and release packaging
-
-Players use `https://kevinhegg.github.io/angry-wolves/`. The root page loads assets from the current `play/<version>/` folder without navigating there. `node scripts/package-rescue.cjs` copies current runtime assets and turns every historical `play/2.x/index.html` plus `classic.html` into a redirect to the main URL. The temporary refresh query bypasses cached old root redirects; the main page removes it from the address bar. To roll back, restore a prior release's runtime and root HTML from its Git checkpoint and republish; historical customer URLs now intentionally open the current game.
+The leaderboard uses the existing Apps Script deployment and Sheet, filtered to `rescue-v2`. Only explicit player submission writes a score. Profiles persist on the device; adventures and unposted results currently do not survive a page reload. The leaderboard is a casual honor-system board, not a server-verified competition.

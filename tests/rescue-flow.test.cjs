@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null){
+function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={}){
  const nodes=new Map(),animations=[],sounds=[];
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
@@ -18,7 +18,7 @@ function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}
  const badgeInput={value:'0'};
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
  const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
  vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>timers?timers.push({fn,delay}):fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
  return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput};
@@ -164,11 +164,11 @@ test('changed initials and badge post correctly, persist across reload, and post
  assert.ok(h.sounds.includes(won?'howl-plaintive':'howl-deep'));
  }
  });
- test('field summary shows shared Pip usage and no Pips left',()=>{
+ test('field summary shows shared Pip usage and no barks left',()=>{
  for(const left of [0,1,2,3]){const h=harness(),a=h.api;a.start();a.state.bark=left;a.state.status='won';a.finishField();
  assert.ok(h.get('dialog-details').innerHTML.includes(`${3-left} of 3`));
  assert.doesNotMatch(h.get('dialog-details').innerHTML,/fields Pip rested/);
- if(!left)assert.match(h.get('dialog-details').innerHTML,/no Pips left/);
+ if(!left)assert.match(h.get('dialog-details').innerHTML,/no barks left/);
  }
  });
 
@@ -196,4 +196,46 @@ test('opening action and restart leave no herd selected',()=>{
  const before=a.state.score;a.commit();assert.equal(a.state.score,before);
  a.select(30);assert.equal(h.get('whistle').disabled,false);
  h.get('retry').events.click();assert.equal(h.get('whistle').disabled,true);
+});
+
+test('legacy partial player names remain editable with three letter selectors',async()=>{
+ const values=new Map([['aw-rescue-initials','AB']]);const h=harness(true,{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)}),a=h.api;
+ a.start();a.state.chapter=2;a.state.status='won';a.finishField();a.showLeaderboard();await settle();
+ assert.equal(h.get('score-initials').value,'ABA');assert.equal(h.get('player-fields').disabled,false);
+ h.get('score-form').events.click({target:{closest:()=>({dataset:{letter:'2',step:'1'}})}});
+ assert.equal(h.get('score-initials').value,'ABB');h.get('toggle-player-lock').onclick();assert.equal(values.get('aw-rescue-initials'),'ABB');
+});
+test('posting locks identity and displays a late error on the results screen',async()=>{
+ let rejectPost;const h=harness(true,undefined,null,{submit:()=>new Promise((_,reject)=>{rejectPost=reject})}),a=h.api;
+ a.start();a.state.chapter=2;a.state.status='won';a.state.score=5000;a.finishField();a.showLeaderboard();await settle();
+ const pending=a.postScore({preventDefault(){}});await settle();
+ assert.equal(h.get('player-fields').disabled,true);assert.equal(h.get('toggle-player-lock').disabled,true);
+ a.showResults();rejectPost(Error('Connection lost. Try again.'));await pending;
+ assert.match(h.get('result-status').textContent,/Connection lost/);assert.equal(a.submission.pending,false);
+ a.showLeaderboard();await settle();assert.equal(h.get('toggle-player-lock').disabled,false);
+});
+test('an older leaderboard response cannot overwrite a newer refresh',async()=>{
+ const reads=[];const h=harness(true,undefined,null,{leaderboard:()=>new Promise(resolve=>reads.push(resolve))}),a=h.api;
+ a.start();a.showLeaderboard();h.get('refresh-scores').events.click();
+ reads[1]([{gameMode:S.MODE,playerName:'NEW0',score:5000}]);await settle();
+ reads[0]([{gameMode:S.MODE,playerName:'OLD0',score:1000}]);await settle();
+ assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'NEW 🐕');
+});
+test('a failed first submission restores the editable player and a new dialog starts at the top',async()=>{
+ const h=harness(true,undefined,null,{submit:async()=>{throw Error('Offline')}}),a=h.api;
+ a.start();a.state.chapter=2;a.state.status='won';a.finishField();a.showLeaderboard();await settle();
+ await a.postScore({preventDefault(){}});
+ assert.equal(h.get('player-fields').disabled,false);assert.equal(h.get('toggle-player-lock').textContent,'Save player');
+ h.get('dialog-details').scrollTop=500;a.showResults();assert.equal(h.get('dialog-details').scrollTop,0);
+});
+test('wolf movement previews and Pip feedback respect the track endpoints',()=>{
+ const h=harness(),a=h.api;a.start();a.state.board.fill(0);a.state.distance=10;a.select(0);
+ assert.match(h.get('feedback').textContent,/stays put/);
+ h.get('bark').events.click();assert.match(h.get('feedback').textContent,/already at the woods/);
+ a.state.distance=9;h.get('bark').events.click();assert.match(h.get('feedback').textContent,/back 1 step\./);
+});
+test('field-completion delay prevents opening another dialog in mid-transition',()=>{
+ const timers=[],h=harness(false,undefined,timers),a=h.api;a.start();a.state.saved=[13,0,0,0];a.state.board.fill(0);
+ a.select(0);a.commit();timers.find(t=>t.delay===230).fn();a.showLeaderboard();
+ assert.equal(h.get('story-dialog').open,false);timers.find(t=>t.delay===900).fn();assert.equal(h.get('story-dialog').open,true);
 });

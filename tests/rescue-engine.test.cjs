@@ -118,3 +118,11 @@ test('late-field pressure still adds to the revised wolf movement',()=>{
   assert.equal(s.distance,5+(size<=4?-1:size<7?0:1)-(moves===17?1:2));
  }
 });
+
+test('dead-board regroup preserves species counts and dust position after Pip',()=>{
+ const state=R.create(2);state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);
+ state.board[14]=R.DUST;state.cats={14:2};assert.equal(R.groups(state.board).length,0);
+ const counts=board=>Array.from({length:7},(_,t)=>board.filter(v=>v===t).length),before=counts(state.board);
+ R.bark(state,()=>.999);assert.deepEqual(counts(state.board),before);assert.ok(R.groups(state.board).length);
+ assert.equal(state.board[14],R.DUST);assert.equal(state.cats[14],2);assert.equal(state.moves,0);
+});
