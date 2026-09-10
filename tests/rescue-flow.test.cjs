@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}){
+function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null){
  const nodes=new Map(),animations=[],sounds=[];
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
@@ -20,7 +20,7 @@ function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}
  let entries=[],posted=[];
  const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
  const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
- vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
+ vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>timers?timers.push({fn,delay}):fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
  return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
@@ -171,3 +171,19 @@ test('changed initials and badge post correctly, persist across reload, and post
  if(!left)assert.match(h.get('dialog-details').innerHTML,/no Pips left/);
  }
  });
+
+test('ending pauses, calls once before the dialog, and restart cancels the pending ending',()=>{
+ for(const restart of [false,true]){
+ const timers=[],h=harness(false,undefined,timers),a=h.api;a.start();a.state.chapter=2;a.state.distance=1;a.state.moves=26;
+ a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
+ a.select(30);a.commit();timers.find(t=>t.delay===230).fn();
+ assert.equal(a.state.status,'lost');assert.equal(h.get('story-dialog').open,false);
+ if(restart)a.freshAdventure();
+ timers.find(t=>t.delay===500).fn();
+ assert.equal(h.get('story-dialog').open,false);
+ assert.equal(h.sounds.filter(s=>s==='howl-deep').length,restart?0:1);
+ timers.find(t=>t.delay===2600).fn();
+ assert.equal(h.get('story-dialog').open,!restart);
+ assert.equal(h.sounds.filter(s=>s==='howl-deep').length,restart?0:1);
+ }
+});

@@ -931,3 +931,9 @@ Validation: 82 Node tests, diff whitespace check, browser save/change/post using
 Checkpoint: `checkpoint/pre-score-recovery-2.28` (6ac8d48). Pip rest tiers change from 0/100/250/500 to 0/100/300/650; eligibility still counts fields without a bark. Intro and help explain the three shared barks, indicators, carryover and rewards. Leaderboard reads retry once after a network, HTTP or malformed-response failure using fresh URLs; POSTs are not automatically repeated. Refresh errors distinguish a confirmed received score from a failed read and label existing rows as previously loaded.
 
 Evidence: direct production read returned 20 rows in 1.6 seconds; old browser read timed out; revised local browser with the real endpoint loaded 20 rows. This supports intermittent availability, not proof of a repaired Google backend. No backend or sheet data changed. 84 tests pass, including bounded retry and bonus tiers. Restore checkpoint runtime and package under a fresh version to roll back.
+
+## v2.30 — Wolf ending beat
+
+Checkpoint `checkpoint/pre-wolf-ending-2.29` (6f5f161). Terminal rescues hold the board for 2.6 seconds. At 0.5 seconds the wolf retreats/diminishes on a win or lifts/enlarges on a loss, accompanied by a new rounded, pitch-shaped howl. Suppress ordinary movement calls on terminal moves and avoid repeating the howl when opening results. Reduced motion omits animation while retaining timing. Generation guards prevent an abandoned ending from opening after Restart game. No balance changes.
+
+Validation: 85 tests including deferred ending, exactly one call, restart cancellation, audio bounds, and terminal wind suppression; local browser victory and loss flow. To roll back, restore checkpoint runtime and package under a new version.
