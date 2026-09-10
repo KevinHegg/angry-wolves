@@ -919,3 +919,9 @@ Wind synthesis uses two swept low-pass stages plus a low-frequency/DC filter and
 78 tests pass, including changed player -> lock -> post -> reload -> post again with the same badge, plus smooth wind bounds. Local browser fixture with stubbed score service (outside repo, not packaged) verified NEW with cow badge sends NEWE, shows rank confirmation, persists as locked across reload and submits again. No console errors and no test leaderboard writes. Existing moderation and top-20 qualification rules remain intact.
 
 Prior checkpoint/pre-player-feedback-wind-2.26 at 17ddd85. Roll back by restoring prior root/runtime/package files from Git and republishing; historical customer URLs intentionally redirect to root. Do not restore the old root-to-version redirect pattern in isolation.
+
+## v2.28 — Hungry Wolf, keyboard-free player editor, ending audio
+
+Checkpoint: `checkpoint/pre-hungry-wolf-2.27` (d025fb2). Game title and share card now read Hungry Wolf; repository, URL, storage keys and leaderboard mode stay compatible. Three on-screen letter selectors replace keyboard entry; a pinned Save player / Change player button saves and locks initials and badge. Posting remains a separate pinned action. Ending turns skip wind presentation; wins use a plaintive howl and losses a deep howl. Wind is more softly filtered. Field summaries show shared Pips used and remaining. No balance rules changed.
+
+Validation: 82 Node tests, diff whitespace check, browser save/change/post using isolated local service (OEW + wolf submitted as OEWA). No production QA score sent. iPhone sound character still needs listening on device. To roll back, restore these runtime files from the checkpoint and package as a new version; old customer version URLs redirect home and are not rollback targets.

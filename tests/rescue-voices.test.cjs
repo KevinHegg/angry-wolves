@@ -26,3 +26,13 @@ test('wind has low high-frequency energy instead of static-like sharp changes',(
   assert.ok(changes/energy<.04);assert.ok(energy>0);
  }
 });
+
+test('ending howls are distinct sustained voices with smooth quiet endpoints',()=>{
+ const sad=V.synthesize('howl-plaintive'),deep=V.synthesize('howl-deep');
+ assert.notEqual(sad.length,deep.length);
+ for(const samples of [sad,deep]){
+ assert.ok(samples.length>22050*2);let energy=0;
+ for(const sample of samples){assert.ok(Number.isFinite(sample)&&Math.abs(sample)<.35);energy+=sample*sample;}
+ assert.ok(energy/samples.length>.0001);assert.ok(Math.abs(samples[0])<.001&&Math.abs(samples.at(-1))<.001);
+ }
+});

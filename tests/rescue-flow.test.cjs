@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
 function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}){
- const nodes=new Map(),animations=[];
+ const nodes=new Map(),animations=[],sounds=[];
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
   set innerHTML(html){this.html=html;for(const m of html.matchAll(/id="([^"]+)"/g))nodes.set(m[1],new Element());this.children=[...html.matchAll(/data-cell="(\d+)" data-type="(\d+)"/g)].map(m=>{const e=new Element();e.dataset={cell:m[1],type:m[2]};return e;});}
@@ -18,10 +18,10 @@ function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}
  const badgeInput={value:'0'};
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(){}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};}},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:()=>({matches:reducedMotion}),addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
  const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
  vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:fn=>fn(),URL:{revokeObjectURL(){}},performance:{now:()=>1000},Math,Date});
- return{...window.test,api:window.test,nodes,get,posted,animations,badgeInput};
+ return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('two complete adventures each offer score entry and replay resets all fields and submission state',async(t)=>{
@@ -132,12 +132,42 @@ test('changed initials and badge post correctly, persist across reload, and post
   const h=harness(true,storage),a=h.api;a.start();a.state.chapter=2;a.state.status='won';a.state.score=5000;a.finishField();
   a.showLeaderboard();await settle();h.get('player-fields').disabled=true;
   if(run===0){
-   h.get('toggle-player-lock').events.click();assert.equal(h.get('player-fields').disabled,false);
+   h.get('toggle-player-lock').onclick();assert.equal(h.get('player-fields').disabled,false);
    const input=h.get('score-initials');input.value='new';input.events.input({target:input});
    h.badgeInput.value='14';h.get('score-form').events.change({target:{name:'shepherd-badge',value:'14'}});
-   h.get('toggle-player-lock').events.click();assert.equal(h.get('player-fields').disabled,true);
+   h.get('toggle-player-lock').onclick();assert.equal(h.get('player-fields').disabled,true);
   }else{assert.equal(h.get('score-initials').value,'NEW');assert.equal(S.readProfile(storage).badge,14);h.badgeInput.value='14';}
   await a.postScore({preventDefault(){}});await settle();assert.equal(h.posted[0].playerName,S.encodeName('NEW',14));
   assert.equal(a.submission.done,true);assert.equal(a.result.playerLabel,'NEW 🐮');
  }
 });
+
+ test('letter selectors wrap without a keyboard and save the chosen player',async()=>{
+ const values=new Map(),h=harness(true,{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)}),a=h.api;
+ a.start();a.state.chapter=2;a.state.status='won';a.finishField();a.showLeaderboard();await settle();
+ assert.equal(h.get('toggle-player-lock').textContent,'Save player');
+ const turn=(index,step)=>h.get('score-form').events.click({target:{closest:()=>({dataset:{letter:String(index),step:String(step)}})}});
+ turn(0,-1);turn(1,1);turn(2,1);assert.equal(h.get('score-initials').value,'ZBB');
+ h.badgeInput.value='14';h.get('toggle-player-lock').onclick();
+ assert.equal(values.get('aw-rescue-initials'),'ZBB');assert.equal(values.get('aw-rescue-badge'),'14');
+ assert.equal(h.get('player-fields').disabled,true);assert.match(h.get('submit-status').textContent,/Player saved/);
+ });
+ test('ending on a wind trigger skips scatter and plays the appropriate howl',()=>{
+ for(const won of [false,true]){
+ const h=harness(false),a=h.api;a.start();a.state.chapter=2;
+ a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);
+ a.state.board[14]=R.DUST;a.state.cats={14:1};a.state.distance=won?5:1;if(!won)a.state.moves=26;
+ a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
+ if(won)a.state.saved=[13,14,14,14];
+ a.select(30);a.commit();assert.equal(a.state.status,won?'won':'lost');
+ assert.equal(h.animations.length,0);assert.ok(!h.sounds.includes('whoosh'));
+ assert.ok(h.sounds.includes(won?'howl-plaintive':'howl-deep'));
+ }
+ });
+ test('field summary shows shared Pip usage and no Pips left',()=>{
+ for(const left of [0,1,2,3]){const h=harness(),a=h.api;a.start();a.state.bark=left;a.state.status='won';a.finishField();
+ assert.ok(h.get('dialog-details').innerHTML.includes(`${3-left} of 3`));
+ assert.doesNotMatch(h.get('dialog-details').innerHTML,/fields Pip rested/);
+ if(!left)assert.match(h.get('dialog-details').innerHTML,/no Pips left/);
+ }
+ });
