@@ -941,3 +941,7 @@ Validation: 85 tests including deferred ending, exactly one call, restart cancel
 ## v2.31 — Two-second ending and singular wolf copy
 
 Checkpoint `checkpoint/pre-ending-timing-2.30` (c3fee4c). Start the result timer inside the ending animation callback and wait 2000 ms; omit the normal trail-motion animation on terminal turns. The immediate-panel report was not independently reproduced. Player-facing story, instructions, status and share-card wording now consistently use one wolf; repository URL is preserved. 85 tests pass, including verification that the result timer is not scheduled before the ending starts. Restore checkpoint runtime and repackage under a fresh version to roll back.
+
+## v2.32 — Remove opening herd preselection
+
+Remove the intro action's lingering select(30) call. Opening and restarting now leave selection empty and the whistle disabled until the player chooses a herd. 86 tests pass, including a controlled opening board that would previously select a herd. This was present in current source, not a fresh-link behavior. No balance change.

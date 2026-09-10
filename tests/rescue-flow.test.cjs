@@ -188,3 +188,12 @@ test('ending pauses, calls once before the dialog, and restart cancels the pendi
  assert.equal(h.sounds.filter(s=>s==='howl-deep').length,restart?0:1);
  }
 });
+
+test('opening action and restart leave no herd selected',()=>{
+ const h=harness(),a=h.api;a.state.board.fill(0);a.action();
+ assert.equal(h.get('whistle').disabled,true);
+ assert.ok(!h.sounds.includes('select'));
+ const before=a.state.score;a.commit();assert.equal(a.state.score,before);
+ a.select(30);assert.equal(h.get('whistle').disabled,false);
+ h.get('retry').events.click();assert.equal(h.get('whistle').disabled,true);
+});
