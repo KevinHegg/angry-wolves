@@ -994,3 +994,11 @@ Board fitting now measures the visible playing area on desktop as well as on pho
 Validation: 103 Node tests pass. Browser checks cover 1024×600, 1366×768 and 1440×900 desktop windows, mouse selection/Whistle/Pip, the final field's four goals, Help and transition popups, and the player editor with pinned Save/Post/Back buttons. A local fixture with mock scores confirms that saving a player collapses the editor and shows five score rows; the fixture disables submissions and is excluded from the public build. No production test score was posted.
 
 To roll back, restore `index.html`, `rescue.css` and `rescue.js` from the checkpoint, then package under a fresh version with matching release references. Keep the existing public-file-only Pages workflow and preserve unrelated changes.
+
+## v2.38 — Center the desktop leaderboard
+
+Checkpoint: `checkpoint/pre-popup-centering-2.37` at `5ee1069`. The game frame already centers horizontally and vertically; the desktop leaderboard now shares that center instead of anchoring to the frame's top edge. Its maximum height and pinned action buttons still keep it inside the frame. The phone leaderboard retains its top alignment for small screens and browser controls.
+
+Validation: all 103 Node tests pass. Browser measurements confirm equal opposing margins for the game and leaderboard at 1920×1080, visible Save/Post/Back controls at 1024×600, and the original 12px phone popup offset at 393×650. Score-entry checks use a local fixture with mock scores and disabled submission.
+
+To revert, restore the desktop `dialog.leaderboard-view` positioning rule in `rescue.css` from the checkpoint, then package a fresh version. Preserve unrelated changes and the public-file-only Pages workflow.

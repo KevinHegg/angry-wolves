@@ -1,6 +1,6 @@
 // The main URL loads immutable versioned assets; customer version URLs redirect home.
 const fs=require('node:fs');
-const version='2.37';
+const version='2.38';
 const destination=`play/${version}`;
 fs.mkdirSync(destination,{recursive:true});
 for(const name of ['rescue.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css']){
