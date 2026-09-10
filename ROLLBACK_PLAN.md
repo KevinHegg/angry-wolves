@@ -959,3 +959,16 @@ Fixed partial legacy initials, editing during a pending post, hidden late submis
 Validation: 93 Node tests pass and `git diff --check` passes. Browser checks at 393×650, 393×550 and 320×568; no production QA score posted. Local stub verified changed initials/badge sent as PEWE. Instrumented real browser ending delays were 2009ms for a win and 2003ms for a loss, with wolf animation and corresponding audio startup. This is not a physical iPhone listening check. No Sheet/backend changes, tracking, ads or monetization added.
 
 To roll back, restore the runtime sources and root HTML from the checkpoint, then package them as a new release with matching version references. Do not point the root at an old `play/2.x/` index: historical entry pages redirect home. Preserve unrelated work and backend edits.
+
+
+## v2.35 — Retro audio refinement and a public-file-only Pages build
+
+Checkpoint: `checkpoint/pre-retro-audio-2.34` at `efc45ed`. Preserve all game rules, goals, Pip bonuses, dust-devil timing and the two-second ending pause. Rounder additive synth voices use softer attacks and tails, less noise, quieter selection previews and more consistent output levels. Pig calls use two nasal oinks; the wind has a quiet swept tone beneath its filtered gusts. Ending howls last 1.82 / 1.92 seconds, within the result pause. New calls release the previous voice over 18ms to avoid abrupt cutoffs. Gate/field-complete cues use soft triangle notes. No recordings, soundfonts or dependencies were added. Help now previews wind and both ending howls as well as the animal calls.
+
+The opening screen adds a small copyright link. `COPYRIGHT.txt` reserves only applicable rights and permits game/scorecard sharing; it does not establish copyrightability or trademark clearance. The name, public URL and repository visibility remain unchanged.
+
+Pages now uses `.github/workflows/pages.yml` and `scripts/build-site.cjs` to publish only root entry pages, the notice and versioned runtime files. Old runtime files remain for cached entry pages; old version entry URLs still redirect home. Development notes, tests and Apps Script source are excluded from the Pages artifact. This does not hide the public repository or browser-delivered game code. A private-source/public-Pages setup still requires an eligible GitHub plan or a separate public build repository.
+
+Validation: 96 Node tests pass, including output levels, finite samples, howl lengths, replacement-voice fades and the exact public file allowlist. Browser checks cover sound startup for all ten preview buttons and the opening/Help controls at 393×550 and 320×568. Physical iPhone listening remains a player acceptance check.
+
+To revert audio, restore `rescue-audio.js` and `rescue-voices.js` from the checkpoint and package under a fresh version; keep the public-file-only workflow. Full runtime rollback follows the usual fresh-version process. Do not revert Pages to copying the repository root merely to undo a sound change. `main` and unrelated Sheet/backend work remain untouched.

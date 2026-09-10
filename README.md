@@ -55,10 +55,14 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.34**. Root HTML loads immutable assets from `play/2.34/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.35**. Root HTML loads immutable assets from `play/2.35/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
-For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. Pages publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
+For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
 To roll back, restore the chosen checkpoint's runtime sources and package them under a new release version. Historical customer URLs intentionally open the current game; they are not independent rollback targets. Preserve unrelated work and score-sheet changes.
 
 The leaderboard uses the existing Apps Script deployment and Sheet, filtered to `rescue-v2`. Only explicit player submission writes a score. Profiles persist on the device; adventures and unposted results currently do not survive a page reload. The leaderboard is a casual honor-system board, not a server-verified competition.
+
+## Rights
+
+Copyright © 2026 Kevin Hegg. See [COPYRIGHT.txt](COPYRIGHT.txt) for the rights notice and permission to share game links and generated scorecards. There is no open-source license.

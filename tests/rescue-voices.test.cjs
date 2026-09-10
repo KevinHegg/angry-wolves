@@ -31,8 +31,19 @@ test('ending howls are distinct sustained voices with smooth quiet endpoints',()
  const sad=V.synthesize('howl-plaintive'),deep=V.synthesize('howl-deep');
  assert.notEqual(sad.length,deep.length);
  for(const samples of [sad,deep]){
- assert.ok(samples.length>22050*2);let energy=0;
+ assert.ok(samples.length>22050*1.5&&samples.length<22050*2,'howl fits before the two-second result panel');let energy=0;
  for(const sample of samples){assert.ok(Number.isFinite(sample)&&Math.abs(sample)<.35);energy+=sample*sample;}
  assert.ok(energy/samples.length>.0001);assert.ok(Math.abs(samples[0])<.001&&Math.abs(samples.at(-1))<.001);
+ }
+});
+
+test('selection calls are quieter than rescues and all voices keep overlapping output headroom',()=>{
+ const rms=samples=>Math.sqrt(samples.reduce((sum,x)=>sum+x*x,0)/samples.length);
+ for(const kind of [...V.ANIMALS,'bark','snarl','whimper','whoosh','howl-plaintive','howl-deep']){
+  const full=V.synthesize(kind),short=V.synthesize(kind,true);
+  if(V.ANIMALS.includes(kind))assert.ok(rms(short)<rms(full)*.9,kind+' selection is softer');
+  assert.ok(rms(full)>.025&&rms(full)<.1,kind+' balanced level');
+  for(const x of full)assert.ok(Math.abs(x)<=.281);
+  assert.ok(full[0]===0&&full.at(-1)===0);
  }
 });

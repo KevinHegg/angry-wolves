@@ -1,0 +1,11 @@
+Hungry Wolf
+Copyright © 2026 Kevin Hegg. All rights reserved.
+
+Permission is granted to play the official game and to share links and the
+unmodified scorecards it generates. No open-source license is granted for the
+game's protected code, artwork, text, or sounds.
+
+This notice reserves only rights lawfully held by the author in material
+eligible for protection. It does not claim ownership of third-party material,
+game ideas or rules, or material that copyright does not protect. It does not
+limit statutory rights or permissions already granted under platform terms.

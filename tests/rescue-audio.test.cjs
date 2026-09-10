@@ -5,13 +5,13 @@ const fs=require('node:fs');
 function harness(audioSession){
  const events={},instances=[];
  class Context{
-   constructor(){this.state='suspended';this.sampleRate=44100;this.currentTime=7;this.destination={};this.notes=[];this.sources=[];instances.push(this);}
+   constructor(){this.state='suspended';this.sampleRate=44100;this.currentTime=7;this.destination={};this.notes=[];this.sources=[];this.gains=[];instances.push(this);}
    createBuffer(channels,length){return {getChannelData:()=>new Float32Array(length)};}
-   createBufferSource(){const source={connect(){},disconnect(){},start(at){this.at=at;},stop(){this.stopped=true;}};this.sources.push(source);return source;}
+   createBufferSource(){const source={connect(){},disconnect(){},start(at){this.at=at;},stop(at){this.stopped=true;this.stopAt=at;}};this.sources.push(source);return source;}
    resume(){return new Promise(resolve=>{this.ready=()=>{this.state='running';resolve();};});}
    close(){this.state='closed';return Promise.resolve();}
    createOscillator(){const self=this;return {frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},start(at){self.notes.push(at);},stop(){}};}
-   createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}
+   createGain(){const ramps=[];const gain={gain:{value:1,cancelScheduledValues(){},setValueAtTime(){},linearRampToValueAtTime(value,at){ramps.push({value,at});},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},ramps};this.gains.push(gain);return gain;}
  }
  const window={navigator:{audioSession},RescueVoices:require('../rescue-voices'),AudioContext:Context,addEventListener:(name,fn)=>{events[name]=fn;}};
  const document={hidden:false,addEventListener:(name,fn)=>{events[name]=fn;}};
@@ -53,7 +53,10 @@ test('a refused Safari resume reports failure instead of claiming playback',asyn
 test('herd calls replace earlier selections and wolf reactions play on a separate delayed lane',async()=>{
  const h=harness();const ready=h.audio.play('select',{animal:0});h.instances[0].ready();assert.equal(await ready,true);
  const context=h.instances[0],selection=context.sources.at(-1);
+ const selectionGain=context.gains.at(-1);
  await h.audio.play('rescue',{animal:0});assert.equal(selection.stopped,true);
+ assert.equal(selection.stopAt,context.currentTime+.02);
+ assert.deepEqual(selectionGain.ramps,[{value:0,at:context.currentTime+.018}]);
  const rescue=context.sources.at(-1);await h.audio.play('snarl',{delay:.32});
  assert.ok(context.sources.at(-1).at>rescue.at+.3);assert.equal(rescue.stopped,undefined);
  h.audio.setEnabled(false);assert.equal(context.state,'closed');
