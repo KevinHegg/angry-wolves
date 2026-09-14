@@ -5,7 +5,8 @@ const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
 const D=require('../rescue-daily');
-function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={},initialLandscape=false,trailGeometry=false,gameDate=Date){
+function memoryStorage(){const values=new Map();return{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};}
+function harness(reducedMotion=true,storage=memoryStorage(),timers=null,services={},initialLandscape=false,trailGeometry=false,gameDate=Date){
  const nodes=new Map(),animations=[],sounds=[],windowEvents={};
  const clock={now:1000},orientation={matches:initialLandscape,addEventListener(name,fn){this.changed=fn;}};
  class Element {
@@ -190,7 +191,7 @@ test('daily play labels restart as Give up and returns to the game chooser witho
  h.get('retry').events.click();
  assert.deepEqual(a.state.board,board);assert.equal(a.challengeDate,'');assert.equal(values.has('hw-daily-adventure'),false);
  assert.equal(h.get('story-dialog').open,true);assert.equal(h.get('dialog-title').textContent,'The gate was left open.');
- a.secondary();assert.equal(a.challengeDate,'');assert.equal(h.get('retry').textContent,'Restart game');
+ a.action();assert.equal(a.challengeDate,'');assert.equal(h.get('retry').textContent,'Restart game');
 });
 test('version label belongs only to the opening dialog',()=>{
  const h=harness(),a=h.api;assert.equal(h.get('load-version').hidden,false);
@@ -361,17 +362,21 @@ test('a losing two-step move passes the one-away mark before the howl and result
  }
 });
 
-test('daily play repeats its opening without selection and free play keeps the original mode',()=>{
- const h=harness(),a=h.api;a.beginDaily();const first=JSON.stringify(a.state);assert.equal(a.challengeDate,D.dayKey());
- a.select(R.groups(a.state.board)[0][0]);a.commit();a.freshAdventure();assert.equal(JSON.stringify(a.state),first);assert.equal(h.get('whistle').disabled,true);
- a.beginFree();assert.equal(a.challengeDate,'');assert.equal(a.state.chapter,0);
+test('starting twice resumes the same daily attempt instead of resetting it',()=>{
+ const h=harness(),a=h.api;a.beginDaily();assert.equal(h.get('whistle').disabled,true);
+ a.select(R.groups(a.state.board)[0][0]);a.commit();const progressed=JSON.stringify(a.state);
+ a.beginDaily();assert.equal(JSON.stringify(a.state),progressed);a.freshAdventure();assert.equal(JSON.stringify(a.state),progressed);
+ assert.equal(h.get('whistle').disabled,true);assert.equal(h.get('game-mode').textContent,'DAILY CHALLENGE');assert.match(h.document.body.className,/daily-mode/);
+ a.beginFree();assert.equal(a.challengeDate,'');assert.equal(a.state.chapter,0);assert.equal(h.get('game-mode').textContent,'BRING THEM HOME');assert.doesNotMatch(h.document.body.className,/daily-mode/);
 });
 test('daily save restores board, wolf, Pip and exact future draws through a reload',()=>{
  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
  const h=harness(true,storage),a=h.api;a.beginDaily();a.select(R.groups(a.state.board)[0][0]);a.commit();h.get('bark').events.click();
  const expected=JSON.stringify(a.state),streamState=a.randoms.snapshot();
  const next=harness(true,storage).api;next.resumeDaily();assert.equal(JSON.stringify(next.state),expected);assert.deepEqual(next.randoms.snapshot(),streamState);
- const g=R.groups(a.state.board)[0][0];a.select(g);a.commit();next.select(g);next.commit();assert.equal(JSON.stringify(next.state),JSON.stringify(a.state));
+ const g=R.groups(next.state.board)[0][0];next.select(g);next.commit();assert.equal(next.state.moves,2);
+ a.select(g);a.commit();assert.equal(a.challengeDate,'','a stale tab cannot overwrite the resumed run');
+ assert.equal(JSON.stringify(JSON.parse(storage.getItem('hw-daily-adventure')).state),JSON.stringify(next.state));
 });
 test('an adventure keeps its day across midnight and a new adventure uses the new day',()=>{
  let time=Date.parse('2026-09-15T03:59:00Z');class Clock extends Date{static now(){return time;}}
@@ -419,36 +424,62 @@ test('completed v2.40 daily saves migrate with or without a finished result pane
  for(const endingPending of [false,true]){
   const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
   const a=harness(true,storage).api;a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=2200;
-  if(endingPending)a.saveDaily();else a.finishField();values.delete('hw-daily-completed');
+  if(endingPending)a.saveDaily();else a.finishField();values.delete('hw-daily-completed');values.delete(`hw-daily-attempt:${D.dayKey()}`);
+  const legacy=JSON.parse(values.get('hw-daily-adventure'));delete legacy.dailyRevision;values.set('hw-daily-adventure',JSON.stringify(legacy));
   const next=harness(true,storage);
   assert.match(next.get('dialog-details').innerHTML,/Completed today · best 3,200 points/);
   assert.match(next.get('dialog-action').textContent,/Free play/);next.api.secondary();assert.equal(next.api.result.score,3200);
  }
 });
-test('daily replay is deliberate and giving up a replay does not erase today’s win',()=>{
+test('a completed daily can be viewed but never replayed, even after free play or rename',()=>{
  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
- const h=harness(true,storage),a=h.api;a.beginDaily();const opening=JSON.stringify(a.state.board);
- a.state.chapter=2;a.state.status='won';a.state.score=1800;a.finishField();a.secondary();
- assert.match(h.get('dialog-details').innerHTML,/Replay today’s challenge/);h.get('start-daily-new').events.click();
- assert.equal(a.challengeDate,D.dayKey());assert.equal(JSON.stringify(a.state.board),opening);assert.equal(a.result,null);
- h.get('retry').events.click();assert.equal(values.has('hw-daily-adventure'),false);
- const next=harness(true,storage);assert.match(next.get('dialog-details').innerHTML,/Completed today · best 2,800 points/);
- assert.match(next.get('dialog-action').textContent,/Free play/);next.api.action();assert.equal(next.api.challengeDate,'');
+ const h=harness(true,storage),a=h.api;a.beginDaily();
+ a.state.chapter=2;a.state.status='won';a.state.score=1800;a.finishField();const nonce=a.result.nonce;
+ a.secondary();assert.doesNotMatch(h.get('dialog-details').innerHTML,/Replay|Restart today/);
+ a.beginDaily();assert.equal(a.result.nonce,nonce);assert.equal(a.result.score,2800);
+ a.beginFree();S.saveProfile({initials:'NEW',badge:7},storage);a.beginDaily();assert.equal(a.result.nonce,nonce);
+ h.get('retry').events.click();const next=harness(true,storage);
+ assert.match(next.get('dialog-details').innerHTML,/Completed today · best 2,800 points/);assert.match(next.get('dialog-action').textContent,/Free play/);
 });
-test('daily completion applies only to its Eastern date and a lower replay cannot lower the best',()=>{
+for(const outcome of ['lost','gave-up'])test(`daily ${outcome} consumes the attempt across reload and free play`,()=>{
+ const storage=memoryStorage(),h=harness(true,storage),a=h.api;a.beginDaily();
+ if(outcome==='lost'){a.state.status='lost';a.finishField();assert.match(h.get('dialog-action').textContent,/Play free/);}else h.get('retry').events.click();
+ const marker=JSON.parse(storage.getItem(`hw-daily-attempt:${D.dayKey()}`));assert.equal(marker.status,outcome);
+ const next=harness(true,storage);assert.match(next.get('dialog-action').textContent,/Free play/);assert.doesNotMatch(next.get('dialog-details').innerHTML,/Restart today|Replay/);
+ next.api.beginDaily();assert.ok(next.api.challengeDate!==D.dayKey()||next.api.state.status!=='playing');
+ next.api.beginFree();next.api.intro();assert.match(next.get('dialog-action').textContent,/Free play/);
+ assert.equal(JSON.parse(storage.getItem(`hw-daily-attempt:${D.dayKey()}`)).nonce,marker.nonce);
+});
+test('daily completion applies only to its Eastern date',()=>{
  let time=Date.parse('2026-09-15T03:59:00Z');class Clock extends Date{static now(){return time;}}
  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
  const h=harness(true,storage,null,{},false,false,Clock),a=h.api;
- for(const score of [3000,2000]){a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=score;a.finishField();}
+ a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=3000;a.finishField();
  a.intro();assert.match(h.get('dialog-details').innerHTML,/best 4,000 points/);
  time=Date.parse('2026-09-15T04:01:00Z');a.intro();assert.doesNotMatch(h.get('dialog-details').innerHTML,/Completed today/);
  assert.equal(h.get('dialog-action').textContent,'Play today’s challenge');assert.match(h.get('dialog-details').innerHTML,/View daily adventure · Sep 14/);
  a.action();assert.equal(a.challengeDate,'2026-09-15');assert.equal(a.state.chapter,0);
 });
-test('blocked browser storage still remembers a daily win for the current session',()=>{
+test('blocked browser storage offers free play without starting an untrackable daily',()=>{
  const h=harness(true,{getItem(){throw Error('Storage blocked');},setItem(){throw Error('Storage blocked');}}),a=h.api;
- a.beginDaily();a.state.chapter=2;a.state.status='won';a.finishField();a.action();a.intro();
- assert.match(h.get('dialog-details').innerHTML,/Completed today/);assert.match(h.get('dialog-action').textContent,/Free play/);
+ a.beginDaily();assert.equal(a.challengeDate,'');assert.match(h.get('dialog-title').textContent,/Allow this game to save/);
+ a.action();assert.equal(a.challengeDate,'');assert.equal(h.get('story-dialog').open,false);
+});
+test('missing or corrupt progress cannot reopen a consumed daily attempt',()=>{
+ const storage=memoryStorage(),h=harness(true,storage);h.api.beginDaily();storage.setItem('hw-daily-adventure','broken');
+ const next=harness(true,storage);assert.match(next.get('dialog-action').textContent,/Free play/);next.api.beginDaily();assert.equal(next.api.challengeDate,'');
+});
+test('a second tab taking over daily play cancels stale work and preserves the same nonce',()=>{
+ const storage=memoryStorage(),timers=[],h=harness(false,storage,timers),a=h.api;a.beginDaily();
+ a.select(R.groups(a.state.board)[0][0]);a.commit();const pending=timers.find(t=>t.delay===230);
+ const next=harness(true,storage);next.api.beginDaily();const before=storage.getItem('hw-daily-adventure');
+ h.windowEvents.storage({key:`hw-daily-attempt:${D.dayKey()}`});pending.fn();
+ assert.equal(storage.getItem('hw-daily-adventure'),before);assert.equal(a.challengeDate,'');assert.match(h.get('dialog-action').textContent,/Continue daily/);
+});
+test('daily scores still submit when the public CSV is temporarily unavailable',async()=>{
+ const h=harness(true,undefined,null,{board:async()=>{throw Error('CSV unavailable');}}),a=h.api;
+ a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=3000;a.finishField();a.showLeaderboard('daily');await settle();
+ h.get('score-initials').value='NEW';await a.postScore({preventDefault(){}});assert.equal(h.posted.length,1);assert.equal(a.submission.done,true);
 });
 test('whistle 18 and 26 warnings arrive before the move and preview the correct movement',()=>{
  for(const next of [17,18,25,26]){

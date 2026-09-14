@@ -1044,3 +1044,11 @@ Existing approved history is read from the same public CSV; no sheet, form, hist
 Validation: tests cover all-date ranking, non-winners, repeated attempts, deduplication before limiting, ties, late/invalid/future dates, unchanged history, CSV reads, optional backend routing and UI dates/herds. Local browser checks use 25 mock rows with submissions disabled; checks at 320×568 and 393×650 cover tab switching, five visible records, scrolling and pinned Back controls. No production test score was posted.
 
 To roll back, restore the changed runtime sources from `c27286f` and package a fresh release. Existing daily results and completion markers remain valid. Keep all score rows and unrelated files.
+
+## v2.43 — one daily attempt and score-feed repair
+
+Checkpoint: v2.42 / 4ffcf26. Daily starts are consumed immediately per browser/device and Eastern date, independently of saved progress and player name. Continue restores the same run; loss, win and Give up cannot restart it. Legacy progress/completion migrates, and revision checks prevent stale tabs overwriting a resumed run. Blocked storage offers free play. Gold daily header and board border preserve the compact board geometry.
+
+Daily posting bypasses CSV qualification preflight. The live public!A50 formula now uses INDIRECT references so Forms cannot shift the start and drop submissions. All prior rows and ranking rules are preserved. Rebuild this formula using scripts/public-score-formula.cjs; never restore the drifting direct ranges.
+
+To roll back the frontend, restore the v2.42 runtime sources and package under a new version. Retain all daily attempt keys and the repaired live sheet formula. Account-based enforcement is outside this client-only release; clearing browser data or using another device can bypass the local attempt limit.

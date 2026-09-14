@@ -47,7 +47,7 @@ The spreadsheet must remain restricted to the owner. The Form responder setting 
 12. `version`
 13. `source_nonce`
 
-Rows 2–49 hold the 48 migrated historical scores. A50 contains the array formula that validates and appends form responses. Do not insert manual rows below A50 because they can block the array result. Extend all response ranges together before form response 1,000.
+Rows 2–49 hold the 48 migrated historical scores. A50 contains the array formula that validates and appends form responses. Do not insert manual rows below A50 because they can block the array result. The response references must use `INDIRECT` to prevent Google Forms insertions from shifting row 2. Generate the exact formula with `node scripts/public-score-formula.cjs`; extend its shared response bound before response 1,000. Do not replace these with direct A2:A1001 references.
 
 ## Client mapping
 
@@ -77,3 +77,7 @@ Before a release:
 2. Fetch the published CSV anonymously and confirm only the 13 public headers and approved rows appear.
 3. Run `node --test tests/*.test.cjs` and `git diff --check`.
 4. Do not post a production QA score. Validate form mapping with mocked fetches in the test suite.
+
+## September 14 repair (v2.43)
+
+The first three Form submissions were recorded but invisible: Forms moved the direct response references in public!A50 from row 2 to row 5. Replaced all 38 references with insertion-stable INDIRECT ranges after testing in blank private scratch cells. The three daily rows now pass the existing validation, preserving all 48 historical scores, score values, nonce deduplication and tie order. Scratch cells were cleared. The public CSV confirms KEVH 3910 and BUDC 3472 on Daily (BUDC 2788 remains in the raw approved history). A failed public read no longer prevents a daily POST. No synthetic production score was submitted.

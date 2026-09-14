@@ -1,4 +1,4 @@
-# Daily challenge and score service — v2.42
+# Daily challenge and score service — v2.43
 
 The daily game and five leaderboard periods are implemented without a scheduler. `rescue-daily.js` derives the day from `America/New_York`; the first load after Eastern midnight automatically uses the new date seed.
 
@@ -6,14 +6,15 @@ The daily game and five leaderboard periods are implemented without a scheduler.
 
 - Daily play uses the same opening and repeatable animal, wind and Pip-regroup choices for everyone on a date.
 - Free play remains random. The ordinary herd, Pip, wolf and field rules are shared by both modes.
-- Daily retries are unlimited and explicitly chosen. After winning, the main action starts free play; the opening panel marks today complete and offers the saved result and an optional replay. A player contributes only their best approved score for each day.
+- Each browser/device can start the daily challenge once per Eastern date. Starting immediately records the attempt. Reloading resumes the same board and random streams. Winning, losing or Give up ends the attempt; changing player identity does not reset it. A gold DAILY CHALLENGE header and board border identify the mode. Existing scores from the earlier replay rules remain valid, using the best approved score per player/date.
 - Weekly totals add those daily bests from Monday through Sunday Eastern.
 - All time ranks the top 20 approved free-play and daily adventures without altering older scores.
 - Daily records ranks the top 20 daily challenge results across every date, including non-winners and late posts. Keep only each player’s best score per challenge date before taking the top 20; earlier scores win ties. Rows show challenge date and biggest herd. Existing public history is included automatically.
 - Daily winners keeps one champion for each completed day. Yesterday's winner appears on the opening panel for the next day only.
 - A daily score must be posted on its challenge date in Eastern time. A game crossing midnight keeps its board. Late results can appear on All time and Daily records, but cannot alter Daily, Weekly or Daily winners.
-- Daily progress, random-stream state and an unposted result persist in `hw-daily-adventure` local storage. `hw-daily-completed` separately records the latest completed date and personal daily best so free play or giving up a replay cannot erase completion. Existing v2.40 completed saves migrate automatically, including a win saved during the ending animation. Safari back-cache restores refresh the opening chooser without resetting active play. Free-play progress does not persist. Clearing browser data removes device history; blocked storage retains completion for the current page session only.
-- During daily play, the board link says **Give up**. It clears the saved daily run and returns to the daily/free-play chooser.
+- Daily progress, random streams and unposted results persist in `hw-daily-adventure`. A separate `hw-daily-attempt:YYYY-MM-DD` record tracks the nonce, status and revision. It survives Give up and free play. Legacy saved runs and `hw-daily-completed` records migrate without granting a replay. Revisions stop a stale tab from overwriting a resumed run. Safari back-cache checks refresh the chooser and invalidate stale play.
+- Daily play requires writable browser storage. Clearing site data or changing browsers/devices bypasses the limit; cross-device enforcement needs player accounts and a server-side start record. This remains an honor-system competition.
+- During daily play, **Give up** ends the attempt and returns to the chooser. The next attempt opens at midnight Eastern. Finished results remain available for posting; free play never consumes a daily attempt.
 
 ## Data flow
 
@@ -49,7 +50,7 @@ git diff --check
 
 Tests cover Eastern midnight and daylight-saving transitions, repeatable streams, exact resume, cow refills, all leaderboard periods, ties, historical scores, Google Form field mapping, CSV parsing and the daily **Give up** flow. Verify the anonymous form and CSV URLs with an unsigned request before release. Do not send a production QA score.
 
-This no-OAuth fallback is intentionally lightweight. It keeps raw responses private and adds useful validation, but it does not provide Apps Script locks, cache-based rate limiting, a private review queue or a trustworthy POST response. The current formula scans the first 1,000 response rows. Extend every `A2:A1001`-style bound together before that limit is reached.
+This no-OAuth fallback is intentionally lightweight. It keeps raw responses private and adds useful validation, but it does not provide Apps Script locks, cache-based rate limiting, a private review queue or a trustworthy POST response. The current formula scans the first 1,000 response rows. The formula uses `INDIRECT` ranges so new Form rows cannot shift its starting row. Generate the insertion-stable formula with `node scripts/public-score-formula.cjs`; increase its shared bound before that limit is reached. Daily POST no longer depends on a successful CSV preflight.
 
 The bound Apps Script project remains in Drive as a future upgrade path. Google blocked its requested Sheets scope during authorization, so it is not deployed and the client does not reference it.
 
