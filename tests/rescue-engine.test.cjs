@@ -60,8 +60,8 @@ test('thousands of turns stay valid and always offer a legal herd', () => {
   }
 });
 
-test('Pip rest bonuses match the four promised tiers', () => {
-  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,100,300,650]);
+test('only an adventure with Pip resting in all three fields earns the 1000 bonus', () => {
+  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,0,0,1000]);
 });
 test('biggest herd keeps its animal and survives smaller later rescues', () => {
   const s=setup(8); R.rescue(s,0,random(2));
@@ -125,4 +125,14 @@ test('dead-board regroup preserves species counts and dust position after Pip',(
  const counts=board=>Array.from({length:7},(_,t)=>board.filter(v=>v===t).length),before=counts(state.board);
  R.bark(state,()=>.999);assert.deepEqual(counts(state.board),before);assert.ok(R.groups(state.board).length);
  assert.equal(state.board[14],R.DUST);assert.equal(state.cats[14],2);assert.equal(state.moves,0);
+});
+
+test('two steps from the pen visits one before zero unless late pressure adds a step',()=>{
+ for(const size of [3,4]){
+  const state=setup(size,2);state.catSettings={...R.WIND_SETTINGS,enabled:false};
+  R.rescue(state,0,random(12));assert.equal(state.distance,1);assert.equal(state.status,'playing');
+  state.board=setup(size).board;R.rescue(state,0,random(12));assert.equal(state.distance,0);assert.equal(state.status,'lost');
+  const late=setup(size,2);late.moves=17;late.catSettings={...R.WIND_SETTINGS,enabled:false};
+  R.rescue(late,0,random(12));assert.equal(late.distance,0);assert.equal(late.status,'lost');
+ }
 });

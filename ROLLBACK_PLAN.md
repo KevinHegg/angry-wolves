@@ -1002,3 +1002,14 @@ Checkpoint: `checkpoint/pre-popup-centering-2.37` at `5ee1069`. The game frame a
 Validation: all 103 Node tests pass. Browser measurements confirm equal opposing margins for the game and leaderboard at 1920×1080, visible Save/Post/Back controls at 1024×600, and the original 12px phone popup offset at 393×650. Score-entry checks use a local fixture with mock scores and disabled submission.
 
 To revert, restore the desktop `dialog.leaderboard-view` positioning rule in `rescue.css` from the checkpoint, then package a fresh version. Preserve unrelated changes and the public-file-only Pages workflow.
+
+
+## v2.39 — Zero-Pip bonus and visible final wolf steps
+
+Checkpoint: `checkpoint/pre-zero-pip-bonus-2.38` at `56f61c7`. Winning all three fields without any bark awards 1,000 points. Using even one bark awards no Pip bonus. Herd scoring, three available barks, field goals, animal distribution and wolf movement rules remain unchanged. The HUD, introduction, Help, results and share card explain the new rule. Existing leaderboard records retain their original scores and bonuses; no Sheet data or backend is changed.
+
+The final rescue previously skipped the wolf travel animation. It now travels through each intervening progress mark before the ending howl and the existing two-second result pause. Ordinary three/four-animal herds move 2 to 1 to 0 on successive moves; from whistle 18, existing pressure can legitimately produce a two-step losing move. That move now visibly passes mark 1. Reduced-motion preferences and landscape pause/restart cancellation are preserved.
+
+Validation: all 107 Node tests pass, including zero/one/two/three-bark outcomes, no bonus on loss, restart, carryover, historical leaderboard values and ending timing. A local browser fixture measured marks 2, 1 and 0 at 16, 463 and 639ms after the whistle, with the result panel at 2865ms. Browser results show 500 herding points becoming 1,500 with no Pip or 500 after a bark; no test score was submitted. The 320x568 phone layout retains visible controls and the bonus label.
+
+To roll back, restore the changed runtime sources from the checkpoint, then package a fresh release with matching root/version references. Do not recalculate historical scores or reset unrelated backend edits. Keep the public-file-only Pages workflow. Daily seeded play is still a proposal and is not part of this release.

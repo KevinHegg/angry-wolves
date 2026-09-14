@@ -69,3 +69,11 @@ test('leaderboard stops after two failed reads and reports a refresh error',asyn
  const old=global.fetch;let calls=0;global.fetch=async()=>{calls++;return{ok:false,json:async()=>{throw Error('HTML response')}};};
  try{await assert.rejects(S.leaderboard(),/Could not refresh/);assert.equal(calls,2);}finally{global.fetch=old;}
 });
+
+test('old-house-rule scores and bonuses remain unchanged when the leaderboard is read',async()=>{
+ const entries=[{gameMode:S.MODE,playerName:'WJMB',score:5062,missionTitle:'Home safe · Pip rested 2/3 · bonus 250',version:'rescue-2.26'},
+  {gameMode:S.MODE,playerName:'LKYC',score:4430,missionTitle:'Home safe · Pip rested 3/3 · bonus 650',version:'rescue-2.38'}];
+ const original=structuredClone(entries),old=global.fetch;
+ global.fetch=async(url,options)=>{assert.notEqual(options.method,'POST');return{ok:true,json:async()=>({ok:true,entries})};};
+ try{assert.deepEqual(await S.leaderboard(),original);assert.deepEqual(entries,original);}finally{global.fetch=old;}
+});

@@ -4,15 +4,20 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={},initialLandscape=false){
+function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={},initialLandscape=false,trailGeometry=false){
  const nodes=new Map(),animations=[],sounds=[];
  const clock={now:1000},orientation={matches:initialLandscape,addEventListener(name,fn){this.changed=fn;}};
  class Element {
   constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
-  set innerHTML(html){this.html=html;for(const m of html.matchAll(/id="([^"]+)"/g))nodes.set(m[1],new Element());this.children=[...html.matchAll(/data-cell="(\d+)" data-type="(\d+)"/g)].map(m=>{const e=new Element();e.dataset={cell:m[1],type:m[2]};return e;});}
+  set innerHTML(html){this.html=html;for(const m of html.matchAll(/id="([^"]+)"/g))nodes.set(m[1],new Element());this.children=[...html.matchAll(/data-cell="(\d+)" data-type="(\d+)"/g)].map(m=>{const e=new Element();e.dataset={cell:m[1],type:m[2]};return e;});
+   if(trailGeometry&&html.includes('class="trail-step '))this.children=[...html.matchAll(/<span class="trail-step ([^"]*)">/g)].map((m,i)=>{
+    const e=new Element();e.dataset.trail=i;if(m[1].includes('active')){e.wolf=new Element();e.wolf.dataset.trail=i;}return e;
+   });
+  }
   get innerHTML(){return this.html;}
+  querySelector(selector){return selector==='svg'?this.wolf:null;}
   querySelectorAll(){return [];}
-  getBoundingClientRect(){const i=Number(this.dataset.cell)||0;return{left:(i%6)*50,top:Math.floor(i/6)*50};}
+  getBoundingClientRect(){if(this.dataset.trail!==undefined)return{left:this.dataset.trail*30,top:0};const i=Number(this.dataset.cell)||0;return{left:(i%6)*50,top:Math.floor(i/6)*50};}
   animate(frames,options){animations.push({cell:this,frames,options});}
   setAttribute(){} removeAttribute(){} addEventListener(k,fn){this.events[k]=fn;} focus(){document.activeElement=this;} showModal(){this.open=true;} close(){this.open=false;} replaceChildren(){this.children=[];} append(...els){this.children.push(...els);} remove(){for(const[k,v]of nodes)if(v===this)nodes.delete(k);}
  }
@@ -191,7 +196,7 @@ test('three Pip charges can be spent in one field and never refill at field boun
  assert.equal((h.get('bark').innerHTML.match(/class="filled"/g)||[]).length,3);
  const before=structuredClone(a.state);h.get('bark').events.click();assert.deepEqual(a.state,before);
  a.state.status='won';a.finishField();a.action();assert.equal(a.state.bark,0);
- a.state.status='won';a.finishField();assert.equal(a.result.rested,1);assert.equal(a.result.bonus,100);
+ a.state.status='won';a.finishField();assert.equal(a.result.rested,1);assert.equal(a.result.bonus,0);
  a.freshAdventure();assert.equal(a.state.bark,3);
 });
 
@@ -308,4 +313,39 @@ test('field-completion delay prevents opening another dialog in mid-transition',
  const timers=[],h=harness(false,undefined,timers),a=h.api;a.start();a.state.saved=[13,0,0,0];a.state.board.fill(0);
  a.select(0);a.commit();timers.find(t=>t.delay===230).fn();a.showLeaderboard();
  assert.equal(h.get('story-dialog').open,false);timers.find(t=>t.delay===900).fn();assert.equal(h.get('story-dialog').open,true);
+});
+
+test('zero barks earns 1000 only at victory; any number of barks removes the bonus',()=>{
+ for(const barks of [0,1,2,3]){
+  const h=harness(),a=h.api;a.start();
+  for(let i=0;i<barks;i++)h.get('bark').events.click();
+  assert.equal(h.get('pip-rest-hint').textContent,barks?'Pip bonus: 0':'No-Pip bonus: +1,000');
+  for(let chapter=0;chapter<2;chapter++){
+   a.state.status='won';a.finishField();assert.equal(a.result,null);a.action();
+   assert.equal(a.state.bark,3-barks);
+  }
+  a.state.score=500;a.state.status='won';a.finishField();
+  assert.equal(a.result.bonus,barks?0:1000);assert.equal(a.result.score,barks?500:1500);
+  assert.match(h.get('dialog-details').innerHTML,barks?/Pip helped/:/1,000 no-Pip bonus/);
+  a.freshAdventure();assert.equal(h.get('pip-rest-hint').textContent,'No-Pip bonus: +1,000');
+  a.state.status='lost';a.finishField();assert.equal(a.result,null);
+ }
+});
+test('a losing two-step move passes the one-away mark before the howl and result pause',()=>{
+ for(const restart of [false,true]){
+  const timers=[],h=harness(false,undefined,timers,{},false,true),a=h.api;a.start();
+  a.state.chapter=2;a.state.distance=2;a.state.moves=17;
+  a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);
+  a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.state.board[24]=a.state.board[33]=1;
+  assert.equal(R.group(a.state.board,30).length,3);a.select(30);a.commit();
+  timers.find(t=>t.delay===230).fn();assert.equal(a.state.distance,0);assert.equal(a.state.status,'lost');
+  const movement=h.animations.find(x=>x.cell.dataset.trail===0);
+  assert.deepEqual(Array.from(movement.frames,x=>x.transform),['translateX(60px)','translateX(30px)','translateX(30px)','translateX(0px)','translateX(0px)']);
+  assert.equal(movement.options.duration,600);assert.equal(h.sounds.includes('howl-deep'),false);
+  assert.equal(h.get('story-dialog').open,false);assert.equal(timers.some(t=>t.delay===2000),false);
+  if(restart)a.freshAdventure();
+  timers.find(t=>t.delay===600).fn();assert.equal(h.sounds.includes('howl-deep'),!restart);
+  assert.equal(h.get('story-dialog').open,false);
+  timers.find(t=>t.delay===2000)?.fn();assert.equal(h.get('story-dialog').open,!restart);
+ }
 });

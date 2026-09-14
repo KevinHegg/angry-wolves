@@ -12,7 +12,7 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 - Field goals: **14 sheep**, then **18 pigs and 18 hens**, then **14 of each animal**.
 - The opening board has 11, 12 and 13 sheep/pigs/hens, with those counts randomly assigned to species. Cows join refills in the orchard. Rescue goals do not bias the refill species. At least one herd is playable; larger herds occur naturally.
 - **Pip, bark!** sends the wolf back up to three steps and regroups the existing animals without using a move. There are **three barks for the whole adventure**, usable in any field. Open circles are available; filled circles are spent. Barks never replenish between fields.
-- Pip's bonus is awarded once, on winning: **100 / 300 / 650 points** for **1 / 2 / 3 fields without a bark**; zero for using him in every field. This counts fields without a bark, not unused barks.
+- Pip's bonus is awarded once, on winning: **1,000 points for using zero barks during the entire adventure**. Using any bark means zero bonus. Existing leaderboard scores retain the bonuses earned under their original rules.
 - The board, wolf distance, remaining barks and dust-devil countdown carry between fields. Only the field goals and move-pressure counter reset.
 - Dust devils arrive in one of the four middle columns of the top row after a random 2–5-rescue wait. If no middle column refills, the gust waits. Arrival does not fill a dot. After three further rescues, gravity falls first, then the gust scatters up to eight neighboring animals, including diagonals. It becomes the animal that forms the largest herd; ties are random. This transformation awards no immediate points. Pip leaves the gust's position and countdown unchanged.
 - Later refills become more scattered. From whistle 18 in a field, the wolf advances one extra step; from 26, two extra steps. Even large herds cannot hold it off indefinitely.
@@ -57,7 +57,7 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.38**. Root HTML loads immutable assets from `play/2.38/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.39**. Root HTML loads immutable assets from `play/2.39/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
 For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
