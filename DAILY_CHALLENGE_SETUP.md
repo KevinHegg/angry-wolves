@@ -1,4 +1,4 @@
-# Daily challenge and score service — v2.40
+# Daily challenge and score service — v2.41
 
 The daily game and four leaderboard periods are implemented without a scheduler. `rescue-daily.js` derives the day from `America/New_York`; the first load after Eastern midnight automatically uses the new date seed.
 
@@ -6,12 +6,12 @@ The daily game and four leaderboard periods are implemented without a scheduler.
 
 - Daily play uses the same opening and repeatable animal, wind and Pip-regroup choices for everyone on a date.
 - Free play remains random. The ordinary herd, Pip, wolf and field rules are shared by both modes.
-- Daily retries are unlimited. A player contributes only their best approved score for each day.
+- Daily retries are unlimited and explicitly chosen. After winning, the main action starts free play; the opening panel marks today complete and offers the saved result and an optional replay. A player contributes only their best approved score for each day.
 - Weekly totals add those daily bests from Monday through Sunday Eastern.
 - All time ranks the top 20 approved free-play and daily adventures without altering older scores.
 - Daily winners keeps one champion for each completed day. Yesterday's winner appears on the opening panel for the next day only.
 - A daily score must be posted on its challenge date in Eastern time. A game crossing midnight keeps its board, but a late result can appear only on all time.
-- Daily progress, random-stream state and an unposted result persist in local storage. Free-play progress does not.
+- Daily progress, random-stream state and an unposted result persist in `hw-daily-adventure` local storage. `hw-daily-completed` separately records the latest completed date and personal daily best so free play or giving up a replay cannot erase completion. Existing v2.40 completed saves migrate automatically, including a win saved during the ending animation. Safari back-cache restores refresh the opening chooser without resetting active play. Free-play progress does not persist. Clearing browser data removes device history; blocked storage retains completion for the current page session only.
 - During daily play, the board link says **Give up**. It clears the saved daily run and returns to the daily/free-play chooser.
 
 ## Data flow

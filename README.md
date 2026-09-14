@@ -15,7 +15,7 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 - Pip's bonus is awarded once, on winning: **1,000 points for using zero barks during the entire adventure**. Using any bark means zero bonus. Existing leaderboard scores retain the bonuses earned under their original rules.
 - The board, wolf distance, remaining barks and dust-devil countdown carry between fields. Only the field goals and move-pressure counter reset.
 - Dust devils arrive in one of the four middle columns of the top row after a random 2–5-rescue wait. If no middle column refills, the gust waits. Arrival does not fill a dot. After three further rescues, gravity falls first, then the gust scatters up to eight neighboring animals, including diagonals. It becomes the animal that forms the largest herd; ties are random. This transformation awards no immediate points. Pip leaves the gust's position and countdown unchanged.
-- Later refills become more scattered. From whistle 18 in a field, the wolf advances one extra step; from 26, two extra steps. Even large herds cannot hold it off indefinitely.
+- Later refills become more scattered. From whistle 18 in a field: herds of 3–4 move the wolf two steps closer, 5–6 one closer, and 7+ hold it still. From 26: three closer, two closer, and one closer, respectively. The trail labels the next whistle; a warning appears before each threshold and selecting a herd previews its movement. Even large herds cannot hold it off indefinitely.
 - On phones, landscape shows a rotation prompt and quick instructions. Open popups, selections and in-flight game animations resume when you turn back to portrait.
 - On laptops and desktops, the same portrait interface sits centered horizontally and vertically inside a rounded frame over a woodland background. Desktop popups share that center. The board grows with the available height, with compact controls in short windows. Mouse clicks select a herd and operate every control; click Whistle or the selected herd again to rescue it.
 - There is no clock. Sound is optional; use the speaker control or the sound test under **?**.
@@ -24,11 +24,11 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 
 Keyboard: Tab into the board, arrow keys move focus, Enter selects, Space whistles, Escape clears selection.
 
-## Daily challenge (v2.40)
+## Daily challenge (v2.41)
 
 The daily puzzle changes at midnight Eastern, with replayable seeded animal arrivals, wind and Pip regrouping. The existing board carries between fields; cows join orchard refills. Daily adventures and unposted results resume after a reload on the same device. During a daily run, **Restart game** becomes **Give up** and returns to the daily/free-play chooser without beginning another run.
 
-The Daily board keeps each player's best score that day. Weekly standings add those best scores from Monday through Sunday. All time includes old and new approved adventures without changing their values. Daily winners ranks each completed day's champion and shows the winning date; the opening screen features yesterday's winner for one day. Daily scores must be approved before midnight Eastern to count toward daily/weekly results; late results may enter all-time only. Free play remains available.
+The Daily board keeps each player's best score that day. Weekly standings add those best scores from Monday through Sunday. All time includes old and new approved adventures without changing their values. Daily winners ranks each completed day's champion and shows the winning date; the opening screen features yesterday's winner for one day. Daily scores must be approved before midnight Eastern to count toward daily/weekly results; late results may enter all-time only. After a daily win, **Play free** starts a fresh random board. The opening screen marks today complete and keeps the saved daily result available for posting. Replay is an explicit choice; giving up a replay does not erase today’s completion. The next day’s puzzle becomes available at midnight Eastern. Free play remains available.
 
 See [DAILY_CHALLENGE_SETUP.md](DAILY_CHALLENGE_SETUP.md) for the data flow and maintenance notes.
 
@@ -66,7 +66,7 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.40**. The published root loads immutable assets from `play/2.40/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.41**. The published root loads immutable assets from `play/2.41/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
 For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
