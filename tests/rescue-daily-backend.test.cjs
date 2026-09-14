@@ -23,3 +23,8 @@ test('daily payload requires matching date/ruleset and allows an old adventure t
  assert.throws(()=>b.ctx.validateDailyPayload_({...payload,dailyStartedAt:0}));
  const yesterday=D.shiftDay(date,-1);assert.doesNotThrow(()=>b.ctx.validateDailyPayload_({...payload,challengeDate:yesterday,dailyStartedAt:Date.parse(yesterday+'T18:00:00Z')}));
 });
+
+test('the optional backend supports all-time daily records without writing to the sheet',()=>{
+ const D=require('../rescue-daily'),today=D.dayKey(),day=D.shiftDay(today,-9),rows=[[day+'T18:00:00Z','AAA0',6000,D.MODE,`Daily ${day} · Pip rested 3/3 · bonus 1000`,0,19,'🐷',25,3,180000,'rescue-2.40','secret-1'],[day+'T18:01:00Z','BBB0',5500,D.MODE,`Daily ${day} · Pip rested 3/3 · bonus 1000`,0,18,'🐑',25,3,180000,'rescue-2.40','secret-2']];
+ const b=backend(rows),records=b.read('daily-alltime',today);assert.equal(records.ok,true);assert.deepEqual(records.entries.map(e=>e.score),[6000,5500]);assert.equal(records.entries[1].challengeDate,day);assert.equal(b.writes(),0);assert.doesNotMatch(JSON.stringify(records),/secret-/);
+});

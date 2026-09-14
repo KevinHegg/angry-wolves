@@ -21,13 +21,19 @@
   }
   function challengeDate(entry){const match=/^Daily (\d{4}-\d{2}-\d{2}) ·/.exec(entry.missionTitle||'');return entry.gameMode===MODE&&match&&validDay(match[1])?match[1]:'';}
   function compare(a,b){return b.score-a.score||String(a.approvedAt||'').localeCompare(String(b.approvedAt||''))||String(a.playerName).localeCompare(String(b.playerName));}
-  function dailyBest(entries){const players=new Map();for(const e of entries.slice().sort(compare))if(!players.has(e.playerName))players.set(e.playerName,e);return [...players.values()];}
+  function dailyBest(entries,acrossDates=false){const players=new Map();for(const e of entries.slice().sort(compare)){
+    const key=(acrossDates?e.challengeDate+'|':'')+e.playerName;if(!players.has(key))players.set(key,e);
+  }return [...players.values()];}
   function standings(entries,board,day,today=day){
     if(!validDay(day)||!validDay(today))throw Error('Invalid leaderboard date.');
     const valid=entries.filter(e=>['rescue-v2',MODE].includes(e.gameMode)&&/^[A-Z]{3}[0-9A-J]$/.test(e.playerName)&&Number.isFinite(e.score)&&e.score>=0);
-    const daily=valid.filter(e=>{const d=challengeDate(e);return d&&e.approvedAt&&Number.isFinite(Date.parse(e.approvedAt))&&dayKey(e.approvedAt)===d&&d<=today;}).map(e=>({...e,challengeDate:challengeDate(e)}));
+    const dailyRuns=valid.filter(e=>{const d=challengeDate(e);if(!d||!e.approvedAt||!Number.isFinite(Date.parse(e.approvedAt)))return false;
+      const posted=dayKey(e.approvedAt);return d<=posted&&posted<=today;
+    }).map(e=>({...e,challengeDate:challengeDate(e)}));
+    const daily=dailyRuns.filter(e=>dayKey(e.approvedAt)===e.challengeDate);
     let result;
     if(board==='daily')result=dailyBest(daily.filter(e=>e.challengeDate===day));
+    else if(board==='daily-alltime')result=dailyBest(dailyRuns,true);
     else if(board==='weekly'){
       const start=weekStart(day),end=shiftDay(start,6),days=new Map(),players=new Map();
       for(const e of daily.filter(e=>e.challengeDate>=start&&e.challengeDate<=end).sort(compare)){

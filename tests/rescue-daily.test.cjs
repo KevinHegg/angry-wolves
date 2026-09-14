@@ -48,3 +48,25 @@ test('the carried pasture stays intact at the orchard gate and cows arrive throu
  for(let i=0;i<10&&!orchard.board.includes(3);i++){orchard.distance=10;R.rescue(orchard,R.groups(orchard.board)[0][0],rng);}
  assert.ok(orchard.board.includes(3),'cows begin arriving when orchard spaces refill');
 });
+
+test('all-time daily records include non-winners and old dates, keeping each player’s best per day',()=>{
+ const entries=[row('AAA0',6000,'2026-09-01'),row('AAA0',5500,'2026-09-01'),row('BBB1',5800,'2026-09-01'),row('AAA0',5700,'2026-09-14'),row('CCC2',5900,'2026-09-15'),row('OLD0',9999,'2026-08-20',{gameMode:'rescue-v2'})];
+ const original=JSON.stringify(entries),records=D.standings(entries,'daily-alltime','2026-09-15');
+ assert.deepEqual(records.map(e=>[e.playerName,e.score,e.challengeDate]),[['AAA0',6000,'2026-09-01'],['CCC2',5900,'2026-09-15'],['BBB1',5800,'2026-09-01'],['AAA0',5700,'2026-09-14']]);
+ assert.deepEqual(records.map(e=>e.rank),[1,2,3,4]);assert.equal(JSON.stringify(entries),original);
+ assert.equal(D.standings(entries,'winners','2026-09-15').some(e=>e.playerName==='BBB1'),false);
+});
+test('daily records deduplicate before taking the top 20 and retain the earlier equal-score result',()=>{
+ const entries=Array.from({length:80},(_,i)=>row('AAA0',9000-i,'2026-09-01'));
+ entries.push(row('TIE0',8900,'2026-09-02',{approvedAt:'2026-09-02T19:00:00Z',biggestHerdCount:19}),row('TIE0',8900,'2026-09-02',{biggestHerdCount:18}));
+ for(let i=1;i<=25;i++)entries.push(row('DAY0',5000-i,`2026-08-${String(i).padStart(2,'0')}`));
+ const records=D.standings(entries,'daily-alltime','2026-09-15');assert.equal(records.length,20);
+ assert.equal(records[0].score,9000);assert.equal(records[1].biggestHerdCount,18);assert.equal(records[19].score,4982);
+ assert.equal(new Set(records.map(e=>e.playerName+'|'+e.challengeDate)).size,20);
+});
+test('late daily records remain eligible without changing closed winners, and invalid dates stay out',()=>{
+ const entries=[row('WIN0',4000,'2026-09-14'),row('LATE0',7000,'2026-09-14'),row('LAG0',6000,'2026-09-14',{approvedAt:'2026-09-15T04:00:00Z'}),row('BAD0',8000,'2026-02-30'),row('BAD1',8000,'2026-09-14',{approvedAt:'invalid'}),row('BAD2',8000,'2026-09-16'),row('BAD3',8000,'2026-09-14',{approvedAt:'2026-09-13T18:00:00Z'}),row('BAD4',8000,'2026-09-14',{approvedAt:'2026-09-16T18:00:00Z'})];
+ assert.deepEqual(D.standings(entries,'daily-alltime','2026-09-15').map(e=>e.playerName),['LAG0','WIN0']);
+ assert.equal(D.standings(entries,'winners','2026-09-15')[0].playerName,'WIN0');
+ assert.deepEqual(D.standings(entries,'daily-alltime','2026-09-15').map(e=>e.score),[6000,4000]);
+});

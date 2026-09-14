@@ -55,11 +55,12 @@ Rows 2–49 hold the 48 migrated historical scores. A50 contains the array formu
 
 The client POST uses `mode: "no-cors"`, so a resolved request means Google accepted the network request, not that the row passed validation or is already visible. The result screen says the score was received. The public CSV can be cached for several minutes; a later refresh establishes any leaderboard rank.
 
-All four views are calculated from the full approved CSV in `rescue-daily.js`:
+All five views are calculated from the full approved CSV in `rescue-daily.js`:
 
 - Daily: best score per player on the selected Eastern date.
 - Weekly: sum of daily bests from Monday through Sunday.
 - All time: top 20 free-play and daily adventures.
+- Daily records: top 20 daily challenge scores across all dates, best result per player per date, including late posts.
 - Daily winners: one champion for every completed date.
 
 ## Validation and moderation

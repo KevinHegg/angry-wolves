@@ -3,7 +3,7 @@ function dailyBoardResponse_(e) {
   try {
     const now=Date.now(),today=RescueDaily.dayKey(now),params=e&&e.parameter||{};
     const board=String(params.board||'daily'),date=String(params.date||today);
-    if(!['daily','weekly','alltime','winners'].includes(board)||!RescueDaily.validDay(date)||date>today)throw Error('Invalid leaderboard request.');
+    if(!['daily','weekly','alltime','daily-alltime','winners'].includes(board)||!RescueDaily.validDay(date)||date>today)throw Error('Invalid leaderboard request.');
     const sheet=getSheet_(SETTINGS.PUBLIC_SHEET,PUBLIC_HEADERS),last=sheet.getLastRow();
     const entries=last<2?[]:sheet.getRange(2,1,last-1,PUBLIC_HEADERS.length).getValues().map(function(values){
       const r=rowToObject_(PUBLIC_HEADERS,values);

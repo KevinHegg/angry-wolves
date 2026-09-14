@@ -75,3 +75,9 @@ test('daily, weekly and yesterday views are calculated from the approved public 
  const today=D.dayKey(),yesterday=D.shiftDay(today,-1),entries=[publicRow({approvedAt:today+'T18:00:00Z',playerName:'ABC0',score:5000,gameMode:D.MODE,missionTitle:`Daily ${today} · Pip rested 3/3 · bonus 1000`}),publicRow({approvedAt:today+'T19:00:00Z',playerName:'ABC0',score:4500,gameMode:D.MODE,missionTitle:`Daily ${today} · Pip rested 2/3 · bonus 0`}),publicRow({approvedAt:yesterday+'T18:00:00Z',playerName:'WIN0',score:4000,gameMode:D.MODE,missionTitle:`Daily ${yesterday} · Pip rested 3/3 · bonus 1000`})],old=global.fetch;
  global.fetch=async()=>({ok:true,text:async()=>csv(entries)});try{const daily=await S.board('daily',today),weekly=await S.board('weekly',today);assert.deepEqual(daily.entries.map(e=>e.score),[5000]);assert.equal(weekly.entries[0].score,5000);assert.equal(daily.yesterday.playerName,'WIN0');assert.equal(daily.api,'daily-1');}finally{global.fetch=old;}
 });
+
+test('all-time daily records read existing sheet history without submitting or changing records',async()=>{
+ const today=D.dayKey(),past=D.shiftDay(today,-14),entries=[publicRow({approvedAt:past+'T18:00:00Z',playerName:'ABC0',score:5000,gameMode:D.MODE,missionTitle:`Daily ${past} · Pip rested 3/3 · bonus 1000`}),publicRow({approvedAt:today+'T18:00:00Z',playerName:'ABC0',score:4800,gameMode:D.MODE,missionTitle:`Daily ${today} · Pip rested 3/3 · bonus 1000`}),publicRow({playerName:'OLD0',score:8000})],original=JSON.stringify(entries),old=global.fetch;
+ global.fetch=async(url,options)=>{assert.notEqual(options.method,'POST');return{ok:true,text:async()=>csv(entries)};};
+ try{const board=await S.board('daily-alltime');assert.deepEqual(board.entries.map(e=>[e.score,e.challengeDate]),[[5000,past],[4800,today]]);assert.equal(JSON.stringify(entries),original);}finally{global.fetch=old;}
+});

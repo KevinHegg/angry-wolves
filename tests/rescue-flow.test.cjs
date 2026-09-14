@@ -482,3 +482,14 @@ test('Safari back-cache refreshes the chooser after another tab finishes, withou
  const board=JSON.stringify(waiting.api.state);waiting.windowEvents.pageshow({persisted:true});
  assert.equal(JSON.stringify(waiting.api.state),board);assert.equal(waiting.get('story-dialog').open,false);
 });
+
+test('the Daily records tab shows all-time daily scores, challenge dates and herd details',async()=>{
+ const day=D.shiftDay(D.dayKey(),-10),requested=[];
+ const h=harness(true,undefined,null,{board:async view=>{requested.push(view);return{entries:[{playerName:'ABC0',score:4500,challengeDate:day,biggestHerdCount:18,biggestHerdAnimal:'🐷'}]};}}),a=h.api;
+ a.start();a.showLeaderboard('daily-alltime');await settle();
+ assert.match(h.get('dialog-details').innerHTML,/data-board="daily-alltime" aria-pressed="true">Daily records/);
+ assert.equal(requested.at(-1),'daily-alltime');assert.match(h.get('board-description').textContent,/All-time daily challenge scores/);
+ const row=h.get('leaderboard-list').children[0];assert.equal(row.children[1].textContent,'ABC 🐕');assert.equal(row.children[2].textContent,'4,500');
+ assert.equal(row.children[3].textContent,`${D.label(day,true)} · Biggest herd 18 🐷`);
+ a.action();assert.equal(h.get('story-dialog').open,false);
+});

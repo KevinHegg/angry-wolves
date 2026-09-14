@@ -1034,3 +1034,13 @@ The trail now says which whistle is next and how many steps a small herd moves t
 Validation: 137 Node tests pass, covering saved results before/after posting, prior-release migration, active dust tiles, explicit replay, giving up, midnight, blocked storage, Safari back-cache, pressure thresholds, distinct herd effects and field reset. Browser checks at 393×650 and 320×568 confirm free play after a daily win, completion after reopening, saved result access, readable threshold text, visible controls and unchanged board dimensions when the warning appears. These are browser/device-size checks, not a physical Safari/iPhone test.
 
 To revert, restore the changed runtime sources from `86d68b4` and package a fresh version. The extra completion record is ignored by v2.40 and can remain on devices. Preserve existing daily saves, all score rows and unrelated files.
+
+## v2.42 — All-time daily challenge records
+
+Baseline: v2.41 commit `c27286f`. The leaderboard adds a **Daily records** tab (`daily-alltime`), ranking the highest 20 daily challenge scores across all dates, including non-winners. Each player contributes their best result for each challenge date, so repeated attempts on one puzzle do not fill the board. Earlier equal scores retain priority. The challenge date and biggest herd appear on every row.
+
+Existing approved history is read from the same public CSV; no sheet, form, historical score or gameplay rule is changed. Late posts can enter Daily records and the mixed All time board but cannot change Daily, Weekly or Daily winners. Date validation rejects malformed, future or pre-challenge records from the new archive. The unused Apps Script endpoint accepts the same view for future compatibility; it is not deployed. The five buttons retain a single row, with compact labels on narrow phones. The score list still shows five rows and scrolls through the top 20.
+
+Validation: tests cover all-date ranking, non-winners, repeated attempts, deduplication before limiting, ties, late/invalid/future dates, unchanged history, CSV reads, optional backend routing and UI dates/herds. Local browser checks use 25 mock rows with submissions disabled; checks at 320×568 and 393×650 cover tab switching, five visible records, scrolling and pinned Back controls. No production test score was posted.
+
+To roll back, restore the changed runtime sources from `c27286f` and package a fresh release. Existing daily results and completion markers remain valid. Keep all score rows and unrelated files.
