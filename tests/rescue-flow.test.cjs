@@ -28,7 +28,7 @@ function harness(reducedMotion=true,storage=memoryStorage(),timers=null,services
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
  const window={RescueDaily:D,RescueRules:R,RescueServices:{...S,board:async(view,date)=>({entries,yesterday:null,today:D.dayKey(),date:date||D.dayKey()}),leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:query=>query.includes('orientation:')?orientation:{matches:query.includes('prefers-reduced-motion')?reducedMotion:false},addEventListener(name,fn){windowEvents[name]=fn;},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
- const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore,beginDaily,beginFree,resumeDaily,saveDaily,intro,get challengeDate(){return challengeDate},get randoms(){return randoms},setBoard:view=>{boardView=view;return loadLeaderboard()}}; soundLabel();render();intro();`);
+ const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore,beginDaily,beginFree,resumeDaily,saveDaily,intro,chooseGame,showHelp,get view(){return dialogView},get ready(){return ready},back:()=>dialogBack?.run(),get challengeDate(){return challengeDate},get randoms(){return randoms},setBoard:view=>{boardView=view;return loadLeaderboard()}}; soundLabel();render();intro();`);
  vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>{if(!timers)return fn();const timer={fn,delay};timers.push(timer);return timer;},clearTimeout:timer=>{if(timer)timer.cancelled=true;},URL:{revokeObjectURL(){}},performance:{now:()=>clock.now},Math,Date:gameDate});
  return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput,clock,document,windowEvents,rotate:landscape=>{orientation.matches=landscape;orientation.changed();}};
 }
@@ -67,7 +67,7 @@ test('loading or opening a popup in landscape waits for portrait',()=>{
  const h=harness(true,undefined,null,{},true),a=h.api;
  assert.equal(h.get('landscape-info').hidden,false);assert.ok(!h.get('story-dialog').open);
  assert.equal(h.document.activeElement,h.get('landscape-info'));
- h.rotate(false);assert.equal(h.get('story-dialog').open,true);assert.match(h.get('dialog-title').textContent,/gate was left open/);
+ h.rotate(false);assert.equal(h.get('story-dialog').open,true);assert.match(h.get('dialog-title').textContent,/Choose your game/);
  a.action();h.rotate(true);a.state.status='lost';a.finishField();
  assert.equal(h.get('story-dialog').open,false);assert.equal(h.document.activeElement,h.get('landscape-info'));
  h.rotate(false);assert.equal(h.get('story-dialog').open,true);assert.match(h.get('dialog-title').textContent,/wolf caught up/);
@@ -190,7 +190,7 @@ test('daily play labels restart as Give up and returns to the game chooser witho
  assert.equal(h.get('retry').textContent,'Give up');assert.equal(values.has('hw-daily-adventure'),true);
  h.get('retry').events.click();
  assert.deepEqual(a.state.board,board);assert.equal(a.challengeDate,'');assert.equal(values.has('hw-daily-adventure'),false);
- assert.equal(h.get('story-dialog').open,true);assert.equal(h.get('dialog-title').textContent,'The gate was left open.');
+ assert.equal(h.get('story-dialog').open,true);assert.equal(h.get('dialog-title').textContent,'Choose your game.');
  a.action();assert.equal(a.challengeDate,'');assert.equal(h.get('retry').textContent,'Restart game');
 });
 test('version label belongs only to the opening dialog',()=>{
@@ -238,6 +238,7 @@ test('changed initials and badge post correctly, persist across reload, and post
  h.badgeInput.value='14';h.get('toggle-player-lock').onclick();
  assert.equal(values.get('aw-rescue-initials'),'ZBB');assert.equal(values.get('aw-rescue-badge'),'14');
  assert.equal(h.get('player-fields').disabled,true);assert.match(h.get('submit-status').textContent,/Player saved/);
+ assert.equal(h.get('toggle-player-lock').hidden,true);assert.match(h.get('player-summary').textContent,/ZBB.*Change player/);
  });
  test('ending on a wind trigger skips scatter and plays the appropriate howl',()=>{
  for(const won of [false,true]){
@@ -399,12 +400,12 @@ test('changing leaderboard periods cannot let a slow previous response overwrite
 test('a new day offers today’s puzzle while retaining access to yesterday’s saved adventure',()=>{
  let time=Date.parse('2026-09-15T03:59:00Z');class Clock extends Date{static now(){return time;}}
  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},h=harness(true,storage,null,{},false,false,Clock),a=h.api;
- a.beginDaily();time=Date.parse('2026-09-15T04:01:00Z');a.intro();assert.equal(h.get('dialog-action').textContent,'Play today’s challenge');assert.match(h.get('dialog-details').innerHTML,/Continue daily adventure · Sep 14/);
+ a.beginDaily();time=Date.parse('2026-09-15T04:01:00Z');a.intro();assert.equal(h.get('dialog-action').textContent,'Start daily challenge');assert.match(h.get('dialog-details').innerHTML,/Continue unfinished daily · Sep 14/);
  a.action();assert.equal(a.challengeDate,'2026-09-15');
 });
 test('corrupt daily saves do not prevent starting a new game',()=>{
  const h=harness(true,{getItem:k=>k==='hw-daily-adventure'?'{"ruleset":"daily-1","challengeDate":"2026-09-14","state":{}}':null,setItem(){}}),a=h.api;
- assert.equal(h.get('dialog-action').textContent,'Play today’s challenge');assert.doesNotThrow(()=>a.beginDaily());
+ assert.equal(h.get('dialog-action').textContent,'Start daily challenge');assert.doesNotThrow(()=>a.beginDaily());
 });
 
 test('a daily win starts free play next and keeps its result and completion through reloads',async()=>{
@@ -414,11 +415,11 @@ test('a daily win starts free play next and keeps its result and completion thro
  assert.match(h.get('dialog-action').textContent,/Play free/);a.action();
  assert.equal(a.challengeDate,'');assert.equal(h.get('retry').textContent,'Restart game');assert.equal(a.state.chapter,0);
  const next=harness(true,storage),b=next.api;
- assert.match(next.get('dialog-details').innerHTML,/Completed today · best 3,500 points/);
- assert.equal(next.get('dialog-action').textContent,'Free play · a fresh random board');assert.match(next.get('dialog-secondary').textContent,/View daily adventure/);
+ assert.match(next.get('dialog-details').innerHTML,/Completed today · 3,500 points/);
+ assert.equal(next.get('dialog-action').textContent,'Start free play');assert.match(next.get('dialog-secondary').textContent,/View daily score/);
  b.secondary();assert.equal(b.result.nonce,nonce);assert.equal(b.state.board[8],R.DUST);assert.equal(b.submission.done,false);
  b.showLeaderboard('daily');await settle();next.get('score-initials').value='NEW';await b.postScore({preventDefault(){}});
- const posted=harness(true,storage);posted.api.secondary();assert.equal(posted.api.submission.done,true);assert.equal(posted.api.result.nonce,nonce);
+ const posted=harness(true,storage);assert.equal(posted.get('dialog-secondary').hidden,true);posted.api.resumeDaily();assert.equal(posted.api.submission.done,true);assert.equal(posted.api.result.nonce,nonce);
 });
 test('completed v2.40 daily saves migrate with or without a finished result panel',()=>{
  for(const endingPending of [false,true]){
@@ -427,8 +428,8 @@ test('completed v2.40 daily saves migrate with or without a finished result pane
   if(endingPending)a.saveDaily();else a.finishField();values.delete('hw-daily-completed');values.delete(`hw-daily-attempt:${D.dayKey()}`);
   const legacy=JSON.parse(values.get('hw-daily-adventure'));delete legacy.dailyRevision;values.set('hw-daily-adventure',JSON.stringify(legacy));
   const next=harness(true,storage);
-  assert.match(next.get('dialog-details').innerHTML,/Completed today · best 3,200 points/);
-  assert.match(next.get('dialog-action').textContent,/Free play/);next.api.secondary();assert.equal(next.api.result.score,3200);
+  assert.match(next.get('dialog-details').innerHTML,/Completed today · 3,200 points/);
+  assert.match(next.get('dialog-action').textContent,/[Ff]ree play/);next.api.secondary();assert.equal(next.api.result.score,3200);
  }
 });
 test('a completed daily can be viewed but never replayed, even after free play or rename',()=>{
@@ -439,15 +440,15 @@ test('a completed daily can be viewed but never replayed, even after free play o
  a.beginDaily();assert.equal(a.result.nonce,nonce);assert.equal(a.result.score,2800);
  a.beginFree();S.saveProfile({initials:'NEW',badge:7},storage);a.beginDaily();assert.equal(a.result.nonce,nonce);
  h.get('retry').events.click();const next=harness(true,storage);
- assert.match(next.get('dialog-details').innerHTML,/Completed today · best 2,800 points/);assert.match(next.get('dialog-action').textContent,/Free play/);
+ assert.match(next.get('dialog-details').innerHTML,/Completed today · 2,800 points/);assert.match(next.get('dialog-action').textContent,/[Ff]ree play/);
 });
 for(const outcome of ['lost','gave-up'])test(`daily ${outcome} consumes the attempt across reload and free play`,()=>{
  const storage=memoryStorage(),h=harness(true,storage),a=h.api;a.beginDaily();
  if(outcome==='lost'){a.state.status='lost';a.finishField();assert.match(h.get('dialog-action').textContent,/Play free/);}else h.get('retry').events.click();
  const marker=JSON.parse(storage.getItem(`hw-daily-attempt:${D.dayKey()}`));assert.equal(marker.status,outcome);
- const next=harness(true,storage);assert.match(next.get('dialog-action').textContent,/Free play/);assert.doesNotMatch(next.get('dialog-details').innerHTML,/Restart today|Replay/);
+ const next=harness(true,storage);assert.match(next.get('dialog-action').textContent,/[Ff]ree play/);assert.doesNotMatch(next.get('dialog-details').innerHTML,/Restart today|Replay/);
  next.api.beginDaily();assert.ok(next.api.challengeDate!==D.dayKey()||next.api.state.status!=='playing');
- next.api.beginFree();next.api.intro();assert.match(next.get('dialog-action').textContent,/Free play/);
+ next.api.beginFree();next.api.intro();assert.match(next.get('dialog-action').textContent,/[Ff]ree play/);
  assert.equal(JSON.parse(storage.getItem(`hw-daily-attempt:${D.dayKey()}`)).nonce,marker.nonce);
 });
 test('daily completion applies only to its Eastern date',()=>{
@@ -455,9 +456,9 @@ test('daily completion applies only to its Eastern date',()=>{
  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
  const h=harness(true,storage,null,{},false,false,Clock),a=h.api;
  a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=3000;a.finishField();
- a.intro();assert.match(h.get('dialog-details').innerHTML,/best 4,000 points/);
+ a.intro();assert.match(h.get('dialog-details').innerHTML,/4,000 points/);
  time=Date.parse('2026-09-15T04:01:00Z');a.intro();assert.doesNotMatch(h.get('dialog-details').innerHTML,/Completed today/);
- assert.equal(h.get('dialog-action').textContent,'Play today’s challenge');assert.match(h.get('dialog-details').innerHTML,/View daily adventure · Sep 14/);
+ assert.equal(h.get('dialog-action').textContent,'Start daily challenge');assert.match(h.get('dialog-details').innerHTML,/View unposted score · Sep 14/);
  a.action();assert.equal(a.challengeDate,'2026-09-15');assert.equal(a.state.chapter,0);
 });
 test('blocked browser storage offers free play without starting an untrackable daily',()=>{
@@ -467,7 +468,7 @@ test('blocked browser storage offers free play without starting an untrackable d
 });
 test('missing or corrupt progress cannot reopen a consumed daily attempt',()=>{
  const storage=memoryStorage(),h=harness(true,storage);h.api.beginDaily();storage.setItem('hw-daily-adventure','broken');
- const next=harness(true,storage);assert.match(next.get('dialog-action').textContent,/Free play/);next.api.beginDaily();assert.equal(next.api.challengeDate,'');
+ const next=harness(true,storage);assert.match(next.get('dialog-action').textContent,/[Ff]ree play/);next.api.beginDaily();assert.equal(next.api.challengeDate,'');
 });
 test('a second tab taking over daily play cancels stale work and preserves the same nonce',()=>{
  const storage=memoryStorage(),timers=[],h=harness(false,storage,timers),a=h.api;a.beginDaily();
@@ -509,7 +510,7 @@ test('Safari back-cache refreshes the chooser after another tab finishes, withou
  const waiting=harness(true,storage),playing=harness(true,storage);
  playing.api.beginDaily();playing.api.state.chapter=2;playing.api.state.status='won';playing.api.finishField();
  waiting.windowEvents.pageshow({persisted:true});assert.match(waiting.get('dialog-details').innerHTML,/Completed today/);
- assert.match(waiting.get('dialog-action').textContent,/Free play/);waiting.api.action();
+ assert.match(waiting.get('dialog-action').textContent,/[Ff]ree play/);waiting.api.action();
  const board=JSON.stringify(waiting.api.state);waiting.windowEvents.pageshow({persisted:true});
  assert.equal(JSON.stringify(waiting.api.state),board);assert.equal(waiting.get('story-dialog').open,false);
 });
@@ -523,4 +524,59 @@ test('the Daily records tab shows all-time daily scores, challenge dates and her
  const row=h.get('leaderboard-list').children[0];assert.equal(row.children[1].textContent,'ABC 🐕');assert.equal(row.children[2].textContent,'4,500');
  assert.equal(row.children[3].textContent,`${D.label(day,true)} · Biggest herd 18 🐷`);
  a.action();assert.equal(h.get('story-dialog').open,false);
+});
+
+test('results menu is a compact chooser and Back restores the same unposted score',()=>{
+ const h=harness(),a=h.api;a.start();a.state.chapter=2;a.state.status='won';a.state.score=2848;a.finishField();
+ const result=a.result;a.secondary();
+ assert.equal(a.view,'chooser');assert.equal(h.get('dialog-title').textContent,'Choose your game.');
+ assert.doesNotMatch(h.get('dialog-details').innerHTML,/instruction|Select 3\+|Pip has/);
+ assert.equal(h.get('load-version').hidden,true);assert.equal(h.get('dialog-back').textContent,'Back to my score');
+ a.back();assert.equal(a.view,'results');assert.equal(a.result,result);assert.equal(h.get('result-actions').hidden,false);
+});
+test('Help to menu to Back preserves active free play, its selection and readiness',()=>{
+ const h=harness(),a=h.api;a.beginFree();a.select(R.groups(a.state.board)[0][0]);
+ const state=JSON.stringify(a.state),whistle=h.get('whistle-label').textContent;
+ a.showHelp();assert.equal(h.get('dialog-action').textContent,'Back to my game');a.secondary();assert.equal(a.view,'chooser');
+ assert.equal(h.get('dialog-back').textContent,'Back to my game');h.get('story-dialog').events.cancel({preventDefault(){}});
+ assert.equal(h.get('story-dialog').open,false);assert.equal(a.ready,true);assert.equal(JSON.stringify(a.state),state);assert.equal(h.get('whistle-label').textContent,whistle);
+ a.commit();assert.equal(a.state.moves,1);
+});
+test('leaderboard and Help return to the menu that opened them, then to the score',()=>{
+ const h=harness(),a=h.api;a.start();a.state.chapter=2;a.state.status='won';a.finishField();a.secondary();
+ a.showLeaderboard();assert.equal(h.get('dialog-action').textContent,'Back to game menu');a.action();assert.equal(a.view,'chooser');
+ a.showHelp();assert.equal(h.get('dialog-action').textContent,'Back to game menu');assert.equal(h.get('dialog-secondary').hidden,true);h.get('story-dialog').events.cancel({preventDefault(){}});assert.equal(a.view,'chooser');
+ a.back();assert.equal(a.view,'results');
+});
+test('a first-load Help or leaderboard cannot expose an unstarted board',()=>{
+ for(const visit of ['showHelp','showLeaderboard']){
+  const h=harness(),a=h.api;a[visit]();a.action();assert.equal(a.view,'intro');assert.equal(h.get('story-dialog').open,true);assert.equal(a.ready,false);
+ }
+});
+for(const outcome of ['gave-up','lost','won-posted','won-unposted'])test(`${outcome} daily only offers Free play as a start action`,async()=>{
+ const storage=memoryStorage(),h=harness(true,storage),a=h.api;a.beginDaily();
+ if(outcome==='gave-up')h.get('retry').events.click();
+ else if(outcome==='lost'){a.state.status='lost';a.finishField();}
+ else{a.state.chapter=2;a.state.status='won';a.finishField();if(outcome==='won-posted'){a.showLeaderboard('daily');await settle();h.get('score-initials').value='FAM';await a.postScore({preventDefault(){}});}}
+ const next=harness(true,storage),b=next.api;
+ assert.equal(next.get('dialog-action').textContent,'Start free play');
+ assert.equal(next.get('dialog-secondary').hidden,outcome!=='won-unposted');
+ if(outcome==='won-unposted'){assert.equal(next.get('dialog-secondary').textContent,'View daily score');b.secondary();assert.equal(b.state.status,'won');assert.equal(b.view,'results');b.secondary();}
+ assert.doesNotMatch(next.get('dialog-details').innerHTML,/Restart|Replay|Continue daily|Start daily/);
+ b.action();assert.equal(b.challengeDate,'');assert.equal(b.state.chapter,0);
+});
+test('daily menu opens Continue and returning to a paused daily never consumes another attempt',()=>{
+ const storage=memoryStorage(),h=harness(true,storage),a=h.api;a.beginDaily();a.select(R.groups(a.state.board)[0][0]);a.commit();
+ const before=JSON.stringify(a.state),nonce=JSON.parse(storage.getItem('hw-daily-adventure')).runNonce;
+ a.showHelp();a.secondary();assert.match(h.get('dialog-action').textContent,/Continue daily/);a.action();
+ assert.equal(JSON.stringify(a.state),before);assert.equal(JSON.parse(storage.getItem('hw-daily-adventure')).runNonce,nonce);
+});
+for(const finished of [false,true])test(`viewing an unposted daily score preserves the previous ${finished?'free-play score':'free game'}`,()=>{
+ const h=harness(),a=h.api;a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=1800;a.finishField();a.beginFree();
+ if(finished){a.state.chapter=2;a.state.status='won';a.state.score=3400;a.finishField();}else a.select(R.groups(a.state.board)[0][0]);
+ const before=JSON.stringify(a.state),result=a.result,whistle=h.get('whistle-label').textContent;
+ a.chooseGame();assert.equal(h.get('dialog-secondary').textContent,'View daily score');a.secondary();assert.equal(a.result.score,2800);
+ assert.equal(h.get('dialog-back').textContent,finished?'Back to previous score':'Back to my game');a.back();
+ assert.equal(JSON.stringify(a.state),before);assert.equal(a.result,result);
+ if(finished)assert.equal(a.view,'results');else{assert.equal(h.get('story-dialog').open,false);assert.equal(h.get('whistle-label').textContent,whistle);a.commit();assert.equal(a.state.moves,1);}
 });

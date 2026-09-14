@@ -57,3 +57,8 @@ The bound Apps Script project remains in Drive as a future upgrade path. Google 
 ## Rollback
 
 Baseline frontend commit: `8064df6` (v2.39). Restore the v2.39 runtime sources and package a fresh version; historical version URLs intentionally redirect home. Keep all existing score rows. To stop new submissions without changing the game, turn off **Accepting responses** in the Form. To disable the published board, stop publishing the `public` tab, then point a fresh client release at another read service. Neither rollback needs a scheduled job or Codex automation.
+
+
+### Menu behavior (2.44)
+
+The compact game menu offers Continue for an active saved daily attempt. Winning, losing or giving up closes it; only Free Play can start afterward until the next Eastern date. An unposted daily result may be viewed and posted, but never replayed. Leaving the page preserves an active daily run on the same browser/device. Help, results and leaderboards have explicit return routes; opening another result does not discard an active free-play run. Daily persistence and score recording use the same existing keys and backend.

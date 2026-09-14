@@ -1052,3 +1052,15 @@ Checkpoint: v2.42 / 4ffcf26. Daily starts are consumed immediately per browser/d
 Daily posting bypasses CSV qualification preflight. The live public!A50 formula now uses INDIRECT references so Forms cannot shift the start and drop submissions. All prior rows and ranking rules are preserved. Rebuild this formula using scripts/public-score-formula.cjs; never restore the drifting direct ranges.
 
 To roll back the frontend, restore the v2.42 runtime sources and package under a new version. Retain all daily attempt keys and the repaired live sheet formula. Account-based enforcement is outside this client-only release; clearing browser data or using another device can bypass the local attempt limit.
+
+
+## Hungry Wolf 2.44 — daily menu and panel navigation
+
+Checkpoint before this UI pass: `bec3924281a687269f6aa00e55536b553470b3e7` (2.43).
+
+- Separate compact game chooser and help. Keep a return destination for scores, leaderboards, help and active games.
+- Active daily attempts continue; won, lost and given-up attempts offer only Free Play as a new game. Unposted results remain viewable.
+- Preserve active free play when viewing a saved daily score. Keep panel actions outside one scroll region, and separate player editing from score browsing/posting.
+- No rules, scoring, random streams, storage keys or score-sheet data changed.
+
+To roll back, restore `index.html`, `rescue.js` and `rescue.css` from the checkpoint, then package the restored sources under a new version and run release tests. Preserve existing daily-attempt records and historical scores.
