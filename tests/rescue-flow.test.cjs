@@ -4,7 +4,8 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const R=require('../rescue-engine');
 const S=require('../rescue-services');
-function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={},initialLandscape=false,trailGeometry=false){
+const D=require('../rescue-daily');
+function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}},timers=null,services={},initialLandscape=false,trailGeometry=false,gameDate=Date){
  const nodes=new Map(),animations=[],sounds=[];
  const clock={now:1000},orientation={matches:initialLandscape,addEventListener(name,fn){this.changed=fn;}};
  class Element {
@@ -25,9 +26,9 @@ function harness(reducedMotion=true,storage={getItem(){return null},setItem(){}}
  const badgeInput={value:'0'};
  const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueRules:R,RescueServices:{...S,leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:query=>query.includes('orientation:')?orientation:{matches:query.includes('prefers-reduced-motion')?reducedMotion:false},addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
- const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore}; soundLabel();render();intro();`);
- vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>{if(!timers)return fn();const timer={fn,delay};timers.push(timer);return timer;},clearTimeout:timer=>{if(timer)timer.cancelled=true;},URL:{revokeObjectURL(){}},performance:{now:()=>clock.now},Math,Date});
+ const window={RescueDaily:D,RescueRules:R,RescueServices:{...S,board:async(view,date)=>({entries,yesterday:null,today:D.dayKey(),date:date||D.dayKey()}),leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:query=>query.includes('orientation:')?orientation:{matches:query.includes('prefers-reduced-motion')?reducedMotion:false},addEventListener(){},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore,beginDaily,beginFree,resumeDaily,saveDaily,intro,get challengeDate(){return challengeDate},get randoms(){return randoms},setBoard:view=>{boardView=view;return loadLeaderboard()}}; soundLabel();render();intro();`);
+ vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>{if(!timers)return fn();const timer={fn,delay};timers.push(timer);return timer;},clearTimeout:timer=>{if(timer)timer.cancelled=true;},URL:{revokeObjectURL(){}},performance:{now:()=>clock.now},Math,Date:gameDate});
  return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput,clock,document,rotate:landscape=>{orientation.matches=landscape;orientation.changed();}};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
@@ -181,6 +182,16 @@ test('Restart game immediately abandons an unfinished field and resets the adven
  assert.equal(a.result,null);assert.equal(h.get('story-dialog').open,false);
  assert.equal(h.get('retry').textContent,'Restart game');
 });
+test('daily play labels restart as Give up and returns to the game chooser without restarting',()=>{
+ const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+ const h=harness(true,storage),a=h.api;a.beginDaily();
+ const board=a.state.board.slice();a.saveDaily();
+ assert.equal(h.get('retry').textContent,'Give up');assert.equal(values.has('hw-daily-adventure'),true);
+ h.get('retry').events.click();
+ assert.deepEqual(a.state.board,board);assert.equal(a.challengeDate,'');assert.equal(values.has('hw-daily-adventure'),false);
+ assert.equal(h.get('story-dialog').open,true);assert.equal(h.get('dialog-title').textContent,'The gate was left open.');
+ a.secondary();assert.equal(a.challengeDate,'');assert.equal(h.get('retry').textContent,'Restart game');
+});
 test('version label belongs only to the opening dialog',()=>{
  const h=harness(),a=h.api;assert.equal(h.get('load-version').hidden,false);
  a.start();a.state.status='won';a.finishField();assert.equal(h.get('load-version').hidden,true);
@@ -269,7 +280,7 @@ test('opening action and restart leave no herd selected',()=>{
  assert.equal(h.get('whistle').disabled,true);
  assert.ok(!h.sounds.includes('select'));
  const before=a.state.score;a.commit();assert.equal(a.state.score,before);
- a.select(30);assert.equal(h.get('whistle').disabled,false);
+ a.select(R.groups(a.state.board)[0][0]);assert.equal(h.get('whistle').disabled,false);
  h.get('retry').events.click();assert.equal(h.get('whistle').disabled,true);
 });
 
@@ -348,4 +359,45 @@ test('a losing two-step move passes the one-away mark before the howl and result
   assert.equal(h.get('story-dialog').open,false);
   timers.find(t=>t.delay===2000)?.fn();assert.equal(h.get('story-dialog').open,!restart);
  }
+});
+
+test('daily play repeats its opening without selection and free play keeps the original mode',()=>{
+ const h=harness(),a=h.api;a.beginDaily();const first=JSON.stringify(a.state);assert.equal(a.challengeDate,D.dayKey());
+ a.select(R.groups(a.state.board)[0][0]);a.commit();a.freshAdventure();assert.equal(JSON.stringify(a.state),first);assert.equal(h.get('whistle').disabled,true);
+ a.beginFree();assert.equal(a.challengeDate,'');assert.equal(a.state.chapter,0);
+});
+test('daily save restores board, wolf, Pip and exact future draws through a reload',()=>{
+ const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
+ const h=harness(true,storage),a=h.api;a.beginDaily();a.select(R.groups(a.state.board)[0][0]);a.commit();h.get('bark').events.click();
+ const expected=JSON.stringify(a.state),streamState=a.randoms.snapshot();
+ const next=harness(true,storage).api;next.resumeDaily();assert.equal(JSON.stringify(next.state),expected);assert.deepEqual(next.randoms.snapshot(),streamState);
+ const g=R.groups(a.state.board)[0][0];a.select(g);a.commit();next.select(g);next.commit();assert.equal(JSON.stringify(next.state),JSON.stringify(a.state));
+});
+test('an adventure keeps its day across midnight and a new adventure uses the new day',()=>{
+ let time=Date.parse('2026-09-15T03:59:00Z');class Clock extends Date{static now(){return time;}}
+ const h=harness(true,undefined,null,{},false,false,Clock),a=h.api;a.beginDaily();assert.equal(a.challengeDate,'2026-09-14');
+ const carried=a.state.board.slice();time=Date.parse('2026-09-15T04:01:00Z');a.state.status='won';a.finishField();a.action();
+ assert.equal(a.challengeDate,'2026-09-14');assert.deepEqual(a.state.board,carried);assert.equal(a.state.chapter,1);
+ a.freshAdventure();assert.equal(a.challengeDate,'2026-09-15');assert.equal(a.state.chapter,0);
+});
+test('daily scores below the daily top 20 can still be posted for weekly totals',async()=>{
+ const h=harness(true,undefined,null,{board:async()=>({entries:Array.from({length:20},()=>({score:9000,playerName:'AAA0',gameMode:D.MODE}))})}),a=h.api;
+ a.beginDaily();a.state.chapter=2;a.state.score=10;a.state.status='won';a.finishField();a.showLeaderboard('daily');await settle();
+ assert.equal(h.get('submit-score').disabled,false);h.get('score-initials').value='NEW';await a.postScore({preventDefault(){}});assert.equal(h.posted.length,1);assert.equal(h.posted[0].gameMode,D.MODE);assert.equal(h.posted[0].challengeDate,a.challengeDate);
+});
+test('changing leaderboard periods cannot let a slow previous response overwrite the new view',async()=>{
+ let resolveDaily;const h=harness(true,undefined,null,{board:(view)=>view==='daily'?new Promise(r=>resolveDaily=r):Promise.resolve({entries:[{playerName:'WIN0',score:8000,gameMode:D.MODE,daysPlayed:3}]})}),a=h.api;
+ a.start();a.showLeaderboard('daily');await settle();await a.setBoard('weekly');assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'WIN 🐕');
+ resolveDaily({entries:[{playerName:'OLD0',score:1000,gameMode:D.MODE}]});await settle();assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'WIN 🐕');
+});
+
+test('a new day offers today’s puzzle while retaining access to yesterday’s saved adventure',()=>{
+ let time=Date.parse('2026-09-15T03:59:00Z');class Clock extends Date{static now(){return time;}}
+ const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},h=harness(true,storage,null,{},false,false,Clock),a=h.api;
+ a.beginDaily();time=Date.parse('2026-09-15T04:01:00Z');a.intro();assert.equal(h.get('dialog-action').textContent,'Play today’s challenge');assert.match(h.get('dialog-details').innerHTML,/Continue daily adventure · Sep 14/);
+ a.action();assert.equal(a.challengeDate,'2026-09-15');
+});
+test('corrupt daily saves do not prevent starting a new game',()=>{
+ const h=harness(true,{getItem:k=>k==='hw-daily-adventure'?'{"ruleset":"daily-1","challengeDate":"2026-09-14","state":{}}':null,setItem(){}}),a=h.api;
+ assert.equal(h.get('dialog-action').textContent,'Play today’s challenge');assert.doesNotThrow(()=>a.beginDaily());
 });

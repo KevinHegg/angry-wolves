@@ -1013,3 +1013,14 @@ The final rescue previously skipped the wolf travel animation. It now travels th
 Validation: all 107 Node tests pass, including zero/one/two/three-bark outcomes, no bonus on loss, restart, carryover, historical leaderboard values and ending timing. A local browser fixture measured marks 2, 1 and 0 at 16, 463 and 639ms after the whistle, with the result panel at 2865ms. Browser results show 500 herding points becoming 1,500 with no Pip or 500 after a bark; no test score was submitted. The 320x568 phone layout retains visible controls and the bonus label.
 
 To roll back, restore the changed runtime sources from the checkpoint, then package a fresh release with matching root/version references. Do not recalculate historical scores or reset unrelated backend edits. Keep the public-file-only Pages workflow. Daily seeded play is still a proposal and is not part of this release.
+
+
+## v2.40 — Daily challenge and leaderboard periods
+
+Baseline: v2.39 commit `8064df6`. A daily date seed in America/New_York creates repeatable opening/animal/wind/Pip sequences, with separate streams per field. Current board carryover, cow introduction, wolf pressure and 1,000-point zero-Pip rule are unchanged. Daily progress and final results are saved locally; free play remains random.
+
+Daily standings use each player's best approved score; weekly totals add daily bests Monday–Sunday. All time merges approved free/daily adventures without recalculating historical scores. Daily winners ranks each completed day's champion by score. Yesterday's champion appears only the next day. Approval after the challenge day's midnight is eligible for all-time only, so closed winners do not shift.
+
+The editable `hungry-wolves-data` spreadsheet and raw Form responses remain owner-only. Anonymous submissions use a public Google Form; a validation formula in `public!A50` copies plausible, first-nonce rows beneath the 48 untouched historical scores. Only the `public` tab is published as CSV. The client calculates all four leaderboard periods from that approved feed. This avoids the Google OAuth block encountered by the bound Apps Script deployment, at the cost of a cached feed, no trustworthy POST acknowledgement and lighter rate-limit/moderation controls. `apps-script/` remains an unused future upgrade path. Full resource IDs, validation rules and checks are in `DAILY_CHALLENGE_SETUP.md` and `LEADERBOARD_SETUP.md`.
+
+To revert, restore v2.39 runtime sources and package under a fresh version. Keep all score history. Turn off Form responses to stop intake; stop publishing the `public` tab only if the client has first been moved to another read service. No Apps Script deployment, scheduler or Codex automation is active.

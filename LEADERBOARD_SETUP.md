@@ -1,61 +1,37 @@
-# Angry Wolves Leaderboard Setup
+# Hungry Wolf leaderboard setup
 
-This game uses a lightweight trusted flow:
+The live design keeps the editable spreadsheet private while exposing only score intake and approved score rows:
 
-`GitHub Pages game -> Google Apps Script web app -> private Google Sheet`
+`GitHub Pages -> public Google Form -> private response tab -> validation formula -> published public CSV`
 
-The browser never writes directly to the sheet, and no sheet secrets live in client-side code.
+## Resources
 
-## 1. Google Sheet Tabs
+- Spreadsheet: `hungry-wolves-data`, ID `1-OrglIP8N9Ol9ftACs1CjAq494sAp18CDxU-V7g7xoc`
+- Form editor ID: `1ZBpp_I-QBO2vI_V0toMNunUKBsfmBQDx3Na_FnYdLYc`
+- Public form ID: `1FAIpQLSdvsK8P6XsN8WJ9Yf8A6RX_0842rSTuNXF1YVAiPQRlGztlkA`
+- Public CSV ID: `2PACX-1vS9kSCHFoHdSz4DIlk1F5mctQh7BtwCtYBJAHZxkFBSpGMeEq20Gob2HFQ9aTYv7-u6mXx1e9SVaNgd`
 
-Use the existing three tabs exactly as named:
+The spreadsheet must remain restricted to the owner. The Form responder setting is **Anyone with the link**. Only the `public` tab is published to the web as CSV.
 
-- `public`
-- `private`
-- `suspect`
+## Columns
 
-The Apps Script will initialize header rows automatically if a tab is empty.
+`Form Responses 1` contains the Google timestamp followed by these required questions:
 
-## 2. Column Layout
+1. `player_name`
+2. `score`
+3. `game_mode`
+4. `mission_title`
+5. `best_chain`
+6. `biggest_herd_count`
+7. `biggest_herd_animal`
+8. `herds_cleared`
+9. `pace`
+10. `duration_ms`
+11. `nonce`
+12. `client_timestamp`
+13. `version`
 
-The original suggested columns were extended slightly so you can tune missions later and inspect more context around runs.
-
-Added fields:
-
-- `status`
-- `mission_title`
-- `best_chain`
-- `biggest_herd_count`
-- `biggest_herd_animal`
-- `herds_cleared`
-- `pace`
-
-### `private`
-
-Use these columns, in this order:
-
-1. `submitted_at`
-2. `status`
-3. `player_name`
-4. `score`
-5. `game_mode`
-6. `mission_title`
-7. `best_chain`
-8. `biggest_herd_count`
-9. `biggest_herd_animal`
-10. `herds_cleared`
-11. `pace`
-12. `duration_ms`
-13. `nonce`
-14. `client_timestamp`
-15. `version`
-16. `suspicious`
-17. `reason`
-18. `promoted`
-
-### `public`
-
-Use these columns, in this order:
+`public` contains:
 
 1. `approved_at`
 2. `player_name`
@@ -71,155 +47,32 @@ Use these columns, in this order:
 12. `version`
 13. `source_nonce`
 
-### `suspect`
+Rows 2–49 hold the 48 migrated historical scores. A50 contains the array formula that validates and appends form responses. Do not insert manual rows below A50 because they can block the array result. Extend all response ranges together before form response 1,000.
 
-Use these columns, in this order:
+## Client mapping
 
-1. `flagged_at`
-2. `status`
-3. `player_name`
-4. `score`
-5. `game_mode`
-6. `mission_title`
-7. `best_chain`
-8. `biggest_herd_count`
-9. `biggest_herd_animal`
-10. `herds_cleared`
-11. `pace`
-12. `duration_ms`
-13. `nonce`
-14. `client_timestamp`
-15. `version`
-16. `reason`
+`rescue-services.js` owns the public URLs and stable Google Form entry IDs. If a Form question is replaced rather than renamed, its entry ID changes; update `FORM_FIELDS` and the service tests before publishing a new game version.
 
-## 3. Apps Script File
+The client POST uses `mode: "no-cors"`, so a resolved request means Google accepted the network request, not that the row passed validation or is already visible. The result screen says the score was received. The public CSV can be cached for several minutes; a later refresh establishes any leaderboard rank.
 
-The backend source lives in:
+All four views are calculated from the full approved CSV in `rescue-daily.js`:
 
-- [apps-script/Leaderboard.gs](/Users/kevinhegg/Documents/angry-wolves/apps-script/Leaderboard.gs)
+- Daily: best score per player on the selected Eastern date.
+- Weekly: sum of daily bests from Monday through Sunday.
+- All time: top 20 free-play and daily adventures.
+- Daily winners: one champion for every completed date.
 
-## 4. Paste The Sheet ID
+## Validation and moderation
 
-Open your Google Sheet and copy the spreadsheet ID from the URL:
+The sheet formula admits expected four-character player IDs, `rescue-v2` or `rescue-daily-v1`, bounded score/game metrics, durations from 8 seconds to 24 hours, at least 35 ms per point, a supported version, a nonempty first-occurrence nonce and a correctly formatted daily title. Raw responses that fail remain private and do not enter the published CSV.
 
-```text
-https://docs.google.com/spreadsheets/d/SPREADSHEET_ID_HERE/edit
-```
+This protects a casual board from common mistakes and simple replay attempts. Browser submissions are still user-controlled, and the form fallback has no reliable IP rate limit or automatic `suspect` queue. The unused Apps Script source under `apps-script/` implements stronger moderation for a future verified deployment.
 
-Paste that ID into:
+## Routine checks
 
-- [apps-script/Leaderboard.gs](/Users/kevinhegg/Documents/angry-wolves/apps-script/Leaderboard.gs)
+Before a release:
 
-Replace:
-
-```javascript
-GOOGLE_SHEET_ID: '1ToFEmROeg1Fgshezvh2Yb8rc5MjTUED5mW6P661CTdg'
-```
-
-## 5. Create The Apps Script Project
-
-1. Open [script.new](https://script.new).
-2. Replace the default code with the contents of `apps-script/Leaderboard.gs`.
-3. Save the project.
-
-## 6. Deploy The Apps Script Web App
-
-1. In Apps Script, click `Deploy`.
-2. Choose `New deployment`.
-3. Select `Web app`.
-4. Set `Execute as` to `Me`.
-5. Set access to `Anyone`.
-6. Deploy.
-7. Copy the web app URL.
-
-## 7. Paste The Deployment URL Into The Game Repo
-
-Open:
-
-- [game.js](/Users/kevinhegg/Documents/angry-wolves/game.js)
-
-Find:
-
-```javascript
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAgQNERb-xsiBTOT7PqjcV1afxD4GGASoop3MCFMh93XAYkk8RXqodP324iW0HpsLHPQ/exec"
-```
-
-Replace it with your deployed Apps Script web app URL.
-
-## 8. Public / Private / Suspect Flow
-
-### POST submission
-
-The game sends:
-
-- `playerName`
-- `score`
-- `gameMode`
-- `missionTitle`
-- `bestChain`
-- `biggestHerdCount`
-- `biggestHerdAnimal`
-- `herdsCleared`
-- `pace`
-- `durationMs`
-- `nonce`
-- `clientTimestamp`
-- `version`
-
-The Apps Script then:
-
-1. sanitizes the payload
-2. checks name, score, duration, timestamp freshness, nonce reuse, and rate-limit hints
-3. writes parsed submissions to `private`
-4. writes suspicious or rejected parsed submissions to `suspect`
-5. auto-promotes clean submissions to `public`
-6. serves leaderboard reads from `public` only
-
-### GET leaderboard
-
-The game reads approved entries only from `public`.
-
-Supported query params:
-
-- `limit`
-- `gameMode`
-
-## 9. Anti-Abuse Notes
-
-This setup is intentionally lightweight, not perfect.
-
-Implemented friction:
-
-- timestamp freshness checks
-- nonce replay checks
-- score hard cap
-- duration plausibility checks
-- suspicious classification instead of always rejecting
-- lightweight server-side rate limit via Apps Script cache
-
-Important:
-
-- client-side payloads are still user-controlled
-- no client checksum should be treated as real security
-- suspicious runs are separated for review instead of silently trusted
-
-## 10. Manual Moderation Later
-
-Right now clean runs auto-promote because this constant is `true`:
-
-```javascript
-AUTO_PROMOTE_CLEAN: true
-```
-
-To switch to manual moderation later:
-
-1. change `AUTO_PROMOTE_CLEAN` to `false`
-2. leave `private` writes enabled
-3. review rows from `private`
-4. manually copy approved rows into `public`
-
-No client code changes are required for that switch.
-
-## 11. Client Notes
-
-The game uses a simple `text/plain` POST body containing JSON when submitting scores. That keeps the request lightweight and avoids unnecessary browser preflight complexity for a static GitHub Pages client.
+1. Open the responder Form in a private/unsigned browser and confirm it does not require sign-in.
+2. Fetch the published CSV anonymously and confirm only the 13 public headers and approved rows appear.
+3. Run `node --test tests/*.test.cjs` and `git diff --check`.
+4. Do not post a production QA score. Validate form mapping with mocked fetches in the test suite.

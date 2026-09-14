@@ -1,6 +1,6 @@
 const SETTINGS = {
   // Paste your private Google Sheet ID here.
-  GOOGLE_SHEET_ID: '1ToFEmROeg1Fgshezvh2Yb8rc5MjTUED5mW6P661CTdg',
+  GOOGLE_SHEET_ID: '1-OrglIP8N9Ol9ftACs1CjAq494sAp18CDxU-V7g7xoc',
   PUBLIC_SHEET: 'public',
   PRIVATE_SHEET: 'private',
   SUSPECT_SHEET: 'suspect',
@@ -96,6 +96,7 @@ const SUSPECT_HEADERS = [
 ]
 
 function doGet(e) {
+  if (e && e.parameter && e.parameter.board) return dailyBoardResponse_(e)
   try {
     const limit = clampLimit(e && e.parameter && e.parameter.limit)
     const requestedMode = sanitizeMode(e && e.parameter && e.parameter.gameMode)
@@ -113,7 +114,19 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  const lock = LockService.getScriptLock()
+  let locked = false
   try {
+    locked = lock.tryLock(5000)
+    if (!locked) {
+      return jsonResponse({
+        ok: false,
+        status: 'rejected',
+        reasons: ['server_busy'],
+        message: 'Leaderboard is busy. Try again in a moment.'
+      })
+    }
+
     const payload = parsePayload(e)
     if (!payload) {
       return jsonResponse({
@@ -124,6 +137,7 @@ function doPost(e) {
       })
     }
 
+    validateDailyPayload_(payload)
     const submission = sanitizeSubmission(payload)
     const classification = classifySubmission(submission)
 
@@ -141,6 +155,7 @@ function doPost(e) {
       status: classification.status,
       suspicious: classification.status !== 'accepted',
       promoted: classification.status === 'accepted' && SETTINGS.AUTO_PROMOTE_CLEAN,
+      dailyEligible: submission.gameMode === RescueDaily.MODE ? RescueDaily.challengeDate(submission) === RescueDaily.dayKey() : undefined,
       reasons: classification.reasons,
       message: classificationMessage_(classification)
     })
@@ -151,6 +166,8 @@ function doPost(e) {
       reasons: ['server_error'],
       message: err && err.message ? err.message : 'Unexpected leaderboard error.'
     })
+  } finally {
+    if (locked) lock.releaseLock()
   }
 }
 

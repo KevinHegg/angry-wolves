@@ -1,9 +1,10 @@
 // The main URL loads immutable versioned assets; customer version URLs redirect home.
 const fs=require('node:fs');
-const version='2.39';
+const version='2.40';
 const destination=`play/${version}`;
 fs.mkdirSync(destination,{recursive:true});
-for(const name of ['rescue.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css']){
+fs.copyFileSync('rescue-daily.js','apps-script/DailyRules.gs');
+for(const name of ['rescue.js','rescue-daily.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css']){
  fs.copyFileSync(name,`${destination}/${name}`);
 }
 function redirect(target){return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hungry Wolf · Bring them home</title><link rel="canonical" href="https://kevinhegg.github.io/angry-wolves/"><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace('${target}');</script><a href="${target}">Play Hungry Wolf</a></html>\n`;}

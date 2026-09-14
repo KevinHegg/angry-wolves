@@ -3,10 +3,10 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
-const version='2.39';
+const version='2.40';
 test('main game loads matching immutable release assets without redirecting',()=>{
  const source=read('index.html');assert.doesNotMatch(source,/location.replace/);
- for(const name of ['rescue.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css']){
+ for(const name of ['rescue.js','rescue-daily.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css']){
   assert.equal(read(`play/${version}/${name}`),read(name));
   assert.ok(source.includes(`play/${version}/${name}`));
  }

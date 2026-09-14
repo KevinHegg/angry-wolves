@@ -1,7 +1,7 @@
 // Publish the game, not the repository's notes, backend, tests or working files.
 const fs=require('node:fs');
 const path=require('node:path');
-const ASSETS=['rescue.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css'];
+const ASSETS=['rescue.js','rescue-daily.js','rescue-engine.js','rescue-services.js','rescue-share.js','rescue-audio.js','rescue-voices.js','rescue.css'];
 function buildSite(destination,root=path.join(__dirname,'..')){
   if(!destination)throw new Error('Choose an empty output directory.');
   const output=path.resolve(destination);

@@ -24,6 +24,14 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 
 Keyboard: Tab into the board, arrow keys move focus, Enter selects, Space whistles, Escape clears selection.
 
+## Daily challenge (v2.40)
+
+The daily puzzle changes at midnight Eastern, with replayable seeded animal arrivals, wind and Pip regrouping. The existing board carries between fields; cows join orchard refills. Daily adventures and unposted results resume after a reload on the same device. During a daily run, **Restart game** becomes **Give up** and returns to the daily/free-play chooser without beginning another run.
+
+The Daily board keeps each player's best score that day. Weekly standings add those best scores from Monday through Sunday. All time includes old and new approved adventures without changing their values. Daily winners ranks each completed day's champion and shows the winning date; the opening screen features yesterday's winner for one day. Daily scores must be approved before midnight Eastern to count toward daily/weekly results; late results may enter all-time only. Free play remains available.
+
+See [DAILY_CHALLENGE_SETUP.md](DAILY_CHALLENGE_SETUP.md) for the data flow and maintenance notes.
+
 ## Develop and verify
 
 No dependencies. Serve this folder with any static server:
@@ -48,6 +56,7 @@ The balance script compares seeded automated strategies, including complete adve
 
 - `index.html`, `rescue.css`, `rescue.js`: game interface and adventure flow.
 - `rescue-engine.js`: independent game rules.
+- `rescue-daily.js`: daily dates, random streams and shared leaderboard aggregation.
 - `rescue-voices.js`, `rescue-audio.js`: synthesized calls, gesture-based audio and recovery.
 - `rescue-services.js`: score-sheet connection, player encoding and submission payloads.
 - `rescue-share.js`: local PNG card generation and native sharing.
@@ -57,13 +66,13 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.39**. Root HTML loads immutable assets from `play/2.39/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.40**. The published root loads immutable assets from `play/2.40/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
 For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
 To roll back, restore the chosen checkpoint's runtime sources and package them under a new release version. Historical customer URLs intentionally open the current game; they are not independent rollback targets. Preserve unrelated work and score-sheet changes.
 
-The leaderboard uses the existing Apps Script deployment and Sheet, filtered to `rescue-v2`. Only explicit player submission writes a score. Profiles persist on the device; adventures and unposted results currently do not survive a page reload. The leaderboard is a casual honor-system board, not a server-verified competition.
+The leaderboard posts to a public Google Form and reads a published CSV containing only approved score columns. The spreadsheet and raw form responses remain restricted to the owner. A sheet formula rejects malformed names, implausible values, replayed nonces and submissions that are too fast for their score before copying a row into the public feed. Profiles and daily adventures persist on the device; free-play progress does not survive a reload. Google may cache the published feed for several minutes, so a posted score can take a moment to appear. This is a casual honor-system board, not a server-verified competition.
 
 ## Rights
 
