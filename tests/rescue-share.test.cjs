@@ -32,3 +32,24 @@ test('score image draws verified rank and player, or personal best only',async()
  assert.ok(texts.includes('TOP 20 HIGH SCORE · #7'));assert.ok(texts.includes('ABC 🐑'));assert.ok(texts.includes('TOTAL POINTS'));
  texts.length=0;await window.RescueShare.makeCard({...result,personalBest:true},()=>'<svg></svg>');assert.ok(texts.includes('NEW PERSONAL BEST'));assert.ok(!texts.some(t=>String(t).includes('TOP 20')));
 });
+
+
+test('daily sharing carries a dated daily image and keeps the root link',async()=>{
+ let sent;const h=harness({canShare:()=>true,share:data=>{sent=data;return Promise.resolve();}});
+ await h.share({...result,challengeDate:'2026-09-14'},{blob:'daily-image'});
+ assert.equal(sent.files[0].name,'hungry-wolf-daily-2026-09-14.png');
+ assert.equal(sent.title,'Hungry Wolf · Daily Challenge');assert.equal(sent.url,S.GAME_URL);assert.equal(sent.text,undefined);
+});
+test('daily card has gold challenge framing, date and verified daily rank',async()=>{
+ const texts=[],fills=[];let strokes=0;
+ const ctx=new Proxy({fillText:text=>texts.push(text),fill(){fills.push(this.fillStyle);},stroke(){strokes++;}},{get:(obj,key)=>key in obj?obj[key]:()=>{}});
+ const window={RescueServices:S};
+ vm.runInNewContext(fs.readFileSync(require.resolve('../rescue-share.js'),'utf8'),{window,document:{createElement:()=>({getContext:()=>ctx,toBlob:fn=>fn('png')})},Image:class{async decode(){}},URL:{createObjectURL:()=> 'blob:card'}});
+ await window.RescueShare.makeCard({...result,challengeDate:'2026-09-14',rank:1,rankBoard:'daily',playerLabel:'FAM 🐑'},()=>'<svg></svg>');
+ assert.ok(texts.includes('DAILY CHALLENGE'));assert.ok(texts.includes('MONDAY, SEP 14, 2026'));
+ assert.ok(texts.includes('DAILY HIGH SCORE · #1'));assert.ok(texts.includes('FAM 🐑'));
+ assert.ok(texts.includes('ONE DAILY CHALLENGE. ONE CHANCE.'));assert.ok(fills.includes('#ecd597'));assert.equal(strokes,1);
+ texts.length=0;fills.length=0;strokes=0;
+ await window.RescueShare.makeCard(result,()=>'<svg></svg>');
+ assert.ok(texts.includes('BRING THEM HOME'));assert.ok(!texts.includes('DAILY CHALLENGE'));assert.ok(!fills.includes('#ecd597'));assert.equal(strokes,0);
+});

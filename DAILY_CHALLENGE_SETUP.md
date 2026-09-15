@@ -1,4 +1,4 @@
-# Daily challenge and score service — v2.43
+# Daily challenge and score service — v2.45
 
 The daily game and five leaderboard periods are implemented without a scheduler. `rescue-daily.js` derives the day from `America/New_York`; the first load after Eastern midnight automatically uses the new date seed.
 
@@ -62,3 +62,8 @@ Baseline frontend commit: `8064df6` (v2.39). Restore the v2.39 runtime sources a
 ### Menu behavior (2.44)
 
 The compact game menu offers Continue for an active saved daily attempt. Winning, losing or giving up closes it; only Free Play can start afterward until the next Eastern date. An unposted daily result may be viewed and posted, but never replayed. Leaving the page preserves an active daily run on the same browser/device. Help, results and leaderboards have explicit return routes; opening another result does not discard an active free-play run. Daily persistence and score recording use the same existing keys and backend.
+
+
+### Score filter correction (2.45)
+
+Removed the `duration_ms >= score * 35` condition from `public!A50`. Large herds and the 1,000-point no-Pip bonus made that heuristic reject legitimate quick adventures. The 8-second minimum, 24-hour maximum, numeric bounds, identity/mode/version checks, daily-title check and first-occurrence nonce protection remain. All original values and historical scores are preserved; previously filtered valid rows appear automatically. LEE's 4,454-point September 14 daily result (147,465 ms) was recovered by this correction.

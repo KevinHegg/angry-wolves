@@ -1064,3 +1064,10 @@ Checkpoint before this UI pass: `bec3924281a687269f6aa00e55536b553470b3e7` (2.43
 - No rules, scoring, random streams, storage keys or score-sheet data changed.
 
 To roll back, restore `index.html`, `rescue.js` and `rescue.css` from the checkpoint, then package the restored sources under a new version and run release tests. Preserve existing daily-attempt records and historical scores.
+
+
+## Hungry Wolf 2.45 — daily score cards and recorder correction
+
+Frontend checkpoint: `e14aee87ae77f439d80bc3d4e99bb9826950af40` (2.44). Daily share cards now use the game's gold treatment and a prominent dated challenge heading. Free-play cards keep their existing design. To revert the visual change, restore `rescue-share.js` from that checkpoint and package a new version.
+
+The independent live correction in `public!A50` removes the points-per-second rejection; the matching formula generator is `scripts/public-score-formula.cjs`. Keep that correction when rolling back the frontend so legitimate quick/no-Pip scores remain visible. No game rules, daily attempts or historical score values changed.

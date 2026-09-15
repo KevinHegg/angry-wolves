@@ -9,7 +9,8 @@ function publicScoreFormula(lastRow=1001){
  const columns=[`TEXT(${ref('A')},"yyyy-mm-dd")&"T12:00:00."&TEXT(ROW(${ref('A')})-2,"000")&"Z"`,ref('B'),num('C'),ref('D'),ref('E'),num('F',0),num('G',0),ref('H'),num('I',0),num('J',0),num('K',0),ref('N'),ref('L')];
  const conditions=[`LEN(${ref('B')})>0`,match('B','^[A-Z]{3}[0-9A-J]$'),match('D','^rescue-(v2|daily-v1)$')];
  for(const [c,min,max]of [['C',0,999999],['F',0,99],['G',0,36],['I',0,200],['J',0,10],['K',8000,86400000]])conditions.push(`${num(c)}>=${min}`,`${num(c)}<=${max}`);
- conditions.push(`${num('K')}>=${num('C',0)}*35`,`LEN(${ref('L')})>0`,`MATCH(${ref('L')},${ref('L')},0)=ROW(${ref('L')})-1`,match('N','^rescue-2\\.[0-9]+$'),`IF(${ref('D')}="rescue-daily-v1",${match('E','^Daily [0-9]{4}-[0-9]{2}-[0-9]{2} · ')},TRUE)`);
+ // Scores are not a clock: large herds and the no-Pip bonus can be earned quickly.
+ conditions.push(`LEN(${ref('L')})>0`,`MATCH(${ref('L')},${ref('L')},0)=ROW(${ref('L')})-1`,match('N','^rescue-2\\.[0-9]+$'),`IF(${ref('D')}="rescue-daily-v1",${match('E','^Daily [0-9]{4}-[0-9]{2}-[0-9]{2} · ')},TRUE)`);
  return `=ARRAYFORMULA(IFERROR(FILTER({${columns.join(',')}},${conditions.join(',')}),))`;
 }
 if(require.main===module)console.log(publicScoreFormula());

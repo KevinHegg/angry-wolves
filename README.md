@@ -20,11 +20,11 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 - On laptops and desktops, the same portrait interface sits centered horizontally and vertically inside a rounded frame over a woodland background. Desktop popups share that center. The board grows with the available height, with compact controls in short windows. Mouse clicks select a herd and operate every control; click Whistle or the selected herd again to rescue it.
 - There is no clock. Sound is optional; use the speaker control or the sound test under **?**.
 - **Restart game** immediately starts a fresh adventure. After a loss, **Play again** starts field one and **Not now** leaves the finished board inactive.
-- Winning adventures can join the top-20 leaderboard with three letters and an animal badge. Save player locks the choice; Change player unlocks it. Existing scores retain their original names. Share creates an illustrated score card and includes the main game URL.
+- Winning adventures can join the top-20 leaderboard with three letters and an animal badge. Save player locks the choice; Change player unlocks it. Existing scores retain their original names. Share creates an illustrated score card and includes the main game URL. Daily cards carry the gold challenge frame, prominent Daily Challenge title, challenge date and any verified rank.
 
 Keyboard: Tab into the board, arrow keys move focus, Enter selects, Space whistles, Escape clears selection.
 
-## Daily challenge (v2.44)
+## Daily challenge (v2.45)
 
 The daily puzzle changes at midnight Eastern, with repeatable seeded animal arrivals, wind and Pip regrouping. The existing board carries between fields; cows join orchard refills. Daily adventures and unposted results resume after a reload on the same device. Daily play requires working browser storage; free play remains available without it. During a daily run, **Restart game** becomes **Give up** and returns to the daily/free-play chooser without beginning another run.
 
@@ -68,13 +68,13 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.44**. The published root loads immutable assets from `play/2.44/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. The current release is **2.45**. The published root loads immutable assets from `play/2.45/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
 For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
 To roll back, restore the chosen checkpoint's runtime sources and package them under a new release version. Historical customer URLs intentionally open the current game; they are not independent rollback targets. Preserve unrelated work and score-sheet changes.
 
-The leaderboard posts to a public Google Form and reads a published CSV containing only approved score columns. The spreadsheet and raw form responses remain restricted to the owner. A sheet formula rejects malformed names, implausible values, replayed nonces and submissions that are too fast for their score before copying a row into the public feed. Profiles and daily adventures persist on the device; free-play progress does not survive a reload. Google may cache the published feed for several minutes, so a posted score can take a moment to appear. This is a casual honor-system board, not a server-verified competition.
+The leaderboard posts to a public Google Form and reads a published CSV containing only approved score columns. The spreadsheet and raw form responses remain restricted to the owner. A sheet formula rejects malformed names, implausible values, replayed nonces and durations outside the allowed range before copying a row into the public feed. Profiles and daily adventures persist on the device; free-play progress does not survive a reload. Google may cache the published feed for several minutes, so a posted score can take a moment to appear. This is a casual honor-system board, not a server-verified competition.
 
 ## Rights
 

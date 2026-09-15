@@ -1,0 +1,713 @@
+(() => {
+  'use strict';
+  const R = window.RescueRules;
+  const $ = id => document.getElementById(id);
+  const names = ['sheep', 'pigs', 'hens', 'cows'];
+  const singular = ['Sheep', 'Pig', 'Hen', 'Cow'];
+  const chapterWords = ['ONE', 'TWO', 'THREE'];
+  const eyes = '<circle cx="25" cy="32" r="2.3" fill="#293c37"/><circle cx="39" cy="32" r="2.3" fill="#293c37"/>';
+  function icon(type) {
+    if(type===7)return '<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke-linecap="round"><path d="M8 14C-1 3 61 1 57 15C52 25 6 22 10 13C14 7 48 8 50 13" stroke="#765e42" stroke-width="5"/><path d="M13 27Q37 36 54 25M19 37Q38 45 47 35M27 47Q36 52 40 45M31 55L27 59" stroke="#9b7d50" stroke-width="5"/><path d="M6 32L2 35M54 42L60 39M20 55L16 57" stroke="#b59158" stroke-width="2"/></g><path d="M46 19L55 16L53 25Z" fill="#765e42"/></svg>';
+    if(type===6)return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 30L5 3L25 16Q32 12 39 16L59 3L56 32Q61 55 32 60Q3 55 8 30Z" fill="#101719" stroke="#b6d59b" stroke-width="2"/><path d="M15 32Q21 22 28 32M36 32Q43 22 50 32" fill="none" stroke="#dcf296" stroke-width="4" stroke-linecap="round"/><path d="M15 40Q32 45 49 40Q44 59 32 56Q20 57 15 40Z" fill="#fff5cd"/><path d="M29 35L35 35L32 39Z" fill="#d79f96"/><path d="M22 44V50M32 45V53M42 44V50" stroke="#b4ae8a"/><path d="M16 38L2 34M48 38L62 34" stroke="#b6d59b" stroke-width="2"/></svg>';
+    if(type===5)return '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M8 30L5 3L25 16Q32 12 39 16L59 3L56 32Q61 51 44 57L32 61L20 57Q3 51 8 30Z" fill="#101719" stroke="#657477" stroke-width="2"/><path d="M12 13L15 26L23 21M52 13L49 26L41 21" fill="#574c62"/><path d="M13 32Q23 25 29 34Q20 43 13 32M35 34Q43 25 52 32Q44 43 35 34" fill="#ffb574"/><path d="M22 30V37M43 30V37" stroke="#0b1416" stroke-width="3"/><path d="M29 41L35 41L32 45Z" fill="#b87f9a"/><path d="M20 50Q32 39 45 50L39 49L38 54L34 47L29 47L26 54L25 49Z" fill="#f7efd8"/><path d="M17 43L2 39M17 47L1 48M47 43L62 39M47 47L63 48" stroke="#c4c0b0" stroke-width="1.2"/></svg>';
+
+    const faces = [
+      '<g fill="#f9f5e6" stroke="#c8c6ac" stroke-width="1.2"><circle cx="20" cy="18" r="9"/><circle cx="32" cy="15" r="10"/><circle cx="44" cy="18" r="9"/><circle cx="15" cy="29" r="9"/><circle cx="49" cy="29" r="9"/><circle cx="20" cy="43" r="10"/><circle cx="33" cy="46" r="10"/><circle cx="45" cy="43" r="10"/></g><path d="M17 25Q7 18 10 33L21 36M47 25Q57 18 54 33L43 36" fill="#59665c"/><rect x="20" y="21" width="24" height="29" rx="11" fill="#59665c"/><circle cx="26" cy="32" r="2" fill="#fff5db"/><circle cx="38" cy="32" r="2" fill="#fff5db"/><path d="M29 41h6l-3 3z" fill="#e3c9ad"/>',
+      '<path d="M13 26L9 7Q24 8 26 20M38 20Q40 8 55 7L51 28" fill="#b56e68" stroke="#87584f" stroke-width="1.2"/><ellipse cx="32" cy="33" rx="23" ry="23" fill="#f1beb0"/>' + eyes + '<ellipse cx="32" cy="42" rx="12" ry="8" fill="#cb827d"/><ellipse cx="28" cy="42" rx="2" ry="3" fill="#82554e"/><ellipse cx="36" cy="42" rx="2" ry="3" fill="#82554e"/><path d="M17 35h4M43 35h4" stroke="#db978a" stroke-width="3" stroke-linecap="round"/>',
+      '<path d="M24 17Q17 1 27 6Q32 -3 37 7Q49 2 40 20" fill="#b95739"/><path d="M12 29Q4 23 6 36L16 45M50 29Q60 23 58 36L48 45" fill="#dbaa50"/><ellipse cx="32" cy="34" rx="22" ry="22" fill="#fff0b5"/>' + eyes + '<path d="M25 39L32 47L39 39L32 35Z" fill="#d68a37"/><path d="M29 46Q25 57 32 55Q40 55 35 46" fill="#b95739"/>',
+      '<path d="M17 21Q7 18 7 29L19 33M47 21Q57 18 57 29L45 33" fill="#6c8079"/><path d="M19 19L16 7L26 16M45 19L48 7L38 16" fill="#f1d9a5"/><rect x="16" y="13" width="32" height="42" rx="14" fill="#f0eee0"/><path d="M18 19Q34 12 32 31L19 34Z" fill="#50665f"/><circle cx="25" cy="30" r="2.3" fill="#fff8e0"/><circle cx="39" cy="30" r="2.3" fill="#293c37"/><rect x="18" y="39" width="28" height="16" rx="8" fill="#caa49a"/><circle cx="26" cy="46" r="2" fill="#775e59"/><circle cx="38" cy="46" r="2" fill="#775e59"/>',
+      '<path d="M10 26L7 3L26 17L38 17L57 3L54 29L48 46L32 59L16 46Z" fill="#536967"/><path d="M13 13L16 28L24 21M51 13L48 28L40 21" fill="#a5aaa0"/><path d="M12 30L27 35L32 48L37 35L52 30L47 46L32 58L17 46Z" fill="#d5d8ca"/><path d="M19 28L27 30M37 30L45 28" stroke="#243b37" stroke-width="3" stroke-linecap="round"/><path d="M27 45L37 45L32 50Z" fill="#243b37"/>'
+    ];
+    return `<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${faces[type]}</svg>`;
+  }
+  const S = window.RescueServices, A = window.RescueAudio, D=window.RescueDaily;
+  let challengeDate="",dailyStartedAt=0,randoms=Math.random,boardView="alltime",serverOffset=0;
+  const today=()=>D.dayKey(Date.now()+serverOffset);
+  let dailyCompletion=null,dailyRevision=0;
+  const dailyAttempts=new Map();
+  const attemptKey=day=>`hw-daily-attempt:${day}`;
+  function dailyAttempt(day){
+    try{const v=JSON.parse(localStorage.getItem(attemptKey(day)));if(v?.ruleset===D.RULESET&&v.challengeDate===day)dailyAttempts.set(day,v);}catch{}
+    return dailyAttempts.get(day)||null;
+  }
+  function writeAttempt(day,nonce,status,revision){
+    const v={ruleset:D.RULESET,challengeDate:day,nonce,status,revision};
+    try{const text=JSON.stringify(v);localStorage.setItem(attemptKey(day),text);if(localStorage.getItem(attemptKey(day))!==text)return false;}catch{return false;}
+    dailyAttempts.set(day,v);return true;
+  }
+  function dailyCurrent(){
+    if(!challengeDate)return true;
+    const v=dailyAttempt(challengeDate);
+    if(v?.nonce===runNonce&&v.revision===dailyRevision&&v.status!=='gave-up')return true;
+    generation++;busy=false;ready=false;selected=[];challengeDate='';intro();
+    return false;
+  }
+  function rememberDailyWin(day,score){
+    try{
+      const saved=JSON.parse(localStorage.getItem('hw-daily-completed'));
+      if(saved?.ruleset===D.RULESET&&D.validDay(saved.challengeDate)&&Number.isFinite(saved.score))dailyCompletion=saved;
+    }catch{}
+    if(day&&Number.isFinite(score)&&(!dailyCompletion||day>=dailyCompletion.challengeDate)){
+      dailyCompletion={ruleset:D.RULESET,challengeDate:day,score:Math.max(score,dailyCompletion?.challengeDate===day?dailyCompletion.score:0)};
+      try{localStorage.setItem('hw-daily-completed',JSON.stringify(dailyCompletion));}catch{}
+    }
+    return dailyCompletion?.challengeDate===today()?dailyCompletion:null;
+  }
+  let state = R.create(), selected = [], busy = false, total = 0, bankedScore = 0, bankedMoves = 0;
+  let bankedBiggest = {count:0,type:0}, pipUsed = [false,false,false], finalResult = null, shareCard = null, shareReady = false;
+  let soundOn = true, best = 0, dialogAction = null, dialogSecondary = null;
+  let lastFocus = null, generation = 0, ready = false, dialogGeneration = 0, dialogView = '';
+  let dialogBack=null,chooserBack=null,helpBack=null,leaderboardBack=null,resultBack=null;
+  let fieldEntryBoard = null,fieldEntryCats={},fieldEntryDistance=state.distance,fieldEntryWait=state.windWait;
+  let startedAt = Date.now(), runNonce = newNonce(), keyboardInput = false;
+  let submission = {pending:false,done:false,message:''};
+  try { soundOn = localStorage.getItem('aw-rescue-sound') !== '0'; best = Number(localStorage.getItem('aw-rescue-best-v2')) || 0; } catch {}
+  let profileUnlocked=false,leaderboardRequest=0;
+  let playerProfile={initials:'',badge:0};
+  try{playerProfile=S.readProfile(localStorage);}catch{}
+  function rememberProfile(){try{S.saveProfile(playerProfile,localStorage);}catch{}}
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const phoneLandscape = window.matchMedia('(orientation: landscape) and (max-height: 600px) and (any-pointer: coarse)');
+  let sideways=false,hiddenDialog=false,portraitFocus=null,dialogScroll=[],pausedAnimations=[];
+  const moveTimers=new Set();
+  function armMoveTimer(timer){
+    timer.started=performance.now();
+    timer.id=setTimeout(()=>{moveTimers.delete(timer);timer.run();},timer.remaining);
+  }
+  function afterMove(run,delay){
+    const timer={run,remaining:delay,id:null,started:0};
+    moveTimers.add(timer);if(!sideways)armMoveTimer(timer);
+  }
+  function syncOrientation(){
+    if(sideways===phoneLandscape.matches)return;
+    sideways=phoneLandscape.matches;
+    const dialog=$('story-dialog');
+    if(sideways){
+      portraitFocus=document.activeElement;
+      for(const timer of moveTimers){
+        clearTimeout(timer.id);timer.id=null;
+        timer.remaining=Math.max(0,timer.remaining-(performance.now()-timer.started));
+      }
+      pausedAnimations=(document.getAnimations?.()||[]).filter(animation=>animation.playState==='running');
+      pausedAnimations.forEach(animation=>animation.pause());
+      if(dialog.open){
+        dialogScroll=[dialog,...dialog.querySelectorAll('*')].filter(el=>el.scrollTop||el.scrollLeft).map(el=>({el,top:el.scrollTop,left:el.scrollLeft}));
+        hiddenDialog=true;dialog.close();
+      }
+    }
+    document.documentElement.classList.toggle('phone-landscape',sideways);
+    document.querySelector('.rescue-app').inert=sideways;
+    $('landscape-info').hidden=!sideways;
+    if(sideways)$('landscape-info').focus({preventScroll:true});
+    else{
+      fitViewport();
+      if(hiddenDialog){hiddenDialog=false;dialog.showModal();}
+      if(portraitFocus?.isConnected)portraitFocus.focus({preventScroll:true});
+      dialogScroll.forEach(({el,top,left})=>{if(el.isConnected){el.scrollTop=top;el.scrollLeft=left;}});
+      dialogScroll=[];
+      pausedAnimations.forEach(animation=>{if(animation.playState==='paused')animation.play();});pausedAnimations=[];
+      for(const timer of moveTimers)if(timer.id===null)armMoveTimer(timer);
+    }
+    scheduleFit();
+  }
+  document.querySelector('.brand-wolf').innerHTML = icon(4);
+  A.setEnabled(soundOn);
+  function newNonce() { return window.crypto?.randomUUID?.() || `rescue-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
+  const tone = (kind,options) => A.play(kind,options);
+  function soundLabel() {
+    $('sound').setAttribute('aria-pressed', String(soundOn));
+    $('sound').setAttribute('aria-label', `Turn sound ${soundOn ? 'off' : 'on'}`);
+    $('sound').innerHTML = `${soundOn ? '🔊' : '🔇'}<span>Sound ${soundOn ? 'on' : 'off'}</span>`;
+  }
+  function say(message) { $('feedback').textContent = message; }
+  function openDialog({eyebrow,title,copy,details='',action,run,secondary='',secondaryRun,view='',back=null}) {
+    dialogGeneration++; dialogView = view;dialogBack=back;
+    $('submit-score').hidden=true;
+    $('toggle-player-lock').hidden=true;
+    $('submit-status').hidden=view!=='leaderboard';
+    $('submit-status').textContent='';
+    $('load-version').hidden=view!=='intro';$('dialog-meta').hidden=view!=='intro';
+    $('dialog-tools').hidden=!['intro','chooser'].includes(view);
+    $('dialog-back').hidden=!back;$('dialog-back').textContent=back?.label||'';
+    $('result-actions').hidden=true;$('result-actions').innerHTML='';
+    $('story-dialog').dataset.view=view;
+    $('story-dialog').classList.toggle('player-editing',false);
+    $('copyright-notice').hidden=view!=='intro';
+    $('story-dialog').classList.toggle('leaderboard-view',view==='leaderboard');
+    if (!$('story-dialog').open&&!hiddenDialog) lastFocus = sideways?portraitFocus:document.activeElement;
+    $('dialog-eyebrow').textContent = eyebrow;
+    $('dialog-title').textContent = title;
+    $('dialog-copy').textContent = copy;
+    $('dialog-details').innerHTML = details;
+    $('dialog-details').scrollTop = 0;$('dialog-body').scrollTop=0;
+    document.querySelector('.dialog-art').innerHTML = view === 'results' ? icon(0)+icon(1)+icon(2)+icon(3) : icon(0)+icon(4);
+    $('dialog-action').textContent = action;$('dialog-action').hidden=!action;
+    $('dialog-secondary').textContent = secondary;
+    $('dialog-secondary').hidden = !secondary;
+    dialogAction = run; dialogSecondary = secondaryRun;
+    if(sideways){hiddenDialog=true;portraitFocus=$('dialog-title');dialogScroll=[];return;}
+    if (!$('story-dialog').open) $('story-dialog').showModal();
+    $('story-dialog').scrollTop = 0;
+    // Pointer users should not have Safari scroll a dialog toward its last button.
+    $('dialog-title').focus({preventScroll:true});
+    $('story-dialog').scrollTop = 0;scheduleFit();
+  }
+  function closeDialog() {
+    hiddenDialog=false;dialogScroll=[];
+    dialogGeneration++; dialogView = ''; dialogAction = null; dialogSecondary = null;dialogBack=null;
+    $('story-dialog').close();
+    if (keyboardInput && lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
+    scheduleFit();
+  }
+  function saveDaily(){
+    if(!challengeDate||!dailyCurrent())return;
+    const status=state.status==='lost'?'lost':state.status==='won'&&state.chapter===2?'won':'active';
+    dailyRevision++;writeAttempt(challengeDate,runNonce,status,dailyRevision);
+    try{localStorage.setItem('hw-daily-adventure',JSON.stringify({ruleset:D.RULESET,challengeDate,dailyStartedAt,dailyRevision,state,randoms:randoms.snapshot(),total,bankedScore,bankedMoves,bankedBiggest,pipUsed,startedAt,runNonce,finalResult,submission:{...submission,pending:false}}));}catch{}
+    if(state.status==='won'&&state.chapter===2)rememberDailyWin(challengeDate,finalResult?.score??bankedScore+state.score+R.restBonus(pipUsed.filter(used=>!used).length));
+  }
+  function savedDaily(){
+    try{const v=JSON.parse(localStorage.getItem('hw-daily-adventure'));return v?.ruleset===D.RULESET&&D.validDay(v.challengeDate)&&v.state?.board?.length===36&&v.state.board.every(n=>Number.isInteger(n)&&n>=0&&n<=6)&&[0,1,2].includes(v.state.chapter)&&['playing','won','lost'].includes(v.state.status)&&v.state.saved?.length===4&&v.state.cats&&v.randoms&&['animals','wind','regroup'].every(k=>Number.isInteger(v.randoms[k]))&&v.pipUsed?.length===3&&v.bankedBiggest&&['total','bankedScore','bankedMoves','startedAt','dailyStartedAt'].every(k=>Number.isFinite(v[k]))&&v.submission&&typeof v.runNonce==='string'?v:null;}catch{return null;}
+  }
+  function migrateDaily(){
+    const saved=savedDaily(),won=saved?.state.status==='won'&&saved.state.chapter===2;
+    const completed=rememberDailyWin(won?saved.challengeDate:null,won?(saved.finalResult?.score??saved.bankedScore+saved.state.score+R.restBonus(saved.pipUsed.filter(used=>!used).length)):null);
+    if(saved&&!dailyAttempt(saved.challengeDate))writeAttempt(saved.challengeDate,saved.runNonce,won?'won':saved.state.status==='lost'?'lost':'active',saved.dailyRevision||0);
+    if(completed&&!dailyAttempt(completed.challengeDate))writeAttempt(completed.challengeDate,'legacy-completed','won',0);
+    return {saved,completed};
+  }
+  function beginDaily(){
+    if(sideways)return;
+    const {saved}=migrateDaily(),day=today(),attempt=dailyAttempt(day);
+    if(attempt){if(saved?.challengeDate===day&&attempt.nonce===saved.runNonce&&attempt.status!=='gave-up')resumeDaily();else intro();return;}
+    const nonce=newNonce();
+    if(!writeAttempt(day,nonce,'active',0)){
+      openDialog({view:'intro',eyebrow:'DAILY CHALLENGE',title:'Allow this game to save.',copy:'Daily play needs browser storage to remember your one attempt and let you resume. Enable website storage, or enjoy free play.',action:'Free play',run:beginFree,secondary:'Back',secondaryRun:intro});return;
+    }
+    challengeDate=day;dailyRevision=0;runNonce=nonce;dailyStartedAt=Date.now()+serverOffset;freshAdventure(true);tone('gate');
+  }
+  function beginFree(){challengeDate='';freshAdventure();tone('gate');}
+  function resumeDaily(){
+    const {saved:v}=migrateDaily();if(!v){intro();return;}
+    const attempt=dailyAttempt(v.challengeDate);if(attempt?.status==='gave-up'||attempt?.nonce!==v.runNonce){intro();return;}
+    dailyRevision=attempt.revision||0;
+    A.reset?.();generation++;challengeDate=v.challengeDate;dailyStartedAt=v.dailyStartedAt;state=v.state;randoms=D.streams(challengeDate,state.chapter,v.randoms);
+    total=v.total;bankedScore=v.bankedScore;bankedMoves=v.bankedMoves;bankedBiggest=v.bankedBiggest;pipUsed=v.pipUsed;startedAt=v.startedAt;runNonce=v.runNonce;
+    finalResult=v.finalResult;submission=v.submission;selected=[];busy=false;ready=state.status==='playing';closeDialog();render();
+    if(finalResult){showResults();prepareShare(finalResult);}else if(!ready)finishField(true);
+  }
+  function viewDailyScore(){
+    const prior=ready&&state.status==='playing'||finalResult;
+    if(prior&&runNonce!==savedDaily()?.runNonce){
+      const snapshot={challengeDate,dailyStartedAt,dailyRevision,randoms,state,total,bankedScore,bankedMoves,bankedBiggest,pipUsed,startedAt,runNonce,finalResult,submission,selected,ready,fieldEntryBoard,fieldEntryCats,fieldEntryDistance,fieldEntryWait};
+      resultBack={label:finalResult?'Back to previous score':'Back to my game',run:()=>{
+        if(shareCard)URL.revokeObjectURL(shareCard.url);shareCard=null;shareReady=false;
+        ({challengeDate,dailyStartedAt,dailyRevision,randoms,state,total,bankedScore,bankedMoves,bankedBiggest,pipUsed,startedAt,runNonce,finalResult,submission,selected,ready,fieldEntryBoard,fieldEntryCats,fieldEntryDistance,fieldEntryWait}=snapshot);
+        generation++;busy=false;resultBack=null;closeDialog();render();if(finalResult){showResults();prepareShare(finalResult);}
+      }};
+    }
+    resumeDaily();
+  }
+  function returnDestination(){
+    if(dialogView==='results')return {label:'Back to my score',run:showResults};
+    if(dialogView==='intro'||dialogView==='chooser'){
+      const opening=dialogView==='intro',back=chooserBack;
+      return {label:'Back to game menu',run:()=>showGameChooser(opening,back)};
+    }
+    if(dialogView==='help')return helpBack;
+    if(dialogView==='field-complete')return {label:'Back to field summary',run:()=>finishField(true)};
+    if(finalResult)return {label:'Back to my score',run:showResults};
+    if(ready&&state.status==='playing')return {label:'Back to my game',run:closeDialog};
+    if(state.status==='lost')return {label:'Back to game over',run:()=>finishField(true)};
+    return null;
+  }
+  function chooseGame(){if(busy||sideways)return;showGameChooser(false,returnDestination());}
+  function intro(){showGameChooser(true,null);}
+  async function yesterdayWinner(){
+    const ticket=dialogGeneration;
+    try{const data=await S.board('daily');serverOffset=Number.isFinite(data.serverTime)?data.serverTime-Date.now():0;
+      if(ticket!==dialogGeneration)return;
+      const e=data.yesterday;$('yesterday-winner').textContent=e?`Yesterday: ${S.decodeName(e.playerName)} · ${e.score.toLocaleString()} points`:'';
+      $('yesterday-winner').hidden=!e;scheduleFit();
+    }catch{if(ticket===dialogGeneration){$('yesterday-winner').textContent='';$('yesterday-winner').hidden=true;}}
+  }
+  function showGameChooser(opening=false,back=null){
+    chooserBack=back;
+    const {saved,completed}=migrateDaily(),attempt=dailyAttempt(today()),sameDay=saved?.challengeDate===today();
+    const savedAttempt=saved?dailyAttempt(saved.challengeDate):null;
+    const continuing=sameDay&&savedAttempt?.status==='active';
+    const unposted=savedAttempt?.status==='won'&&!saved?.submission.done;
+    const oldPending=!sameDay&&savedAttempt?.status==='active';
+    const currentScore=back?.label==='Back to my score'&&finalResult?.nonce===saved?.runNonce;
+    const savedLabel=unposted?'View daily score':`Continue daily adventure · ${D.label(saved?.challengeDate||today())}`;
+    const dailyMessage=completed?`✓ Completed today · ${completed.score.toLocaleString()} points.`:continuing?'Your attempt is paused. Continue where you left off.':attempt?'Today’s daily attempt is over.':'One attempt. The same opening for everyone.';
+    const statusTip=attempt&&!continuing?'Next daily challenge at midnight Eastern.':continuing?'A loss or Give up ends this attempt.':'You can leave and resume. A loss or Give up ends your attempt.';
+    openDialog({view:opening?'intro':'chooser',eyebrow:'HUNGRY WOLF',title:'Choose your game.',
+      copy:opening?'Bring the herds home before the wolf arrives.':back?.label==='Back to my game'?(challengeDate?'Your daily attempt is saved. You can return to it here.':'Your game is paused. Starting another replaces it.'):'',
+      details:`<section class="daily-welcome"><b>Daily challenge · <span id="daily-date">${D.label(today())}</span></b><p>${dailyMessage}</p><p class="mode-note">${statusTip}</p><p id="yesterday-winner" hidden></p></section><section class="free-welcome"><b>Free play</b><p>Fresh random boards. Play as often as you like.</p></section>${!sameDay&&(oldPending||unposted)?`<button id="resume-old-daily" class="text-button" type="button">${unposted?'View unposted score': 'Continue unfinished daily'} · ${D.label(saved.challengeDate)}</button>`:''}`,
+      action:continuing?savedLabel:attempt?'Start free play':'Start daily challenge',run:continuing?resumeDaily:attempt?beginFree:beginDaily,
+      secondary:attempt&&!continuing?(sameDay&&unposted&&!currentScore?'View daily score':''):'Start free play',secondaryRun:attempt&&!continuing?viewDailyScore:beginFree,back});
+    if(!sameDay&&(oldPending||unposted))$('resume-old-daily').addEventListener('click',unposted?viewDailyScore:resumeDaily);
+    yesterdayWinner();
+  }
+  function render() {
+    const c = R.CHAPTERS[state.chapter];
+    $('retry').textContent=challengeDate?(state.status==='lost'||finalResult?'Free play':'Give up'):'Restart game';
+    document.body.className = `chapter-${state.chapter}${challengeDate?' daily-mode':''}`;
+    $('game-mode').textContent=challengeDate?'DAILY CHALLENGE':'BRING THEM HOME';
+    $('chapter-label').textContent = challengeDate?`${D.label(challengeDate).toUpperCase()} · ONE ATTEMPT · FIELD ${state.chapter+1}`:`CHAPTER ${chapterWords[state.chapter]} · ${c.time.toUpperCase()}`;
+    $('field-title').textContent = c.name;
+    $('story-title').textContent = ['The gate was left open.','Follow the little footprints.','Leave no herd behind.'][state.chapter];
+    $('story-text').textContent = c.story;
+    $('total-home').textContent = total + state.saved.reduce((a,b)=>a+b,0);
+    $('pip-rest-hint').textContent = pipUsed.some(Boolean)?'Pip bonus: 0':'No-Pip bonus: +1,000';
+    document.querySelectorAll('[data-stop]').forEach((el,i)=>{el.className=i===state.chapter?'current':i<state.chapter?'complete':'';if(i===state.chapter)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
+    $('goals').innerHTML = c.goal.map((n,i)=>n?`<div class="goal ${state.saved[i]>=n?'done':''}" aria-label="${Math.min(n,state.saved[i])} of ${n} ${names[i]} home">${icon(i)}<div class="goal-copy"><strong>${state.saved[i]>=n?`${n} ✓`:`${state.saved[i]} / ${n}`}</strong><span>${names[i]}${state.chapter===2?'':' home'}</span></div><div class="goal-progress" style="width:${Math.min(100,state.saved[i]/n*100)}%"></div></div>`:'').join('');
+    $('wolf-label').textContent = state.distance>0?`The wolf is ${state.distance} ${state.distance===1?'step':'steps'} away`:'The wolf reached the field';
+    const nextWhistle=state.moves+1,extra=R.pressure(nextWhistle);
+    $('wolf-effect').textContent = `Next whistle ${nextWhistle} · 3–4: ${1+extra} closer`;
+    $('wolf-effect').classList.toggle('extra-pressure',extra>0);
+    $('wolf-effect').setAttribute('aria-label',`Next whistle ${nextWhistle}. A herd of 3 or 4 moves the wolf ${1+extra} ${extra?'steps':'step'} closer.${extra?' '+pressureWarning():''}`);
+    document.querySelector('.wolf-trail').classList.toggle('danger',state.distance<=2);
+    $('trail-steps').innerHTML = Array.from({length:11},(_,i)=>`<span class="trail-step ${i===state.distance?'active':''}">${i===state.distance?icon(4):''}</span>`).join('');
+    const windIndices=Object.keys(state.cats).map(Number).filter(i=>state.board[i]===R.DUST);
+    $('cat-warning').hidden=!windIndices.length;
+    $('cat-warning').textContent=windIndices.length?`Scatters in ${state.cats[windIndices[0]]} ${state.cats[windIndices[0]]===1?'rescue':'rescues'} · ${3-state.cats[windIndices[0]]}/3 filled`:'';
+    const watchedArea=new Set(windIndices.flatMap(i=>R.windRing(state.board,i))),blastArea=new Set();
+    const playable = new Set(R.groups(state.board).flat());
+    $('board').innerHTML = state.board.map((t,i)=>`<button class="animal ${watchedArea.has(i)?'wind-neighbor':''} ${blastArea.has(i)?'blast-warning':''} ${R.isSpecial(t)?`magic-cat dust-devil`:''} ${playable.has(i)?'hint':''}" data-cell="${i}" data-type="${t}" aria-label="${R.isSpecial(t)?`Dust devil, ${3-state.cats[i]} of 3 turns complete. Scatters surrounding animals after three rescues. Pip leaves the gust in place`:singular[t]}, row ${Math.floor(i/6)+1}, column ${i%6+1}" aria-pressed="false" tabindex="${i===30?0:-1}">${icon(R.isSpecial(t)?7:t)}${R.isSpecial(t)?`<span class="cat-life" aria-hidden="true">${Array.from({length:3},(_,dot)=>`<i class="${dot<3-state.cats[i]?'lit':''}"></i>`).join('')}</span>`:''}</button>`).join('');
+    $('bark').disabled = !state.bark || busy || state.status!=='playing';
+    $('bark').innerHTML = `<span aria-hidden="true">🐕</span><span>${state.bark?'Pip, bark!':'Good dog, Pip.'}<small>Send wolf back 3 steps</small><small class="pip-charge">${Array.from({length:3},(_,i)=>`<i class="${i<3-state.bark?'filled':''}" aria-hidden="true"></i>`).join('')}${state.bark?`${state.bark} bark${state.bark===1?'':'s'} left`:'No barks left'}</small></span>`;
+    renderSelection(); scheduleFit();saveDaily();
+  }
+  function renderSelection() {
+    const chosen=new Set(selected);
+    $('board').setAttribute('aria-busy',String(busy));
+    $('board').classList.toggle('has-selection',selected.length>0);
+    [...$('board').children].forEach((el,i)=>{el.classList.toggle('selected',chosen.has(i));el.setAttribute('aria-pressed',String(chosen.has(i)));el.disabled=busy||state.status!=='playing';});
+    $('whistle').disabled=!selected.length||busy||state.status!=='playing';
+    $('whistle-label').textContent=selected.length?`Whistle ${selected.length} home`:'Choose a herd';
+    $('herd-hint').textContent=state.status!=='playing'?(state.status==='won'?'Field complete.':'Adventure over.'):selected.length?'Tap Whistle to bring them home.':'Tap 3+ matching animals.';
+  }
+  function pressureWarning(){
+    const n=state.moves+1,extra=R.pressure(n);
+    return `From whistle ${n}: 3–4 animals move the wolf ${1+extra} steps closer; 5–6, ${extra} closer; 7+, ${extra===1?'stay put':'1 closer'}.`;
+  }
+  function select(i) {
+    if(sideways||!ready||busy||state.status!=='playing'||$('story-dialog').open||!dailyCurrent())return;
+    if(R.isSpecial(state.board[i])){selected=[];renderSelection();say(`A dust devil! ${3-state.cats[i]}/3 turns complete. After three rescues it scatters up to eight surrounding animals, then becomes the animal making the largest herd. Clear below it to move it down.`);return;}
+
+    const g=R.group(state.board,i);
+    if(g.length<3){selected=[];renderSelection();say(`Only ${g.length} here. Find 3+ matching animals touching side to side.`);return;}
+    if(selected.includes(i)){commit();return;}
+    selected=g; tone('select',{animal:state.board[i]}); renderSelection();
+    const ruleStep=R.wolfStep(g.length)-R.pressure(state.moves+1)-R.burstPreview(state).cats.length;
+    const step=Math.max(0,Math.min(10,state.distance+ruleStep))-state.distance;
+    const effect=step>0?'The wolf steps back!':step===0?'The wolf stays put.':`The wolf moves ${-step} ${step===-1?'step':'steps'} closer${state.distance<=-step?' — finish the goal!':'.'}`;
+    say(`Whistle ${state.moves+1}: ${g.length} ${names[state.board[i]]} (+${R.herdPoints(g.length)} pts). ${effect}`);
+  }
+  function commit() {
+    if(sideways||!ready||busy||!selected.length||state.status!=='playing'||$('story-dialog').open||!dailyCurrent())return;
+    busy=true;
+    const start=selected[0],ticket=generation,activeCell=document.activeElement?.dataset?.cell;
+    selected.forEach(i=>$('board').children[i].classList.add('rescuing'));
+    const blast=R.burstPreview(state);
+    blast.cats.forEach(i=>$('board').children[i].classList.add('cat-bursting'));
+    blast.animals.forEach(i=>$('board').children[i].classList.add('burst-rescued'));
+    renderSelection(); $('bark').disabled=true; tone('rescue',{animal:state.board[start]});
+    afterMove(()=>{
+      if(ticket!==generation||!dailyCurrent())return;
+      const previousDistance=state.distance;
+      const result=R.rescue(state,start,randoms);
+      const moved=state.distance-previousDistance;
+      const gameOver=state.status==='lost'||(state.status==='won'&&state.chapter===2);
+      const windRotations=gameOver?[]:result.rotations;
+      selected=[];busy=state.status!=='playing'||(!!windRotations?.length&&!reducedMotion.matches);render();
+      if(!result.ok)return;
+      const trail=$('trail-steps').children,to=trail[state.distance];
+      const wolf=to?.querySelector?.('svg');
+      let wolfTravel=0;
+      if(wolf&&!reducedMotion.matches&&previousDistance!==state.distance){
+        const steps=Math.abs(moved),direction=Math.sign(moved),target=to.getBoundingClientRect().left;
+        const frame=(distance,offset)=>({transform:`translateX(${trail[distance].getBoundingClientRect().left-target}px)`,offset});
+        const frames=[frame(previousDistance,0)];
+        for(let step=1;step<=steps;step++){
+          const distance=previousDistance+direction*step;
+          frames.push(frame(distance,(step-.2)/steps),frame(distance,step/steps));
+        }
+        wolfTravel=Math.max(450,steps*300);
+        wolf.animate(frames,{duration:wolfTravel,easing:'ease-in-out'});
+      }
+      if(!gameOver&&state.distance<previousDistance)tone('snarl',{delay:.32});
+      else if(!gameOver&&state.distance>previousDistance)tone('whimper',{delay:.32});
+      if(!gameOver&&result.catAppeared>=0)$('board').children[result.catAppeared].classList.add('cat-appearing');
+      animateWind(windRotations);
+      if(busy&&state.status==='playing')afterMove(()=>{if(ticket!==generation||!dailyCurrent())return;busy=false;render();},2500);
+      if(!gameOver)result.gifts.forEach(gift=>gift.finalCells.forEach(i=>$('board').children[i].classList.add('gift-arrival')));
+      [...result.burstCats,...result.burstAnimals].forEach(i=>$('board').children[i].classList.add('new-arrival'));
+      result.cleared.forEach(i=>$('board').children[i].classList.add('new-arrival'));
+      if(keyboardInput&&activeCell!==undefined){
+        [...$('board').children].forEach(el=>{el.tabIndex=-1;});
+        const cell=$('board').children[Number(activeCell)];
+        if(cell){cell.tabIndex=0;cell.focus({preventScroll:true});}
+      }
+      say(`${result.count} ${names[result.type]} home! ${moved>0?'The wolf backs away.':moved===0?'The wolf stays put.':`The wolf moves ${-moved} ${moved===-1?'step':'steps'} closer.`}${result.catAppeared>=0?' A dust devil rolls in!':''}${windRotations.length?' Whoosh! Nearby animals scatter.':''}${!gameOver&&result.gifts.length?` The wind settles into ${names[result.gifts[0].type]}, making a herd of ${result.gifts[0].size}.`:''}${result.regrouped?' A new herd gathered.':''}`);
+      if(state.status==='playing'&&R.pressure(state.moves+1)>R.pressure(state.moves))say(pressureWarning());
+      if(state.status!=='playing'){
+        if(gameOver){
+          ready=false;busy=true;
+          const won=state.status==='won';
+          afterMove(()=>{
+            if(ticket!==generation||!dailyCurrent())return;
+            say(won?'Everyone is home. The hungry wolf retreats.':'The wolf caught up. Pip is sheltering the animals.');
+            tone(won?'howl-plaintive':'howl-deep');
+            if(wolf&&!reducedMotion.matches){
+              const frames=won?
+                [{transform:'translateX(0) rotate(0)',opacity:1},{transform:'translateX(5px) rotate(12deg)',opacity:1},{transform:'translateX(20px) rotate(-8deg) scale(.85)',opacity:.55},{transform:'translateX(28px) rotate(0) scale(.8)',opacity:.25}]:
+                [{transform:'scale(1)'},{transform:'translateY(-6px) scale(1.25) rotate(-7deg)'},{transform:'translateY(-3px) scale(1.16) rotate(5deg)'},{transform:'scale(1.08)'}];
+              wolf.animate(frames,{duration:1550,easing:'ease-in-out',fill:'forwards'});
+            }
+            afterMove(()=>{if(ticket!==generation||!dailyCurrent())return;busy=false;finishField(true);},2000);
+          },wolfTravel);
+        }else afterMove(()=>{if(ticket!==generation||!dailyCurrent())return;busy=false;finishField();},reducedMotion.matches?350:windRotations.length?2700:900);
+      }
+    },reducedMotion.matches?0:230);
+  }
+  function animateWind(rotations){
+    if(!rotations.length)return;
+    tone('whoosh');
+    if(reducedMotion.matches)return;
+    const cells=$('board').children;
+    // Measure before any tile moves, so later paths use the fixed grid.
+    const bounds=Array.from(cells,cell=>cell.getBoundingClientRect());
+    for(const rotation of rotations){
+      const destinations=rotation.moves.map(move=>move.to);
+      for(const [j,move] of rotation.moves.entries()){
+        const tile=cells[move.to];if(!tile?.animate)continue;
+        const to=bounds[move.to];
+        const positions=[move.from,destinations[(j+1)%destinations.length],destinations[(j+2)%destinations.length],destinations[(j+3)%destinations.length],move.to];
+        const frame=index=>{const at=bounds[index];return {transform:`translate(${at.left-to.left}px,${at.top-to.top}px)`,opacity:1};};
+        // Three temporary arrangements, with a pause at each, then the real result.
+        const [start,first,second,third,end]=positions.map(frame);
+        tile.animate([{...start,offset:0},{...first,offset:.18},{...first,offset:.25},{...second,offset:.43},{...second,offset:.5},{...third,offset:.68},{...third,offset:.75},{...end,offset:1}],{duration:2400,easing:'ease-in-out'});
+      }
+      cells[rotation.index]?.classList.add('wind-turn');
+      if(rotation.completed===3)cells[rotation.index]?.classList.add('wind-finished');
+    }
+  }
+  function startField(chapter, carriedBoard = null,cats={},distance=R.CHAPTERS[chapter].distance,wait=null,barks=3) {
+    generation++;busy=false;selected=[];ready=true;
+    randoms=challengeDate?D.streams(challengeDate,chapter):Math.random;
+    state=R.create(chapter,randoms,carriedBoard,cats,undefined,wait,barks);fieldEntryWait=state.windWait;state.distance=distance;fieldEntryDistance=distance;fieldEntryBoard=state.board.slice();fieldEntryCats={...state.cats};render();window.scrollTo(0,0);
+    say('Select a herd of 3+ matching animals that touch.');
+  }
+  function freshAdventure(newDaily=false) {
+    if(sideways)return;
+    if(challengeDate&&!newDaily){beginDaily();return;}
+    A.reset?.();resultBack=null;
+    total=0;bankedScore=0;bankedMoves=0;bankedBiggest={count:0,type:0};pipUsed=[false,false,false];
+    finalResult=null;submission={pending:false,done:false,message:''};
+    if(shareCard)URL.revokeObjectURL(shareCard.url);shareCard=null;shareReady=false;
+    if(!challengeDate)runNonce=newNonce();startedAt=Date.now();closeDialog();startField(0);
+  }
+  function retryOrGiveUp(){
+    if(sideways||busy||!dailyCurrent())return;
+    if(!challengeDate){freshAdventure();return;}
+    if(state.status==='lost'||finalResult){beginFree();return;}
+    if(state.status!=='playing')return;
+    writeAttempt(challengeDate,runNonce,'gave-up',++dailyRevision);
+    try{if(localStorage.removeItem)localStorage.removeItem('hw-daily-adventure');else localStorage.setItem('hw-daily-adventure','');}catch{}
+    challengeDate='';dailyStartedAt=0;ready=false;busy=false;selected=[];finalResult=null;submission={pending:false,done:false,message:''};
+    if(shareCard)URL.revokeObjectURL(shareCard.url);shareCard=null;shareReady=false;
+    render();showGameChooser(false,null);say('Daily attempt ended. Free play is always available; the next challenge arrives at midnight Eastern.');
+  }
+  function leaveFinishedAdventure(){ready=false;closeDialog();say(challengeDate?'Daily attempt over. Choose Free play for a new game.':'Adventure over. Choose Restart game for a new journey.');}
+  function finishField(endingPresented=false) {
+    if(state.status==='playing')return;
+    busy=false;
+    if(state.status==='lost'){
+      ready=false;saveDaily();if(!endingPresented)tone('howl-deep');
+      openDialog({view:'lost',eyebrow:challengeDate?`DAILY CHALLENGE · ${D.label(challengeDate).toUpperCase()} · ATTEMPT OVER`:'ADVENTURE OVER · THE ANIMALS ARE SHELTERING',title:'The wolf caught up.',
+        copy:challengeDate?'Pip led the animals to safety. Your daily attempt is over. Try free play, or return for a new challenge at midnight Eastern.':'Pip led the animals to safety. This adventure has ended. Start a new journey from field one, or leave the game here.',
+        action:challengeDate?'Play free · a fresh random board':'Play again · start at field 1',run:beginFree,secondary:'Not now',secondaryRun:leaveFinishedAdventure});return;
+    }
+    if(!endingPresented)tone(state.chapter===2?'howl-plaintive':'win');
+    if(state.chapter===2){
+      const rested=pipUsed.filter(used=>!used).length,bonus=R.restBonus(rested);
+      finalResult=Object.freeze({...(challengeDate?{challengeDate,dailyStartedAt}:{}),score:bankedScore+state.score+bonus,herdingScore:bankedScore+state.score,bonus,rested,
+        saved:total+state.saved.reduce((a,b)=>a+b,0),biggest:{...(state.biggest.count>bankedBiggest.count?state.biggest:bankedBiggest)},
+        moves:bankedMoves+state.moves,durationMs:Date.now()-startedAt,nonce:runNonce,personalBest:bankedScore+state.score+bonus>best});
+      if(finalResult.score>best){best=finalResult.score;try{localStorage.setItem('aw-rescue-best-v2',String(best));}catch{}}
+      saveDaily();showResults();prepareShare(finalResult);return;
+    }
+    const next=R.CHAPTERS[state.chapter+1];
+    // One transition screen. Never close/reopen the same dialog during its tap.
+    openDialog({view:'field-complete',eyebrow:`${challengeDate?'DAILY CHALLENGE · ':''}FIELD ${state.chapter+1} OF 3 COMPLETE`,title:['The sheep are safe.','Out of the orchard.'][state.chapter],copy:`${R.CHAPTERS[state.chapter].ending} ${next.story}`,
+      details:`<div class="stat-line"><span><strong>${total+state.saved.reduce((a,b)=>a+b,0)}</strong>animals home</span><span><strong>${3-state.bark} of 3</strong>Pip barks used · ${state.bark?`${state.bark} left`:"no barks left"}</span></div><p class="dialog-tip">Next: ${next.name}. Your animals carry forward. The wolf stays ${state.distance} ${state.distance===1?'step':'steps'} away. Pip has ${state.bark} bark${state.bark===1?'':'s'} left for the game.</p>`,
+      action:`Continue to field ${state.chapter+2}`,run:()=>{
+        total+=state.saved.reduce((a,b)=>a+b,0);bankedScore+=state.score;bankedMoves+=state.moves;
+        if(state.biggest.count>bankedBiggest.count)bankedBiggest={...state.biggest};
+        const chapter=state.chapter+1,board=state.board.slice(),cats={...state.cats},distance=state.distance,wait=state.windWait,barks=state.bark;closeDialog();tone('gate');startField(chapter,board,cats,distance,wait,barks);
+      }});
+  }
+  function showResults() {
+    const r=finalResult;if(!r)return;
+    openDialog({view:'results',eyebrow:r.challengeDate?`DAILY CHALLENGE · ${D.label(r.challengeDate).toUpperCase()}`:'ADVENTURE COMPLETE · ALL THREE FIELDS',title:'Everyone is home.',copy:R.CHAPTERS[2].ending,
+      details:`<div class="stat-line"><span><strong>${r.saved}</strong>animals home</span><span><strong>${r.score.toLocaleString()}</strong>total points</span></div><p id="result-status" class="dialog-tip" role="status"></p><p class="score-breakdown">${r.herdingScore.toLocaleString()} herding + <b>${r.bonus.toLocaleString()} no-Pip bonus</b><br>${r.rested===3?'No Pip used':'Pip helped'} · personal best ${best.toLocaleString()}</p><div class="biggest-herd">${icon(r.biggest.type)}<span>Biggest herd: <b>${r.biggest.count} ${names[r.biggest.type]}</b></span></div><p id="share-status" class="dialog-tip" role="status"></p><button id="copy-caption" class="text-button" type="button">Copy game link</button><details><summary>Preview share image</summary><img id="share-preview" class="share-preview" alt="Your Hungry Wolf score card" hidden></details>`,
+      action:r.challengeDate?'Play free · a fresh random board':'Play again · start at field 1',run:beginFree,secondary:'Game menu',secondaryRun:chooseGame,back:resultBack});
+    $('result-actions').innerHTML=`<button id="post-score" class="primary" type="button">${submission.done?'🏆 Score status & leaderboard':r.challengeDate?'🏆 Post my daily score':'🏆 Add my high score'}</button><button id="share-score" class="primary" type="button" ${shareReady?'':'disabled'}>${shareReady?'Share my score ↗':'Preparing card…'}</button>`;$('result-actions').hidden=false;
+    $('result-status').textContent=r.rank?`🏆 High score! You placed #${r.rank} on the ${r.rankBoard==='daily'?'daily':'all-time'} board.`:submission.message || 'Add your three letters and badge before starting another adventure.';
+    const ticket=dialogGeneration;
+    $('share-score').addEventListener('click',async()=>{
+      $('share-score').disabled=true;
+      $('share-status').textContent='Choose an app to share your score image and game link.';
+      try{
+        const outcome=await window.RescueShare.share(r,shareCard);
+        if(ticket!==dialogGeneration)return;
+        $('share-status').textContent=outcome==='shared'?'Your share is ready.':outcome==='cancelled'?'Sharing cancelled. Your score is still here.':'Image sharing is unavailable in this browser. Use Copy game link.';
+      }catch{if(ticket===dialogGeneration)$('share-status').textContent='Sharing could not open. Try again or copy the game link.';}
+      finally{if(ticket===dialogGeneration)$('share-score').disabled=false;}
+    });
+    $('post-score').addEventListener('click',()=>showLeaderboard(r.challengeDate?'daily':'alltime'));
+    $('copy-caption').addEventListener('click',async()=>{
+      try{await navigator.clipboard.writeText(S.GAME_URL);if(ticket===dialogGeneration)$('share-status').textContent='Game link copied.';}
+      catch{if(ticket===dialogGeneration)$('share-status').textContent=S.GAME_URL;}
+    });
+    attachShare();
+  }
+  async function prepareShare(result) {
+    try{
+      const card=await window.RescueShare.makeCard(result,icon);
+      if(finalResult!==result){URL.revokeObjectURL(card.url);return;}
+      if(shareCard)URL.revokeObjectURL(shareCard.url);shareCard=card;shareReady=true;attachShare();
+    }catch{if(finalResult!==result)return;shareReady=true;if(dialogView==='results'){$('share-status').textContent='The image could not be prepared. You can still share your score and link.';$('share-score').disabled=false;$('share-score').textContent='Share my score ↗';}}
+  }
+  function attachShare(){
+    if(dialogView!=='results'||!shareCard)return;
+    $('share-preview').src=shareCard.url;$('share-preview').hidden=false;
+    $('share-score').disabled=false;$('share-score').textContent='Share my score ↗';
+  }
+  function showLeaderboard(view) {
+    if(busy||sideways)return;
+    if(dialogView!=='leaderboard')leaderboardBack=returnDestination()||{label:'Back to game menu',run:intro};
+    if(typeof view==='string'&&['daily','weekly','alltime','daily-alltime','winners'].includes(view))boardView=view;
+    else boardView=challengeDate?'daily':'alltime';
+    const badge=playerProfile.badge,initials=playerProfile.initials.padEnd(3,'A');
+    const badgeChoices=S.PICKER_BADGES.includes(badge)?S.PICKER_BADGES:[...S.PICKER_BADGES,badge];
+    const locked=/^[A-Z]{3}$/.test(playerProfile.initials)&&!profileUnlocked;
+    const form=finalResult&&!submission.done?`<form id="score-form"><p id="player-lock-status" class="dialog-tip">${locked?'Saved player locked. Your previous scores keep their original name.':'Choose three letters and a badge. Save, then post your score.'}</p><fieldset id="player-fields" class="player-fields" ${locked||submission.pending?'disabled':''}><span class="initials-label">Your three letters</span><input id="score-initials" type="hidden"><div class="letter-wheels" role="group" aria-label="Three-letter player name">${[0,1,2].map(i=>`<div class="letter-wheel"><button type="button" data-letter="${i}" data-step="1" aria-label="Next letter ${i+1}">▲</button><output id="player-letter-${i}" aria-live="polite">${(initials||'AAA')[i]}</output><button type="button" data-letter="${i}" data-step="-1" aria-label="Previous letter ${i+1}">▼</button></div>`).join('')}</div><fieldset class="badge-picker"><legend>Choose your shepherd badge</legend>${badgeChoices.map(i=>`<label><input type="radio" name="shepherd-badge" value="${i}" ${i===badge?'checked':''}><span title="${S.BADGE_NAMES[i]}" aria-label="${S.BADGE_NAMES[i]}">${S.BADGES[i]}</span></label>`).join('')}</fieldset></fieldset></form>`:'';
+    openDialog({view:'leaderboard',eyebrow:'THE SHEPHERDS’ BOARD',title:'The top shepherds',copy:'Daily, weekly and all-time scores.',
+      details:`<div class="leaderboard-tabs" role="group" aria-label="Leaderboard period">${[['daily','Daily'],['weekly','Weekly'],['alltime','All time'],['daily-alltime','Daily records'],['winners','Daily winners']].map(([id,label])=>`<button type="button" data-board="${id}" aria-pressed="${boardView===id}">${label}</button>`).join('')}</div><p id="board-description" class="board-description"></p>${form?`<details id="score-entry" class="score-entry" ${locked?'':'open'}><summary id="player-summary">${S.decodeName(S.encodeName(initials,badge))} · Change player</summary>${form}</details>`:''}<p id="leaderboard-status" role="status">Loading scores…</p><ol id="leaderboard-list" class="leaderboard-list" tabindex="0" aria-label="Top scores. Scroll for more."></ol><button id="refresh-scores" class="text-button" type="button">Refresh scores</button>`,
+      action:leaderboardBack.label,run:leaderboardBack.run,back:leaderboardBack});
+    $('dialog-back').hidden=true;
+    $('submit-status').textContent=submission.message;
+    $('submit-score').hidden=!form;
+    $('submit-score').disabled=submission.pending;
+    $('submit-score').textContent=submission.pending?'Saving…':`Post ${finalResult?.score.toLocaleString()} points`;
+    if($('score-initials')){
+      $('score-initials').value=initials||'AAA';
+      playerProfile.initials=$('score-initials').value;
+      profileUnlocked=!locked;
+      $('player-fields').disabled=locked||submission.pending;
+      $('toggle-player-lock').hidden=false;
+      $('toggle-player-lock').disabled=submission.pending;
+      $('toggle-player-lock').textContent=locked?'Change player':'Save player';
+      $('score-form').addEventListener('click',e=>{
+        const control=e.target.closest?.('[data-letter]');if(!control||$('player-fields').disabled)return;
+        const index=Number(control.dataset.letter),letters=$('score-initials').value.split('');
+        letters[index]=String.fromCharCode(65+(letters[index].charCodeAt(0)-65+Number(control.dataset.step)+26)%26);
+        $('score-initials').value=letters.join('');playerProfile.initials=letters.join('');
+        $('player-letter-'+index).textContent=letters[index];
+      });
+      $('toggle-player-lock').onclick=()=>{
+        if(submission.pending)return;
+        if($('player-fields').disabled){
+          profileUnlocked=true;$('player-fields').disabled=false;$('score-entry').open=true;$('dialog-details').scrollTop=0;$('toggle-player-lock').textContent='Save player';
+          $('player-lock-status').textContent='Edit your player. Previous scores keep their original name.';syncPlayerEditor();
+        }else if(/^[A-Z]{3}$/.test(playerProfile.initials)){
+          playerProfile.initials=$('score-initials').value;playerProfile.badge=Number(document.querySelector('input[name="shepherd-badge"]:checked')?.value??playerProfile.badge);
+          profileUnlocked=false;rememberProfile();$('submit-status').textContent='Player saved. Ready to post.';$('player-fields').disabled=true;$('toggle-player-lock').textContent='Change player';
+          $('player-lock-status').textContent='Saved player locked.';
+          $('player-summary').textContent=`${S.decodeName(S.encodeName(playerProfile.initials,playerProfile.badge))} · Change player`;$('score-entry').open=false;$('dialog-details').scrollTop=0;syncPlayerEditor();
+        }else{$('player-lock-status').textContent='Choose three letters before saving your player.';}
+      };
+      $('score-initials').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,3);playerProfile.initials=e.target.value;rememberProfile();});
+      $('score-form').addEventListener('change',e=>{if(e.target.name==='shepherd-badge'){playerProfile.badge=Number(e.target.value);rememberProfile();}});
+      $('score-form').addEventListener('submit',postScore);
+    }
+    syncPlayerEditor();
+    $('score-entry')?.addEventListener('toggle',syncPlayerEditor);
+    document.querySelectorAll('[data-board]').forEach(button=>button.addEventListener('click',()=>{boardView=button.dataset.board;document.querySelectorAll('[data-board]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.board===boardView)));loadLeaderboard();}));
+    $('leaderboard-list').addEventListener('scroll',updateDialogScrollCue,{passive:true});
+    $('refresh-scores').addEventListener('click',loadLeaderboard);
+    loadLeaderboard();
+  }
+  function syncPlayerEditor(){
+    const editing=!!$('score-entry')?.open;
+    $('toggle-player-lock').hidden=!editing;
+    if(editing&&!submission.pending){profileUnlocked=true;$('player-fields').disabled=false;$('toggle-player-lock').textContent='Save player';$('player-lock-status').textContent='Choose three letters and a badge. Save, then post your score.';}
+    $('dialog-title').textContent=editing?'Your player':'The top shepherds';
+    $('story-dialog').classList.toggle('player-editing',editing);
+    $('dialog-body').scrollTop=0;scheduleFit();
+  }
+  async function loadLeaderboard(){
+    if(dialogView!=='leaderboard')return;
+    const ticket=dialogGeneration,request=++leaderboardRequest,view=boardView,date=view==='daily'&&finalResult?.challengeDate?finalResult.challengeDate:today();
+    $('board-description').textContent={daily:`${D.label(date)} · Post before midnight Eastern.`,weekly:`Week of ${D.label(D.weekStart(date))} · sum of each player’s best daily scores, Monday–Sunday.`,alltime:'Top 20 adventures, including scores earned under earlier house rules.','daily-alltime':'All-time daily challenge scores. Top 20; best per player per day. Late posts count.',winners:'All-time daily winners · one champion per completed day, ranked by winning score.'}[view];
+    const previousView=$('leaderboard-list').dataset.view;
+    if(previousView!==view)$('leaderboard-list').replaceChildren();
+    $('leaderboard-list').dataset.view=view;
+    $('leaderboard-status').hidden=false;$('leaderboard-status').textContent='Loading scores…';$('refresh-scores').disabled=true;
+    try{
+      const data=view==='alltime'?{entries:await S.leaderboard()}:await S.board(view,date);const entries=data.entries;if(ticket!==dialogGeneration||request!==leaderboardRequest)return;
+      $('leaderboard-list').replaceChildren();$('leaderboard-list').scrollTop=0;
+      entries.forEach((entry,i)=>{
+        const row=document.createElement('li'),rank=document.createElement('span'),name=document.createElement('strong'),score=document.createElement('span'),herd=document.createElement('small');
+        rank.className='rank';rank.textContent=String(i+1);name.textContent=S.decodeName(entry.playerName);score.textContent=entry.score.toLocaleString();
+        const animal=S.ANIMALS.includes(entry.biggestHerdAnimal)?entry.biggestHerdAnimal:'🐑';
+        herd.textContent=view==='weekly'?`${entry.daysPlayed} of 7 daily scores · biggest herd ${entry.biggestHerdCount} ${animal}`:`${['winners','daily-alltime'].includes(view)?D.label(entry.challengeDate,true)+' · ':''}Biggest herd ${Math.max(0,Math.min(36,Number(entry.biggestHerdCount)||0))} ${animal}`;
+        row.append(rank,name,score,herd);$('leaderboard-list').append(row);
+      });
+      if(finalResult && !submission.done && $('submit-score')) {
+        const eligible=!!finalResult.challengeDate||view!=='alltime'||S.qualifies(entries,finalResult.score);
+        $('submit-score').disabled=submission.pending||!eligible;
+        $('submit-status').textContent=eligible ? submission.message || '' : `This time you need more than ${entries[S.LIMIT-1].score.toLocaleString()} points to enter the top 20.`;
+      }
+      if(finalResult && submission.done && submission.playerName && !finalResult.rank && view===(finalResult.challengeDate?'daily':'alltime')) {
+        const rank=S.verifiedRank(entries,finalResult,submission.playerName);
+        if(rank) {
+          finalResult=Object.freeze({...finalResult,rank,rankBoard:view,playerLabel:S.decodeName(submission.playerName)});
+          submission.message=`High score saved! You placed #${rank} on the ${view==='daily'?'daily':'all-time'} board.`;saveDaily();
+          $('submit-status').textContent=submission.message;
+          if(shareCard)URL.revokeObjectURL(shareCard.url);shareCard=null;shareReady=false;prepareShare(finalResult);
+        }
+      }
+      $('leaderboard-status').hidden=!!entries.length;
+      $('leaderboard-status').textContent=entries.length?'Completed adventures · highest score first':'The pasture is fresh. Be the first shepherd on the board!';
+    }catch(error){if(ticket===dialogGeneration&&request===leaderboardRequest)$('leaderboard-status').textContent=error.message?.includes('recorder needs')?error.message:submission.done?'Your score was received, but the board could not refresh. Tap Refresh scores to try again.':$('leaderboard-list').children.length?'Showing the last loaded scores. Refresh failed; try again shortly.':'Could not connect to the score sheet after retrying. Your score is still here; try Refresh scores.';}
+    finally{if(ticket===dialogGeneration&&request===leaderboardRequest){$('refresh-scores').disabled=false;scheduleFit();}}
+  }
+  async function postScore(event){
+    event.preventDefault();if(submission.pending||submission.done||!finalResult)return;
+    const initials=$('score-initials').value.trim().toUpperCase(),badge=Number(document.querySelector('input[name="shepherd-badge"]:checked')?.value ?? playerProfile.badge),result=finalResult;
+    try{S.encodeName(initials,badge);}catch(error){$('submit-status').textContent=error.message;return;}
+    playerProfile={initials,badge};rememberProfile();
+    submission.pending=true;submission.message=`Saving ${S.decodeName(S.encodeName(initials,badge))}…`;$('submit-status').textContent=submission.message;$('submit-score').disabled=true;
+    $('player-fields').disabled=true;$('toggle-player-lock').disabled=true;
+    try{
+      // Daily scores have no top-20 cutoff. A cached or unavailable read feed must not block intake.
+      const entries=result.challengeDate?[]:await S.leaderboard();
+      if(finalResult!==result)return;
+      if(!result.challengeDate&&!S.qualifies(entries,result.score))throw new Error(`The board has changed. You need more than ${entries[S.LIMIT-1].score.toLocaleString()} points for the top 20.`);
+      const response=await S.submit(result,initials,badge);
+      if(finalResult!==result)return;
+      submission.done=true;submission.playerName=S.encodeName(initials,badge);submission.message=response.message;
+      playerProfile={initials,badge};profileUnlocked=false;rememberProfile();saveDaily();
+      if(dialogView==='leaderboard'){$('submit-score').hidden=true;$('toggle-player-lock').hidden=true;$('score-entry')?.remove();syncPlayerEditor();$('submit-status').textContent=submission.message;loadLeaderboard();}
+      else if(dialogView==='results')showResults();
+    }catch(error){if(finalResult===result){submission.message=error.message||'Could not save. Your score is still here; try again.';if(dialogView==='leaderboard')$('submit-status').textContent=submission.message;else if(dialogView==='results')$('result-status').textContent=submission.message;}}
+    finally{if(finalResult===result){submission.pending=false;if(dialogView==='leaderboard'){$('submit-score').disabled=false;$('toggle-player-lock').disabled=false;if($('player-fields'))$('player-fields').disabled=!profileUnlocked;}}}
+  }
+  // Let Safari complete a native tap after scrolling; pointer-up position checks
+  // can reject a valid tap when the browser bars or keyboard move the viewport.
+  function bindDialogButton(id,getAction){
+    let lastActivation=-Infinity,pressedGeneration=null;
+    $(id).addEventListener('pointerdown',()=>{pressedGeneration=dialogGeneration;});
+    $(id).addEventListener('pointercancel',()=>{pressedGeneration=null;});
+    $(id).addEventListener('click',event=>{
+      if(sideways)return;
+      if(event.detail>0&&pressedGeneration!==dialogGeneration)return;
+      pressedGeneration=null;
+      const now=performance.now();
+      if(event.detail>0&&now-lastActivation<450)return;
+      lastActivation=now;const action=getAction();if(action)action();
+    });
+  }
+  $('board').addEventListener('click',e=>{const cell=e.target.closest('[data-cell]');if(cell)select(Number(cell.dataset.cell));});
+  $('board').addEventListener('keydown',e=>{
+    if(sideways)return;
+    const cell=e.target.closest('[data-cell]');if(!cell)return;
+    const i=Number(cell.dataset.cell);let next=i;
+    if(e.key==='ArrowLeft')next=Math.max(i-i%6,i-1);else if(e.key==='ArrowRight')next=Math.min(i-i%6+5,i+1);
+    else if(e.key==='ArrowUp')next=Math.max(0,i-6);else if(e.key==='ArrowDown')next=Math.min(35,i+6);else return;
+    e.preventDefault();cell.tabIndex=-1;$('board').children[next].tabIndex=0;$('board').children[next].focus({preventScroll:true});
+  });
+  document.addEventListener('pointerdown',()=>{keyboardInput=false;},{passive:true});
+  document.addEventListener('keydown',e=>{
+    if(sideways)return;
+    keyboardInput=true;
+    if(e.code==='Space'&&!$('story-dialog').open&&!e.repeat&&(e.target===document.body||e.target.closest('#board')||e.target.closest('#whistle'))){e.preventDefault();commit();}
+    if(e.key==='Escape'&&!busy&&ready&&state.status==='playing'&&!$('story-dialog').open){selected=[];renderSelection();say('Choose a different herd when you are ready.');}
+  });
+  $('whistle').addEventListener('click',commit);
+  $('bark').addEventListener('click',()=>{
+    if(sideways||!ready||busy||$('story-dialog').open||!state.bark||state.status!=='playing'||!dailyCurrent())return;
+    const previousDistance=state.distance,catIndices=Object.keys(state.cats).map(Number).filter(i=>R.isCat(state.board[i])),ticket=generation;
+    tone('bark');
+    const finish=()=>{
+      if(ticket!==generation||!dailyCurrent())return;
+      if(!R.bark(state,randoms)){busy=false;renderSelection();return;}
+      busy=false;pipUsed[state.chapter]=true;selected=[];
+      if(state.distance>previousDistance)tone('whimper',{delay:.4});render();
+      catIndices.forEach(i=>$('board').children[i].classList.add('new-arrival'));
+      const moved=state.distance-previousDistance;
+      say(`Good dog! ${moved?`Wolf back ${moved} ${moved===1?'step':'steps'}.`:'The wolf is already at the woods.'} Animals regroup.${Object.keys(state.cats).length?' The gust and its countdown stay put.':''}`);
+    };
+    if(catIndices.length){busy=true;selected=[];renderSelection();$('bark').disabled=true;catIndices.forEach(i=>$('board').children[i].classList.add('cat-vanishing'));afterMove(finish,reducedMotion.matches?0:230);}else finish();
+  });
+  $('retry').addEventListener('click',retryOrGiveUp);
+  function showHelp(){
+    if(busy||sideways)return;
+    helpBack=returnDestination()||{label:'Back to game menu',run:intro};
+    openDialog({view:'help',eyebrow:'YOU ARE THE SHEPHERD',title:'Think first. Then whistle.',copy:'Select a herd, see what will happen, then whistle it home. Fill the animal goals to continue with the same board.',
+      details:'<div class="instruction"><b>Daily challenge.</b> Everyone starts with the same board each day, with one attempt per browser/device. Starting uses your attempt. You can close and resume the same game; winning, losing or choosing Give up ends it. Changing your player name does not grant another attempt. Free play is always available. A new daily challenge opens at midnight Eastern. Post before midnight Eastern for daily and weekly standings. Weekly totals add your best score from each day, Monday–Sunday. Daily records ranks the top 20 daily scores across all dates, keeping your best per day, including late posts. Daily winners remains an archive of each day’s champion. A game crossing midnight keeps its board; late scores count on All time and Daily records, but not Daily, Weekly or Daily winners.</div><div class="instruction"><b>Find a herd.</b> The pasture has sheep, pigs and hens. Cows join the refills in the orchard, giving you time to build their herds for the final field. 3+ matching animals must touch horizontally or vertically. Diagonals do not count.</div><div class="instruction"><b>Whistle.</b> Tap the button or your selected herd again. Spaces refill from above.</div><div class="instruction"><b>Watch the wolf.</b> 3–4 animals: one step closer. 5–6: stay put. 7+: one step back.</div><div class="instruction"><b>Let Pip rest.</b> Win all three fields without using Pip for +1,000 points. Using even one bark means no bonus. Paid once when everyone is home.</div><div class="instruction"><b>Three barks per game.</b> Use them in any field. Each bark sends the wolf back three steps and regroups animals without costing a move. Open circles are available; filled circles are used. Unused barks carry into the next field; they never refill. Pip does not remove or advance a dust devil.</div><div class="instruction"><b>Points.</b> 10 per animal plus a bigger-herd bonus. Successful fields and Pip’s final bonus make your leaderboard score.</div><div class="instruction"><b>Dust devils.</b> A gust arrives in one of the four middle columns of the top row after a random wait of 2–5 successful rescues, starting in field one. If only an outside column refills, it waits for a middle opening. Arrival does not fill a dot. You have three more rescues to steer it by clearing animals below. After the third rescue and gravity, it randomly shuffles the surrounding eight tiles, including diagonals (five at an edge, three at a corner). Animals stay playable until then. Only the gust becomes the animal making the largest herd; ties are chosen randomly. No immediate points are awarded. Pip regroups animals but leaves the gust in place with the same countdown. A fresh 2–5 rescue wait begins after it leaves. Progress and the wait carry between fields.</div><div class="instruction"><b>Plan ahead.</b> Animals stay on the board between fields. Later arrivals spread out. Whistles count separately in each field. From whistle 18: herds of 3–4 move the wolf two steps closer; 5–6, one closer; 7+, stay put. From whistle 26: 3–4 move it three closer; 5–6, two closer; 7+, one closer. The next whistle and its effect appear above the wolf trail; selecting a herd previews its exact movement. Finish before the pressure catches you.</div><div class="instruction"><b>Keyboard.</b> Arrow keys move, Enter selects, Space whistles. Escape clears selection.</div><div class="instruction"><b>Sound.</b> Use 🔊 / 🔇 at the top. Safari starts sound after a tap—there is no microphone permission to grant. Raise media volume and check Bluetooth if quiet. On older Safari versions, turn Silent Mode off.<button id="test-sound" class="text-button" type="button">Turn on and test sound</button><span id="sound-test-status" role="status"></span><div id="voice-preview" class="voice-preview" aria-label="Try the game sounds"><button type="button" data-voice="sheep">🐑 Sheep</button><button type="button" data-voice="pig">🐷 Pig</button><button type="button" data-voice="hen">🐔 Hen</button><button type="button" data-voice="cow">🐮 Cow</button><button type="button" data-voice="bark">🐕 Pip</button><button type="button" data-voice="snarl">🐺 Snarl</button><button type="button" data-voice="whimper">🐺 Whimper</button><button type="button" data-voice="whoosh">🌬 Wind</button><button type="button" data-voice="howl-plaintive">🐺 You win</button><button type="button" data-voice="howl-deep">🐺 Wolf wins</button></div></div>',
+      action:helpBack.label,run:helpBack.run,secondary:helpBack.label==='Back to game menu'?'':'Game menu',secondaryRun:chooseGame,back:helpBack});
+    $('dialog-back').hidden=true;
+    $('voice-preview').addEventListener('click',event=>{
+      const button=event.target.closest('[data-voice]');if(!button)return;
+      soundOn=true;A.setEnabled(true);soundLabel();try{localStorage.setItem('aw-rescue-sound','1');}catch{}
+      const voice=button.dataset.voice,animal=['sheep','pig','hen','cow'].indexOf(voice),ticket=dialogGeneration;
+      A.play(animal>=0?'rescue':voice,{animal}).then(played=>{if(ticket===dialogGeneration)$('sound-test-status').textContent=played?'Sound sent. You can try another call.':'Tap again to start sound, and check your media volume.';});
+    });
+    $('test-sound').addEventListener('click',()=>{soundOn=true;A.reset();A.setEnabled(true);soundLabel();const ticket=dialogGeneration;A.play('gate').then(played=>{if(ticket===dialogGeneration)$('sound-test-status').textContent=played?'Sound test sent. If you heard nothing, raise media volume and check Bluetooth or Silent Mode.':'Safari did not start audio. Tap Test sound again, or reload this page.';});try{localStorage.setItem('aw-rescue-sound','1');}catch{}});
+  }
+  $('guide').addEventListener('click',showHelp);
+  $('menu-help').addEventListener('click',showHelp);
+  $('menu-scores').addEventListener('click',()=>showLeaderboard());
+  $('sound').addEventListener('click',()=>{soundOn=!soundOn;A.setEnabled(soundOn);soundLabel();try{localStorage.setItem('aw-rescue-sound',soundOn?'1':'0');}catch{}if(soundOn)tone('gate');});
+  $('leaderboard').addEventListener('click',showLeaderboard);
+  bindDialogButton('dialog-action',()=>dialogAction);bindDialogButton('dialog-secondary',()=>dialogSecondary);bindDialogButton('dialog-back',()=>dialogBack?.run);
+  $('story-dialog').addEventListener('cancel',e=>{e.preventDefault();if(sideways)return;if(dialogBack){dialogBack.run();return;}if(dialogView==='lost'){leaveFinishedAdventure();return;}if(dialogView==='leaderboard'&&finalResult)showResults();else if(ready&&state.status==='playing')closeDialog();});
+  function updateDialogScrollCue(){
+    const scroller=dialogView==='leaderboard'&&!$('score-entry')?.open?$('leaderboard-list'):$('dialog-body');
+    $('dialog-scroll-cue').hidden=!scroller||scroller.scrollHeight<=scroller.clientHeight+2||scroller.scrollTop+scroller.clientHeight>=scroller.scrollHeight-2;
+    $('dialog-scroll-cue').textContent=dialogView==='leaderboard'&&!$('score-entry')?.open?'More scores below ↓':'Scroll for more ↓';
+  }
+  $('dialog-body').addEventListener('scroll',updateDialogScrollCue,{passive:true});
+  let fitFrame=0;
+  function scheduleFit(){if(!fitFrame)fitFrame=requestAnimationFrame(fitViewport);}
+  function fitViewport(){
+    fitFrame=0;updateDialogScrollCue();
+    const viewport=window.visualViewport;
+    if(viewport&&Math.abs(viewport.scale-1)>.01)return;
+    const height=Math.floor(Math.min(window.innerHeight,viewport?.height||window.innerHeight));
+    document.documentElement.style.setProperty('--visible-height',`${height}px`);
+    document.documentElement.style.setProperty('--visible-top',`${Math.floor(viewport?.offsetTop||0)}px`);
+    const area=document.querySelector('.play-area');
+    if(!sideways&&area.clientWidth){
+      const others=['.goals','.wolf-trail','.board-messages','.actions','.board-foot'];
+      let reserved=0;
+      for(const selector of others){const el=area.querySelector(selector),css=getComputedStyle(el);reserved+=el.getBoundingClientRect().height+parseFloat(css.marginTop)+parseFloat(css.marginBottom);}
+      const size=Math.max(80,Math.floor(Math.min(area.clientWidth,area.clientHeight-reserved-3)));
+      document.documentElement.style.setProperty('--field-size',`${size}px`);
+    }
+  }
+  window.addEventListener('resize',scheduleFit,{passive:true});window.visualViewport?.addEventListener('resize',scheduleFit,{passive:true});window.visualViewport?.addEventListener('scroll',scheduleFit,{passive:true});
+  window.addEventListener('storage',event=>{if(event.key?.startsWith('hw-daily-attempt:')){if(challengeDate)dailyCurrent();else if(['intro','chooser'].includes(dialogView))showGameChooser(dialogView==='intro',chooserBack);}});
+  window.addEventListener('pageshow',event=>{if(event.persisted){if(challengeDate)dailyCurrent();if(['intro','chooser'].includes(dialogView))showGameChooser(dialogView==='intro',chooserBack);}scheduleFit();},{passive:true});
+  const layoutObserver=new ResizeObserver(scheduleFit);
+  layoutObserver.observe(document.querySelector('.play-area'));layoutObserver.observe($('dialog-body'));
+  phoneLandscape.addEventListener('change',syncOrientation);
+  syncOrientation();
+  fieldEntryBoard=state.board.slice();soundLabel();render();intro();
+})();
