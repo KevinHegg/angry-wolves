@@ -66,15 +66,17 @@ test('daily date controls navigate available challenges and show all available t
  h.get('board-date-menu').events.click({target:{closest:()=>records}});await settle();
  assert.equal(h.get('board-date-menu').hidden,true);assert.match(h.get('board-date-label').textContent,/Daily records/);
 });
-test('three consecutive free-play restarts disable restart until a herd is whistled home',()=>{
+test('three consecutive free-play restarts quietly disable restart until field two',()=>{
  const h=harness(),a=h.api;a.start();
  for(let i=0;i<3;i++){h.get('retry').events.click();assert.equal(a.state.moves,0);}
- assert.equal(h.get('retry').disabled,true);assert.match(h.get('retry').textContent,/Play a herd/);
+ assert.equal(h.get('retry').disabled,true);assert.equal(h.get('retry').textContent,'Restart game');assert.equal(h.get('retry').title,'');
  const board=a.state.board;
  h.get('retry').events.click();assert.equal(a.state.board,board,'a fourth click cannot reroll the board');
  a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.select(30);a.commit();
- assert.equal(a.state.moves,1);assert.equal(h.get('retry').disabled,false);
- h.get('retry').events.click();assert.equal(a.state.moves,0);assert.equal(h.get('retry').disabled,false);
+ assert.equal(a.state.moves,1);assert.equal(h.get('retry').disabled,true,'a herd in the first field does not unlock restart');
+ a.state.status='won';a.finishField();a.action();
+ assert.equal(a.state.chapter,1);assert.equal(h.get('retry').disabled,false);
+ h.get('retry').events.click();assert.equal(a.state.chapter,0);assert.equal(a.state.moves,0);
 });
 test('a successful daily submission forces a fresh standings read even when an older one is pending',async()=>{
  const pending=[];let posted=false;
