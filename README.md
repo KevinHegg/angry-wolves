@@ -69,7 +69,7 @@ The balance script compares seeded automated strategies, including complete adve
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. Release **2.46** packages the consolidated leaderboard interface and new wolf rules; official winner finalization remains inactive. The root loads immutable assets from `play/2.46/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. Release **2.47** makes the wolf's eyes glow when the trail reads **Next whistle 15**, before that whistle is used; the larger eyes likewise appear at **Next whistle 30**. It retains the v2.46 consolidated leaderboard interface and wolf rules. Official winner finalization remains inactive pending Google authorization. The root loads immutable assets from `play/2.47/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
 For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 

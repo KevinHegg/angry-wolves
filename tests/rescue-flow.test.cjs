@@ -534,12 +534,14 @@ test('whistle 15 and 30 warnings arrive before the move and preview the correct 
   resetHerd();a.select(30);a.commit();
   assert.equal(a.state.moves,next-1);
   assert.equal(h.get('wolf-effect').textContent,`Next whistle ${next} · 3–4: ${1+R.pressure(next)} closer`);
+  assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next)===1);
+  assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next)===2);
   if(next===15)assert.match(h.get('feedback').textContent,/From whistle 15: 3–4 animals move the wolf 2 steps closer; 5–6, 1 closer; 7\+, stay put/);
   if(next===30)assert.match(h.get('feedback').textContent,/From whistle 30: 3–4 animals move the wolf 3 steps closer; 5–6, 2 closer; 7\+, 1 closer/);
   resetHerd();a.select(30);assert.match(h.get('feedback').textContent,new RegExp(`Whistle ${next}:.*The wolf moves ${1+R.pressure(next)} steps? closer`));
   const before=a.state.distance;a.commit();assert.equal(before-a.state.distance,1+R.pressure(next));
-  assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next)===1);
-  assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next)===2);
+  assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next+1)===1);
+  assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next+1)===2);
   assert.match(h.get('trail-steps').innerHTML,/wolf-eye-small.*wolf-eye-large/);
  }
 });
