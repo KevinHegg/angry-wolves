@@ -7,10 +7,10 @@ const S=require('../rescue-services');
 const D=require('../rescue-daily');
 function memoryStorage(){const values=new Map();return{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};}
 function harness(reducedMotion=true,storage=memoryStorage(),timers=null,services={},initialLandscape=false,trailGeometry=false,gameDate=Date){
- const nodes=new Map(),animations=[],sounds=[],windowEvents={};
+ const nodes=new Map(),animations=[],sounds=[],windowEvents={},documentEvents={},intervals=new Map();let intervalId=0;
  const clock={now:1000},orientation={matches:initialLandscape,addEventListener(name,fn){this.changed=fn;}};
  class Element {
-  constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={toggle(){},add(){}};this.events={};this.isConnected=true;}
+  constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};const classes=new Set();this.classList={toggle(name,force){if(force===undefined?!classes.has(name):force)classes.add(name);else classes.delete(name);return classes.has(name);},add(...names){names.forEach(name=>classes.add(name));},remove(...names){names.forEach(name=>classes.delete(name));},contains(name){return classes.has(name);}};this.events={};this.isConnected=true;}
   set innerHTML(html){this.html=html;for(const m of html.matchAll(/id="([^"]+)"/g))nodes.set(m[1],new Element());this.children=[...html.matchAll(/data-cell="(\d+)" data-type="(\d+)"/g)].map(m=>{const e=new Element();e.dataset={cell:m[1],type:m[2]};return e;});
    if(trailGeometry&&html.includes('class="trail-step '))this.children=[...html.matchAll(/<span class="trail-step ([^"]*)">/g)].map((m,i)=>{
     const e=new Element();e.dataset.trail=i;if(m[1].includes('active')){e.wolf=new Element();e.wolf.dataset.trail=i;}return e;
@@ -25,14 +25,42 @@ function harness(reducedMotion=true,storage=memoryStorage(),timers=null,services
  }
  const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
  const badgeInput={value:'0'};
- const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(){},createElement:()=>new Element()};
+ const document={getElementById:get,querySelector:s=>s.includes('shepherd-badge')?badgeInput:get(s),querySelectorAll:()=>[],body:new Element(),documentElement:new Element(),addEventListener(name,fn){documentEvents[name]=fn;},createElement:()=>new Element()};
  let entries=[],posted=[];
- const window={RescueDaily:D,RescueRules:R,RescueServices:{...S,board:async(view,date)=>({entries,yesterday:null,today:D.dayKey(),date:date||D.dayKey()}),leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:query=>query.includes('orientation:')?orientation:{matches:query.includes('prefers-reduced-motion')?reducedMotion:false},addEventListener(name,fn){windowEvents[name]=fn;},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
- const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore,beginDaily,beginFree,resumeDaily,saveDaily,intro,chooseGame,showHelp,get view(){return dialogView},get ready(){return ready},back:()=>dialogBack?.run(),get challengeDate(){return challengeDate},get randoms(){return randoms},setBoard:view=>{boardView=view;return loadLeaderboard()}}; soundLabel();render();intro();`);
- vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setTimeout:(fn,delay)=>{if(!timers)return fn();const timer={fn,delay};timers.push(timer);return timer;},clearTimeout:timer=>{if(timer)timer.cancelled=true;},URL:{revokeObjectURL(){}},performance:{now:()=>clock.now},Math,Date:gameDate});
- return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput,clock,document,windowEvents,rotate:landscape=>{orientation.matches=landscape;orientation.changed();}};
+ const window={RescueDaily:D,RescueRules:R,RescueServices:{...S,consolidatedBoard:async(view,date,player,scope)=>D.summary(entries,view,date,{player,scope,serverTime:Date.now()}),board:async(view,date)=>({entries,yesterday:null,today:D.dayKey(),date:date||D.dayKey()}),leaderboard:async()=>entries,submit:async(r,name,badge)=>{posted.push(S.payload(r,name,badge));entries=[{...S.payload(r,name,badge)}];return{status:'public',message:'Saved'};},...services},RescueAudio:{setEnabled(){},play(kind){sounds.push(kind);}},RescueShare:{makeCard:async()=>({url:'blob:test'}),share:async()=> 'shared'},matchMedia:query=>query.includes('orientation:')?orientation:{matches:query.includes('prefers-reduced-motion')?reducedMotion:false},addEventListener(name,fn){windowEvents[name]=fn;},scrollTo(){},crypto:{randomUUID:()=>String(Math.random())}};
+ const source=fs.readFileSync(require.resolve('../rescue.js'),'utf8').replace('  fieldEntryBoard=state.board.slice();soundLabel();render();intro();',`  window.test={get state(){return state},get result(){return finalResult},get submission(){return submission},start:()=>{ready=true;closeDialog();},commit,select,action:()=>dialogAction(),secondary:()=>dialogSecondary(),finishField,freshAdventure,showLeaderboard,showResults,postScore,beginDaily,beginFree,resumeDaily,saveDaily,intro,chooseGame,showHelp,get view(){return dialogView},get ready(){return ready},back:()=>dialogBack?.run(),get challengeDate(){return challengeDate},get randoms(){return randoms},setBoard:(view,date='',scope='standings')=>{boardView=view;boardDate=date;boardScope=scope;return loadLeaderboard()},refresh:loadLeaderboard}; soundLabel();render();intro();`);
+ vm.runInNewContext(source,{window,document,localStorage:storage,ResizeObserver:class{observe(){}},requestAnimationFrame:()=>1,setInterval:fn=>{intervals.set(++intervalId,fn);return intervalId;},clearInterval:id=>intervals.delete(id),setTimeout:(fn,delay)=>{if(!timers)return fn();const timer={fn,delay};timers.push(timer);return timer;},clearTimeout:timer=>{if(timer)timer.cancelled=true;},URL:{revokeObjectURL(){}},performance:{now:()=>clock.now},Math,Date:gameDate});
+ return{...window.test,api:window.test,nodes,get,posted,animations,sounds,badgeInput,clock,document,windowEvents,documentEvents,intervals,rotate:landscape=>{orientation.matches=landscape;orientation.changed();}};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('visible standings refresh on return and polling, preserve stale data, and keep an outside rank visible',async()=>{
+ const storage=memoryStorage();S.saveProfile({initials:'YOU',badge:0},storage);
+ let calls=0,offline=false,now=Date.parse('2026-09-15T03:59:00Z');
+ const day='2026-09-14',rows=Array.from({length:25},(_,i)=>({playerName:'AA'+String.fromCharCode(65+i)+'0',score:5000-i,gameMode:D.MODE,missionTitle:`Daily ${day} ·`,approvedAt:day+'T18:00:00Z'}));
+ rows.push({playerName:'YOU0',score:1000,gameMode:D.MODE,missionTitle:`Daily ${day} ·`,approvedAt:day+'T18:01:00Z'});
+ const h=harness(true,storage,null,{consolidatedBoard:async(view,date,player,scope)=>{calls++;if(offline)throw Error('Offline');return D.summary(rows,view,date,{player,scope,serverTime:now});}}),a=h.api;
+ a.start();a.showLeaderboard();await settle();assert.equal(h.intervals.size,1);
+ assert.match(h.get('your-rank').textContent,/#26 of 26 players/);assert.equal(h.get('your-standing').hidden,false);
+ assert.match(h.get('your-standing').children[1].children[1].textContent,/YOU 🐕 · You/);
+ const baseline=calls;h.document.hidden=true;[...h.intervals.values()][0]();await settle();assert.equal(calls,baseline);
+ h.document.hidden=false;h.documentEvents.visibilitychange();await settle();assert.equal(calls,baseline+1);
+ h.windowEvents.focus();await settle();assert.equal(calls,baseline+2);
+ const rendered=h.get('leaderboard-list').children;offline=true;[...h.intervals.values()][0]();await settle();
+ assert.equal(h.get('leaderboard-list').children,rendered);assert.match(h.get('board-updated').textContent,/Out of date · last updated/);assert.match(h.get('your-rank').textContent,/#26 of 26/);
+ offline=false;rows.push({playerName:'NEW0',score:6000,gameMode:D.MODE,missionTitle:`Daily ${day} ·`,approvedAt:day+'T19:00:00Z'});
+ [...h.intervals.values()][0]();await settle();assert.match(h.get('your-rank').textContent,/#27 of 27/);assert.doesNotMatch(h.get('board-updated').textContent,/Out of date/);
+ now=Date.parse('2026-09-15T04:00:00Z');h.windowEvents.pageshow({persisted:true});await settle();assert.match(h.get('your-rank').textContent,/not ranked/);assert.equal(h.get('your-standing').hidden,true);assert.match(h.get('board-date').children[0].textContent,/Sep 15/);
+ a.action();assert.equal(h.intervals.size,0);
+});
+test('a successful daily submission forces a fresh standings read even when an older one is pending',async()=>{
+ const pending=[];let posted=false;
+ const h=harness(true,undefined,null,{consolidatedBoard:(view,date,player,scope)=>scope===undefined?Promise.resolve(D.summary([],view,date)):new Promise(resolve=>pending.push(resolve)),submit:async()=>{posted=true;return{status:'received',message:'Score received'};}}),a=h.api;
+ a.beginDaily();a.state.chapter=2;a.state.status='won';a.finishField();a.showLeaderboard();assert.equal(pending.length,1);
+ h.get('score-initials').value='YOU';await a.postScore({preventDefault(){}});assert.equal(posted,true);assert.equal(pending.length,2);
+ const result=a.result,entry={...S.payload(result,'YOU',0),approvedAt:a.challengeDate+'T18:00:00Z'};
+ pending[1](D.summary([entry],'daily',a.challengeDate,{player:'YOU0',serverTime:Date.now()}));await settle();assert.match(h.get('your-rank').textContent,/#1 of 1 player/);
+ pending[0](D.summary([],'daily',a.challengeDate,{serverTime:Date.now()}));await settle();assert.match(h.get('your-rank').textContent,/#1 of 1 player/);
+});
 test('phone rotation preserves a selected herd, animal tiles, wolf, Pip and wind state',()=>{
  const h=harness(),a=h.api;a.start();
  a.state.board[30]=a.state.board[31]=a.state.board[32]=0;
@@ -208,7 +236,7 @@ test('three Pip charges can be spent in one field and never refill at field boun
  assert.equal((h.get('bark').innerHTML.match(/class="filled"/g)||[]).length,3);
  const before=structuredClone(a.state);h.get('bark').events.click();assert.deepEqual(a.state,before);
  a.state.status='won';a.finishField();a.action();assert.equal(a.state.bark,0);
- a.state.status='won';a.finishField();assert.equal(a.result.rested,1);assert.equal(a.result.bonus,0);
+ a.state.status='won';a.finishField();assert.equal(a.result.rested,0);assert.equal(a.result.bonus,0);
  a.freshAdventure();assert.equal(a.state.bark,3);
 });
 
@@ -302,11 +330,12 @@ test('posting locks identity and displays a late error on the results screen',as
  assert.match(h.get('result-status').textContent,/Connection lost/);assert.equal(a.submission.pending,false);
  a.showLeaderboard();await settle();assert.equal(h.get('toggle-player-lock').disabled,false);
 });
-test('an older leaderboard response cannot overwrite a newer refresh',async()=>{
- const reads=[];const h=harness(true,undefined,null,{leaderboard:()=>new Promise(resolve=>reads.push(resolve))}),a=h.api;
- a.start();a.showLeaderboard();h.get('refresh-scores').events.click();
- reads[1]([{gameMode:S.MODE,playerName:'NEW0',score:5000}]);await settle();
- reads[0]([{gameMode:S.MODE,playerName:'OLD0',score:1000}]);await settle();
+test('overlapping refreshes coalesce and reopening ignores an old response',async()=>{
+ const reads=[];const h=harness(true,undefined,null,{consolidatedBoard:(view,date,player,scope)=>scope===undefined?Promise.resolve(D.summary([],view,date)):new Promise(resolve=>reads.push(resolve))}),a=h.api;
+ a.start();a.showLeaderboard();h.get('refresh-scores').events.click();assert.equal(reads.length,1);
+ a.showLeaderboard();assert.equal(reads.length,2);
+ reads[1](D.summary([{gameMode:S.MODE,playerName:'NEW0',score:5000}],'alltime',''));await settle();
+ reads[0](D.summary([{gameMode:S.MODE,playerName:'OLD0',score:1000}],'alltime',''));await settle();
  assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'NEW 🐕');
 });
 test('a failed first submission restores the editable player and a new dialog starts at the top',async()=>{
@@ -328,18 +357,18 @@ test('field-completion delay prevents opening another dialog in mid-transition',
  assert.equal(h.get('story-dialog').open,false);timers.find(t=>t.delay===900).fn();assert.equal(h.get('story-dialog').open,true);
 });
 
-test('zero barks earns 1000 only at victory; any number of barks removes the bonus',()=>{
+test('two unused Pip barks earn 350; all three earn 1000 only at victory',()=>{
  for(const barks of [0,1,2,3]){
   const h=harness(),a=h.api;a.start();
   for(let i=0;i<barks;i++)h.get('bark').events.click();
-  assert.equal(h.get('pip-rest-hint').textContent,barks?'Pip bonus: 0':'No-Pip bonus: +1,000');
+  assert.equal(h.get('pip-rest-hint').textContent,barks===0?'No-Pip bonus: +1,000':barks===1?'Pip bonus: +350':'Pip bonus: 0');
   for(let chapter=0;chapter<2;chapter++){
    a.state.status='won';a.finishField();assert.equal(a.result,null);a.action();
    assert.equal(a.state.bark,3-barks);
   }
   a.state.score=500;a.state.status='won';a.finishField();
-  assert.equal(a.result.bonus,barks?0:1000);assert.equal(a.result.score,barks?500:1500);
-  assert.match(h.get('dialog-details').innerHTML,barks?/Pip helped/:/1,000 no-Pip bonus/);
+  assert.equal(a.result.rested,3-barks);assert.equal(a.result.bonus,R.restBonus(3-barks));assert.equal(a.result.score,500+R.restBonus(3-barks));
+  assert.match(h.get('dialog-details').innerHTML,/Pip bonus/);
   a.freshAdventure();assert.equal(h.get('pip-rest-hint').textContent,'No-Pip bonus: +1,000');
   a.state.status='lost';a.finishField();assert.equal(a.result,null);
  }
@@ -347,7 +376,7 @@ test('zero barks earns 1000 only at victory; any number of barks removes the bon
 test('a losing two-step move passes the one-away mark before the howl and result pause',()=>{
  for(const restart of [false,true]){
   const timers=[],h=harness(false,undefined,timers,{},false,true),a=h.api;a.start();
-  a.state.chapter=2;a.state.distance=2;a.state.moves=17;
+  a.state.chapter=2;a.state.distance=2;a.state.moves=14;
   a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);
   a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.state.board[24]=a.state.board[33]=1;
   assert.equal(R.group(a.state.board,30).length,3);a.select(30);a.commit();
@@ -361,6 +390,22 @@ test('a losing two-step move passes the one-away mark before the howl and result
   assert.equal(h.get('story-dialog').open,false);
   timers.find(t=>t.delay===2000)?.fn();assert.equal(h.get('story-dialog').open,!restart);
  }
+});
+test('winning with the wolf one step away keeps it outside the pen through the ending',()=>{
+ const timers=[],h=harness(false,undefined,timers,{},false,true),a=h.api;a.start();
+ a.state.chapter=2;a.state.distance=1;a.state.moves=13;a.state.saved=R.CHAPTERS[2].goal.slice();a.state.saved[2]=13;
+ a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);
+ for(const i of [30,31,32,33])a.state.board[i]=2;
+ a.state.board[26]=0;
+ assert.equal(R.group(a.state.board,30).length,4);
+ a.select(30);assert.match(h.get('feedback').textContent,/last gate closes before the wolf can move/);
+ a.commit();timers.find(t=>t.delay===230).fn();
+ assert.equal(a.state.status,'won');assert.equal(a.state.distance,1);
+ assert.equal(h.animations.some(animation=>animation.cell.dataset.trail===0),false);
+ assert.equal(h.get('story-dialog').open,false);
+ timers.find(t=>t.delay===0).fn();assert.equal(h.sounds.includes('howl-plaintive'),true);
+ assert.equal(h.animations.some(animation=>animation.cell.dataset.trail===1),true);
+ timers.find(t=>t.delay===2000).fn();assert.equal(h.get('dialog-title').textContent,'Everyone is home.');
 });
 
 test('starting twice resumes the same daily attempt instead of resetting it',()=>{
@@ -386,15 +431,15 @@ test('an adventure keeps its day across midnight and a new adventure uses the ne
  assert.equal(a.challengeDate,'2026-09-14');assert.deepEqual(a.state.board,carried);assert.equal(a.state.chapter,1);
  a.freshAdventure();assert.equal(a.challengeDate,'2026-09-15');assert.equal(a.state.chapter,0);
 });
-test('daily scores below the daily top 20 can still be posted for weekly totals',async()=>{
+test('daily scores below the displayed leaders remain eligible for a full player ranking',async()=>{
  const h=harness(true,undefined,null,{board:async()=>({entries:Array.from({length:20},()=>({score:9000,playerName:'AAA0',gameMode:D.MODE}))})}),a=h.api;
  a.beginDaily();a.state.chapter=2;a.state.score=10;a.state.status='won';a.finishField();a.showLeaderboard('daily');await settle();
  assert.equal(h.get('submit-score').disabled,false);h.get('score-initials').value='NEW';await a.postScore({preventDefault(){}});assert.equal(h.posted.length,1);assert.equal(h.posted[0].gameMode,D.MODE);assert.equal(h.posted[0].challengeDate,a.challengeDate);
 });
-test('changing leaderboard periods cannot let a slow previous response overwrite the new view',async()=>{
- let resolveDaily;const h=harness(true,undefined,null,{board:(view)=>view==='daily'?new Promise(r=>resolveDaily=r):Promise.resolve({entries:[{playerName:'WIN0',score:8000,gameMode:D.MODE,daysPlayed:3}]})}),a=h.api;
- a.start();a.showLeaderboard('daily');await settle();await a.setBoard('weekly');assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'WIN 🐕');
- resolveDaily({entries:[{playerName:'OLD0',score:1000,gameMode:D.MODE}]});await settle();assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'WIN 🐕');
+test('changing leaderboard views cannot let a slow previous response overwrite the new view',async()=>{
+ let resolveDaily;const h=harness(true,undefined,null,{consolidatedBoard:(view)=>view==='daily'?new Promise(r=>resolveDaily=r):Promise.resolve(D.summary([{playerName:'WIN0',score:8000,gameMode:S.MODE}],'alltime',''))}),a=h.api;
+ a.start();a.showLeaderboard('daily');await settle();await a.setBoard('alltime');assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'WIN 🐕');
+ resolveDaily(D.summary([{playerName:'OLD0',score:1000,gameMode:S.MODE}],'alltime',''));await settle();assert.equal(h.get('leaderboard-list').children[0].children[1].textContent,'WIN 🐕');
 });
 
 test('a new day offers today’s puzzle while retaining access to yesterday’s saved adventure',()=>{
@@ -482,22 +527,25 @@ test('daily scores still submit when the public CSV is temporarily unavailable',
  a.beginDaily();a.state.chapter=2;a.state.status='won';a.state.score=3000;a.finishField();a.showLeaderboard('daily');await settle();
  h.get('score-initials').value='NEW';await a.postScore({preventDefault(){}});assert.equal(h.posted.length,1);assert.equal(a.submission.done,true);
 });
-test('whistle 18 and 26 warnings arrive before the move and preview the correct movement',()=>{
- for(const next of [17,18,25,26]){
+test('whistle 15 and 30 warnings arrive before the move and preview the correct movement',()=>{
+ for(const next of [14,15,29,30]){
   const h=harness(),a=h.api;a.start();a.state.chapter=2;a.state.moves=next-2;a.state.distance=10;a.state.windWait=99;
   const resetHerd=()=>{a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.state.board[24]=a.state.board[33]=1;};
   resetHerd();a.select(30);a.commit();
   assert.equal(a.state.moves,next-1);
   assert.equal(h.get('wolf-effect').textContent,`Next whistle ${next} · 3–4: ${1+R.pressure(next)} closer`);
-  if(next===18)assert.match(h.get('feedback').textContent,/From whistle 18: 3–4 animals move the wolf 2 steps closer; 5–6, 1 closer; 7\+, stay put/);
-  if(next===26)assert.match(h.get('feedback').textContent,/From whistle 26: 3–4 animals move the wolf 3 steps closer; 5–6, 2 closer; 7\+, 1 closer/);
+  if(next===15)assert.match(h.get('feedback').textContent,/From whistle 15: 3–4 animals move the wolf 2 steps closer; 5–6, 1 closer; 7\+, stay put/);
+  if(next===30)assert.match(h.get('feedback').textContent,/From whistle 30: 3–4 animals move the wolf 3 steps closer; 5–6, 2 closer; 7\+, 1 closer/);
   resetHerd();a.select(30);assert.match(h.get('feedback').textContent,new RegExp(`Whistle ${next}:.*The wolf moves ${1+R.pressure(next)} steps? closer`));
   const before=a.state.distance;a.commit();assert.equal(before-a.state.distance,1+R.pressure(next));
+  assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next)===1);
+  assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next)===2);
+  assert.match(h.get('trail-steps').innerHTML,/wolf-eye-small.*wolf-eye-large/);
  }
 });
-test('medium and large herds preview their distinct whistle-18 effects and a new field resets pressure',()=>{
+test('medium and large herds preview their distinct whistle-15 effects and a new field resets pressure',()=>{
  for(const count of [4,5,6,7]){
-  const h=harness(),a=h.api;a.start();a.state.chapter=1;a.state.moves=17;a.state.distance=7;
+  const h=harness(),a=h.api;a.start();a.state.chapter=1;a.state.moves=14;a.state.distance=7;
   a.state.board=Array(36).fill(1);for(let i=0;i<count;i++)a.state.board[i]=0;
   a.select(0);assert.match(h.get('feedback').textContent,count<=4?/moves 2 steps closer/:count<=6?/moves 1 step closer/:/stays put/);
   a.state.status='won';a.finishField();a.action();assert.equal(a.state.moves,0);
@@ -515,12 +563,13 @@ test('Safari back-cache refreshes the chooser after another tab finishes, withou
  assert.equal(JSON.stringify(waiting.api.state),board);assert.equal(waiting.get('story-dialog').open,false);
 });
 
-test('the Daily records tab shows all-time daily scores, challenge dates and herd details',async()=>{
+test('daily record history lives in the date selector within the two-tab panel',async()=>{
  const day=D.shiftDay(D.dayKey(),-10),requested=[];
- const h=harness(true,undefined,null,{board:async view=>{requested.push(view);return{entries:[{playerName:'ABC0',score:4500,challengeDate:day,biggestHerdCount:18,biggestHerdAnimal:'🐷'}]};}}),a=h.api;
- a.start();a.showLeaderboard('daily-alltime');await settle();
- assert.match(h.get('dialog-details').innerHTML,/data-board="daily-alltime" aria-pressed="true">Daily records/);
- assert.equal(requested.at(-1),'daily-alltime');assert.match(h.get('board-description').textContent,/All-time daily challenge scores/);
+ const h=harness(true,undefined,null,{consolidatedBoard:async(view,date,player,scope)=>{requested.push([view,scope]);return D.summary([{gameMode:D.MODE,missionTitle:`Daily ${day} ·`,approvedAt:day+'T18:00:00Z',playerName:'ABC0',score:4500,biggestHerdCount:18,biggestHerdAnimal:'🐷'}],view,date,{scope});}}),a=h.api;
+ a.start();a.showLeaderboard();await settle();await a.setBoard('daily','','records');
+ assert.match(h.get('dialog-details').innerHTML,/data-board="daily" aria-selected="true"/);
+ assert.equal((h.get('dialog-details').innerHTML.match(/role="tab"/g)||[]).length,2);
+ assert.deepEqual(requested.at(-1),['daily','records']);assert.match(h.get('board-description').textContent,/Best daily score per player per date/);
  const row=h.get('leaderboard-list').children[0];assert.equal(row.children[1].textContent,'ABC 🐕');assert.equal(row.children[2].textContent,'4,500');
  assert.equal(row.children[3].textContent,`${D.label(day,true)} · Biggest herd 18 🐷`);
  a.action();assert.equal(h.get('story-dialog').open,false);

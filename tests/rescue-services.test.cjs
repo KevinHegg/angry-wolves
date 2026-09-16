@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const S = require('../rescue-services.js');
 const D = require('../rescue-daily.js');
-const result={score:1750,rested:2,bonus:250,biggest:{count:14,type:1},saved:91,moves:17,durationMs:180000,nonce:'stable-nonce'};
+const result={score:1850,rested:2,bonus:350,biggest:{count:14,type:1},saved:91,moves:17,durationMs:180000,nonce:'stable-nonce'};
 const HEADERS=['approved_at','player_name','score','game_mode','mission_title','best_chain','biggest_herd_count','biggest_herd_animal','herds_cleared','pace','duration_ms','version','source_nonce'];
 const value=(row,key)=>({approved_at:row.approvedAt,player_name:row.playerName,game_mode:row.gameMode,mission_title:row.missionTitle,best_chain:row.bestChain,biggest_herd_count:row.biggestHerdCount,biggest_herd_animal:row.biggestHerdAnimal,herds_cleared:row.herdsCleared,duration_ms:row.durationMs,source_nonce:row.nonce}[key]??row[key]??'');
 const quote=input=>/[",\n]/.test(String(input))?'"'+String(input).replaceAll('"','""')+'"':String(input);
@@ -15,16 +15,36 @@ test('all badges round-trip through the existing alphanumeric name column',()=>{
   assert.throws(()=>S.encodeName('ABC',20));assert.throws(()=>S.encodeName('ABC',-1));
 });
 test('score payload uses the current category and actual completed-run metrics',()=>{
-  const p=S.payload(result,'ABC',3);assert.equal(p.gameMode,'rescue-v2');assert.equal(p.score,1750);
+  const p=S.payload(result,'ABC',3);assert.equal(p.gameMode,'rescue-v2');assert.equal(p.score,1850);
   assert.equal(p.durationMs,180000);assert.equal(p.nonce,'stable-nonce');assert.equal(p.biggestHerdAnimal,'🐷');
-  assert.equal(p.biggestHerdCount,14);assert.match(p.missionTitle,/rested 2\/3/);
+  assert.equal(p.biggestHerdCount,14);assert.match(p.missionTitle,/barks saved 2\/3 · bonus 350/);
 });
 test('share caption includes the score, herd animal, bonus and root game link',()=>{
-  const text=S.caption(result);for(const expected of ['1,750','14 🐷','+250',S.GAME_URL])assert.ok(text.includes(expected));
+  const text=S.caption(result);for(const expected of ['1,850','14 🐷','+350',S.GAME_URL])assert.ok(text.includes(expected));
 });
 test('published CSV preserves quotes and normalizes score rows',()=>{
   const rows=S.csvEntries(csv([publicRow({missionTitle:'Home safe, "well played"'})]));
   assert.equal(rows[0].missionTitle,'Home safe, "well played"');assert.equal(rows[0].score,1750);assert.equal(rows[0].approvedAt,'2026-09-13T12:00:00.000Z');
+});
+test('HTML and malformed CSV are refresh failures rather than an empty leaderboard',()=>{
+ assert.throws(()=>S.csvEntries('<html>Temporarily unavailable</html>'),/feed is unavailable/);
+ assert.throws(()=>S.csvEntries('score,name\n4000,ABC'),/feed is unavailable/);
+ assert.deepEqual(S.csvEntries(csv([])),[]);
+});
+test('consolidated CSV fallback reports full ranks without claiming an official winner',async()=>{
+ const today=D.dayKey(),rows=Array.from({length:26},(_,i)=>publicRow({playerName:'AA'+String.fromCharCode(65+i)+'0',score:5000-i,gameMode:D.MODE,missionTitle:`Daily ${today} ·`,approvedAt:today+'T18:00:00Z'})),old=global.fetch;
+ global.fetch=async()=>({ok:true,text:async()=>csv(rows)});
+ try{const data=await S.consolidatedBoard('daily','','AAZ0');assert.equal(data.entries.length,20);assert.equal(data.yourStanding.rank,26);assert.equal(data.participantCount,26);assert.equal(data.authoritative,false);assert.equal(data.winner,null);assert.equal(data.entries[0].dailyWins,0);}finally{global.fetch=old;}
+});
+test('official standings use the configured endpoint and reject errors or incompatible responses',async()=>{
+ const vm=require('node:vm'),fs=require('node:fs');let response,calls=[];
+ const window={RescueDaily:D},source=fs.readFileSync(require.resolve('../rescue-services'),'utf8').replace("const LEADERBOARD_API_URL = '';","const LEADERBOARD_API_URL = 'https://example.invalid/exec';");
+ vm.runInNewContext(source,{window,URLSearchParams,AbortController,setTimeout,clearTimeout,fetch:async(url,options)=>{calls.push([url,options]);return{ok:true,text:async()=>JSON.stringify(response)};}});
+ const official=window.RescueServices;response=D.summary([],'daily','',{serverTime:Date.now()});
+ assert.equal((await official.consolidatedBoard('daily','','ABC0')).authoritative,true);assert.match(calls[0][0],/api=leaderboards-2/);assert.match(calls[0][0],/player=ABC0/);assert.equal(calls[0][1].cache,'no-store');
+ response={ok:false,error:'Service unavailable'};await assert.rejects(official.consolidatedBoard(),/Service unavailable/);
+ response={ok:true,api:'daily-1'};await assert.rejects(official.consolidatedBoard(),/needs an update/);
+ assert.equal(calls.length,3,'an official refresh failure must not silently switch to unofficial rankings');
 });
 test('leaderboard filters other game modes and malformed identities',async()=>{
   const old=global.fetch;global.fetch=async()=>({ok:true,text:async()=>csv([publicRow({score:120}),publicRow({gameMode:'standard',playerName:'ZZZ1',score:900}),publicRow({playerName:'<script>',score:800})])});
@@ -69,7 +89,7 @@ test('old-house-rule scores and bonuses remain unchanged when the leaderboard is
  global.fetch=async()=>({ok:true,text:async()=>csv(entries)});try{const board=await S.leaderboard();assert.deepEqual(board.map(e=>[e.score,e.missionTitle]),entries.map(e=>[e.score,e.missionTitle]));}finally{global.fetch=old;}
 });
 test('daily payload identifies its seed day and never reuses the free-play category',()=>{
- const p=S.payload({...result,challengeDate:'2026-09-14',dailyStartedAt:Date.parse('2026-09-14T18:00:00Z')},'ABC',0);assert.equal(p.gameMode,D.MODE);assert.equal(p.dailyRuleset,D.RULESET);assert.match(p.missionTitle,/^Daily 2026-09-14 · Pip rested/);assert.equal(S.payload(result,'ABC',0).gameMode,S.MODE);
+  const p=S.payload({...result,challengeDate:'2026-09-14',dailyStartedAt:Date.parse('2026-09-14T18:00:00Z')},'ABC',0);assert.equal(p.gameMode,D.MODE);assert.equal(p.dailyRuleset,D.RULESET);assert.match(p.missionTitle,/^Daily 2026-09-14 · Pip barks saved/);assert.equal(S.payload(result,'ABC',0).gameMode,S.MODE);
 });
 test('daily, weekly and yesterday views are calculated from the approved public feed',async()=>{
  const today=D.dayKey(),yesterday=D.shiftDay(today,-1),entries=[publicRow({approvedAt:today+'T18:00:00Z',playerName:'ABC0',score:5000,gameMode:D.MODE,missionTitle:`Daily ${today} · Pip rested 3/3 · bonus 1000`}),publicRow({approvedAt:today+'T19:00:00Z',playerName:'ABC0',score:4500,gameMode:D.MODE,missionTitle:`Daily ${today} · Pip rested 2/3 · bonus 0`}),publicRow({approvedAt:yesterday+'T18:00:00Z',playerName:'WIN0',score:4000,gameMode:D.MODE,missionTitle:`Daily ${yesterday} · Pip rested 3/3 · bonus 1000`})],old=global.fetch;

@@ -24,7 +24,7 @@
   function dailyBest(entries,acrossDates=false){const players=new Map();for(const e of entries.slice().sort(compare)){
     const key=(acrossDates?e.challengeDate+'|':'')+e.playerName;if(!players.has(key))players.set(key,e);
   }return [...players.values()];}
-  function standings(entries,board,day,today=day){
+  function standings(entries,board,day,today=day,limit=20){
     if(!validDay(day)||!validDay(today))throw Error('Invalid leaderboard date.');
     const valid=entries.filter(e=>['rescue-v2',MODE].includes(e.gameMode)&&/^[A-Z]{3}[0-9A-J]$/.test(e.playerName)&&Number.isFinite(e.score)&&e.score>=0);
     const dailyRuns=valid.filter(e=>{const d=challengeDate(e);if(!d||!e.approvedAt||!Number.isFinite(Date.parse(e.approvedAt)))return false;
@@ -48,8 +48,48 @@
       result=[...days.values()];
     }else if(board==='alltime')result=valid;
     else throw Error('Unknown leaderboard.');
-    return result.slice().sort(compare).slice(0,20).map((e,i)=>({...e,rank:i+1}));
+    return result.slice().sort(compare).slice(0,limit).map((e,i)=>({...e,rank:i+1}));
   }
-  const api={RULESET,MODE,ZONE,dayKey,validDay,shiftDay,weekStart,label,streams,challengeDate,standings};
+  // The schedule is shared by the browser and backend, including DST days.
+  const FINALIZATION_DELAY_MS=60000;
+  function closesAt(day){
+    const next=shiftDay(day,1);let low=Date.parse(next+'T00:00:00Z')/60000,high=low+720;
+    while(low<high){const mid=Math.floor((low+high)/2);if(dayKey(mid*60000)<next)low=mid+1;else high=mid;}
+    return new Date(low*60000).toISOString();
+  }
+  function finalizedDays(history,now){
+    const unique=new Map(),today=dayKey(now);
+    for(const record of history||[])if(validDay(record.date)&&record.date<today&&Array.isArray(record.entries)&&!unique.has(record.date)&&Date.parse(record.finalizedAt)>=Date.parse(closesAt(record.date))&&Date.parse(record.finalizedAt)<=now)unique.set(record.date,record);
+    return [...unique.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  }
+  // Called only on the backend. One immutable snapshot per closed date.
+  function finalize(entries,history,now){
+    const previous=finalizedDays(history,now),done=new Set(previous.map(r=>r.date)),today=dayKey(now);
+    const dates=new Set([shiftDay(today,-1),...entries.map(challengeDate).filter(Boolean)]);
+    const added=[];
+    for(const date of [...dates].sort())if(!done.has(date)&&Date.parse(closesAt(date))+FINALIZATION_DELAY_MS<=now){
+      added.push({date,closesAt:closesAt(date),finalizedAt:new Date(now).toISOString(),entries:standings(entries,'daily',date,today,Infinity)});
+    }
+    return added;
+  }
+  function summary(entries,view,date,options={}){
+    const authoritative=Number.isFinite(options.serverTime),now=authoritative?options.serverTime:(options.now??Date.now()),today=dayKey(now);
+    const day=date||today,scope=options.scope==='records'?'records':'standings';
+    if(!['daily','alltime'].includes(view)||!validDay(day)||day>today)throw Error('Invalid leaderboard request.');
+    const history=authoritative?finalizedDays(options.finalizations,now):[],final=history.find(r=>r.date===day);
+    const records=standings(entries,'daily-alltime',today,today,Infinity);
+    const dates=[...new Set([today,day,...records.map(e=>e.challengeDate),...history.map(r=>r.date)])].sort().reverse();
+    const wins=new Map();for(const record of history){const winner=record.entries[0];if(winner)wins.set(winner.playerName,(wins.get(winner.playerName)||0)+1);}
+    const status=!authoritative?'unverified':final?'finalized':now>=Date.parse(closesAt(day))?'finalizing':'open';
+    const ranked=view==='alltime'?standings(entries,'alltime',today,today,Infinity):scope==='records'?records:final?final.entries:standings(entries,'daily',day,today,Infinity);
+    const all=ranked.map((entry,i)=>({...entry,rank:i+1,isYou:entry.playerName===options.player,dailyWins:wins.get(entry.playerName)||0,
+      leading:view==='daily'&&scope==='standings'&&i===0&&day===today&&status!=='finalized',
+      winnerDate:view==='daily'&&scope==='standings'&&i===0&&status==='finalized'?day:''}));
+    return {ok:true,api:'leaderboards-2',ruleset:RULESET,view,scope,date:day,today,zone:ZONE,closesAt:closesAt(day),status,authoritative,
+      serverTime:authoritative?now:null,updatedAt:new Date(now).toISOString(),dates,entries:all.slice(0,20),total:all.length,
+      participantCount:new Set(all.map(e=>e.playerName)).size,yourStanding:all.find(e=>e.isYou)||null,
+      winner:final?.entries[0]||null,yesterday:history.find(r=>r.date===shiftDay(today,-1))?.entries[0]||null};
+  }
+  const api={RULESET,MODE,ZONE,dayKey,validDay,shiftDay,weekStart,label,streams,challengeDate,standings,compare,closesAt,FINALIZATION_DELAY_MS,finalizedDays,finalize,summary};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.RescueDaily=api;
 })(typeof window!=='undefined'?window:globalThis);

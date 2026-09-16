@@ -41,7 +41,11 @@ test('bark is free, limited to three per game, and capped at ten steps', () => {
   const s2=R.create(); s2.distance=9; R.bark(s2); assert.equal(s2.distance,10);
 });
 test('last-step objective completion wins before wolf arrival', () => {
-  const s=setup(3,1); s.saved=R.CHAPTERS[2].goal.slice(); s.saved[2]-=3; R.rescue(s,0,random(8)); assert.equal(s.status,'won');
+  const s=setup(4,1); s.saved=R.CHAPTERS[2].goal.slice(); s.saved[2]=13;
+  const result=R.rescue(s,0,random(8));
+  assert.equal(result.count,4);assert.equal(result.step,0);assert.equal(s.status,'won');assert.equal(s.distance,1);
+  const carried=setup(4,0);carried.saved=R.CHAPTERS[2].goal.slice();carried.saved[2]=13;
+  R.rescue(carried,0,random(8));assert.equal(carried.status,'won');assert.equal(carried.distance,1);
 });
 test('wolf arrival loses, and finished fields reject further actions', () => {
   const s=setup(3,1); R.rescue(s,0,random(8)); assert.equal(s.status,'lost');
@@ -60,8 +64,8 @@ test('thousands of turns stay valid and always offer a legal herd', () => {
   }
 });
 
-test('only an adventure with Pip resting in all three fields earns the 1000 bonus', () => {
-  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,0,0,1000]);
+test('unused Pip barks earn 350 for two or 1000 for all three', () => {
+  assert.deepEqual([0,1,2,3].map(R.restBonus),[0,0,350,1000]);
 });
 test('biggest herd keeps its animal and survives smaller later rescues', () => {
   const s=setup(8); R.rescue(s,0,random(2));
@@ -82,9 +86,9 @@ test('herd point previews equal the awarded score',()=>{
 });
 test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
  const state=R.create(0,()=>.5);
- while(state.status==='playing'&&state.moves<50){state.board.fill(1);if(state.distance<=2&&state.bark)R.bark(state,()=>.5);R.rescue(state,0,()=>.5);}
- assert.equal(state.status,'lost');assert.ok(state.moves<=44); // Three barks add at most nine extra moves under full pressure.
- assert.equal(R.pressure(17),0);assert.equal(R.pressure(18),1);assert.equal(R.pressure(26),2);
+ while(state.status==='playing'&&state.moves<60){state.board.fill(1);if(state.distance<=2&&state.bark)R.bark(state,()=>.5);R.rescue(state,0,()=>.5);}
+ assert.equal(state.status,'lost');assert.equal(state.moves,48); // Pressure at 30 still ends a non-goal loop, even with three barks.
+ assert.equal(R.pressure(14),0);assert.equal(R.pressure(15),1);assert.equal(R.pressure(29),1);assert.equal(R.pressure(30),2);
 });
 
 test('opening boards balance the three pasture animals without favoring sheep and always offer a herd',()=>{
@@ -113,9 +117,9 @@ test('pasture refills have three species and cows join from the orchard',()=>{
 });
 
 test('late-field pressure still adds to the revised wolf movement',()=>{
- for(const moves of [17,25])for(const size of [3,4,6,7]){
+ for(const moves of [14,29])for(const size of [3,4,6,7]){
   const s=setup(size);s.moves=moves;R.rescue(s,0,random(12));
-  assert.equal(s.distance,5+(size<=4?-1:size<7?0:1)-(moves===17?1:2));
+  assert.equal(s.distance,5+(size<=4?-1:size<7?0:1)-(moves===14?1:2));
  }
 });
 
@@ -132,7 +136,7 @@ test('two steps from the pen visits one before zero unless late pressure adds a 
   const state=setup(size,2);state.catSettings={...R.WIND_SETTINGS,enabled:false};
   R.rescue(state,0,random(12));assert.equal(state.distance,1);assert.equal(state.status,'playing');
   state.board=setup(size).board;R.rescue(state,0,random(12));assert.equal(state.distance,0);assert.equal(state.status,'lost');
-  const late=setup(size,2);late.moves=17;late.catSettings={...R.WIND_SETTINGS,enabled:false};
+  const late=setup(size,2);late.moves=14;late.catSettings={...R.WIND_SETTINGS,enabled:false};
   R.rescue(late,0,random(12));assert.equal(late.distance,0);assert.equal(late.status,'lost');
  }
 });

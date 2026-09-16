@@ -1,17 +1,17 @@
-# Daily challenge and score service — v2.45
+# Daily challenge and score service — v2.46 frontend; official results inactive
 
-The daily game and five leaderboard periods are implemented without a scheduler. `rescue-daily.js` derives the day from `America/New_York`; the first load after Eastern midnight automatically uses the new date seed.
+Daily seeds are generated in code without a scheduler. The feature consolidates leaderboards into Daily Challenge and All-Time; see [LEADERBOARD_CONSOLIDATION.md](LEADERBOARD_CONSOLIDATION.md) for the implemented full rankings, official finalization and required backend activation. `rescue-daily.js` derives the day from `America/New_York`; the first load after Eastern midnight automatically uses the new date seed.
 
 ## Player rules
 
 - Daily play uses the same opening and repeatable animal, wind and Pip-regroup choices for everyone on a date.
 - Free play remains random. The ordinary herd, Pip, wolf and field rules are shared by both modes.
 - Each browser/device can start the daily challenge once per Eastern date. Starting immediately records the attempt. Reloading resumes the same board and random streams. Winning, losing or Give up ends the attempt; changing player identity does not reset it. A gold DAILY CHALLENGE header and board border identify the mode. Existing scores from the earlier replay rules remain valid, using the best approved score per player/date.
-- Weekly totals add those daily bests from Monday through Sunday Eastern.
+- Daily Challenge shows current standings and the full participant rank. Its date selector includes previous daily results and the all-date Daily records history.
 - All time ranks the top 20 approved free-play and daily adventures without altering older scores.
 - Daily records ranks the top 20 daily challenge results across every date, including non-winners and late posts. Keep only each player’s best score per challenge date before taking the top 20; earlier scores win ties. Rows show challenge date and biggest herd. Existing public history is included automatically.
-- Daily winners keeps one champion for each completed day. Yesterday's winner appears on the opening panel for the next day only.
-- A daily score must be posted on its challenge date in Eastern time. A game crossing midnight keeps its board. Late results can appear on All time and Daily records, but cannot alter Daily, Weekly or Daily winners.
+- Official finalized days have one dated Daily winner. All-Time shows each player’s finalized daily-win count. Yesterday's finalized winner appears on the opening panel for the next day only; these awards require backend activation.
+- A daily score must be posted on its challenge date in Eastern time. A game crossing midnight keeps its board. Late results can appear on All time and Daily records, but cannot alter that day’s standings or finalized winner.
 - Daily progress, random streams and unposted results persist in `hw-daily-adventure`. A separate `hw-daily-attempt:YYYY-MM-DD` record tracks the nonce, status and revision. It survives Give up and free play. Legacy saved runs and `hw-daily-completed` records migrate without granting a replay. Revisions stop a stale tab from overwriting a resumed run. Safari back-cache checks refresh the chooser and invalidate stale play.
 - Daily play requires writable browser storage. Clearing site data or changing browsers/devices bypasses the limit; cross-device enforcement needs player accounts and a server-side start record. This remains an honor-system competition.
 - During daily play, **Give up** ends the attempt and returns to the chooser. The next attempt opens at midnight Eastern. Finished results remain available for posting; free play never consumes a daily attempt.
@@ -34,7 +34,7 @@ The browser reads this published CSV:
 
 `https://docs.google.com/spreadsheets/d/e/2PACX-1vS9kSCHFoHdSz4DIlk1F5mctQh7BtwCtYBJAHZxkFBSpGMeEq20Gob2HFQ9aTYv7-u6mXx1e9SVaNgd/pub?gid=0&single=true&output=csv`
 
-`rescue-services.js` parses approved rows and uses `RescueDaily.standings` for Daily, Weekly, All time, Daily records and Daily winners. Published form timestamps are normalized to a safe ISO timestamp on the correct sheet date; form row order preserves earlier-score tie priority.
+`rescue-services.js` parses approved rows and uses `RescueDaily.summary` for the consolidated Daily Challenge and All-Time views. With no configured official endpoint it provides full provisional ranks without winner awards. Published form timestamps are normalized to a safe ISO timestamp on the correct sheet date; form row order preserves earlier-score tie priority.
 
 Google's published-sheet response allows cross-origin reads and may cache for up to five minutes. A resolved form POST therefore reports that the score was received; it does not claim an immediate public rank. Refreshing later verifies the rank from the public feed.
 
@@ -52,7 +52,7 @@ Tests cover Eastern midnight and daylight-saving transitions, repeatable streams
 
 This no-OAuth fallback is intentionally lightweight. It keeps raw responses private and adds useful validation, but it does not provide Apps Script locks, cache-based rate limiting, a private review queue or a trustworthy POST response. The current formula scans the first 1,000 response rows. The formula uses `INDIRECT` ranges so new Form rows cannot shift its starting row. Generate the insertion-stable formula with `node scripts/public-score-formula.cjs`; increase its shared bound before that limit is reached. Daily POST no longer depends on a successful CSV preflight.
 
-The bound Apps Script project remains in Drive as a future upgrade path. Google blocked its requested Sheets scope during authorization, so it is not deployed and the client does not reference it.
+The bound Apps Script project is the official-results upgrade path. Google previously blocked its requested Sheets scope during authorization. The updated code bundle, including `ConsolidatedBoards.gs`, is saved in the existing bound project. Authorization again stopped at Google’s “This app is blocked” screen on 2026-09-14. No setup or deployment ran; the client URL remains unconfigured. See `LEADERBOARD_CONSOLIDATION.md` for the verified upload, backup, and pending Cloud/OAuth setup. Direct score POSTs are disabled so the Form remains the sole intake path.
 
 ## Rollback
 

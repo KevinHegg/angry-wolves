@@ -1071,3 +1071,20 @@ To roll back, restore `index.html`, `rescue.js` and `rescue.css` from the checkp
 Frontend checkpoint: `e14aee87ae77f439d80bc3d4e99bb9826950af40` (2.44). Daily share cards now use the game's gold treatment and a prominent dated challenge heading. Free-play cards keep their existing design. To revert the visual change, restore `rescue-share.js` from that checkpoint and package a new version.
 
 The independent live correction in `public!A50` removes the points-per-second rejection; the matching formula generator is `scripts/public-score-formula.cjs`. Keep that correction when rolling back the frontend so legitimate quick/no-Pip scores remain visible. No game rules, daily attempts or historical score values changed.
+
+
+## v2.46 feature — consolidated live leaderboards (not deployed)
+
+Branch: `codex/leaderboard-consolidation`. Production baseline: v2.45, `7e4877713c3b6e908a210f4d925ba73a567adbd1`. One two-tab panel replaces the five-view navigation, while full history supplies the current player’s true daily rank. Past days and daily records live in the date selector. The new optional Apps Script GET endpoint supplies the authoritative clock, immutable daily snapshots and deduplicated win counts; its URL is intentionally unconfigured until the owner-authorized backend deployment. Existing score data, Form intake, identity encoding and gameplay are unchanged.
+
+Rollback by restoring the baseline runtime into a freshly packaged release. To keep the new UI but stop official awards, clear `LEADERBOARD_API_URL`; the fallback retains full CSV standings and explicitly marks official winner status unavailable. Preserve `daily_final_results` and all source score rows. Full behavior, validation and activation steps: `LEADERBOARD_CONSOLIDATION.md`.
+
+## v2.46 feature branch — wolf pressure, final gate, and Pip bonus tuning (not deployed)
+
+On `codex/leaderboard-consolidation`, each field now adds one wolf step starting at whistle 15 and a second starting at whistle 30. The trail wolf gains glowing red eyes at 15 and larger eyes at 30. If a winning final-field whistle would put the wolf at zero distance, the last gate shuts first and the wolf stays outside the pen. If it entered this field at zero distance, it backs away one mark on the winning rescue. A losing whistle still travels through every mark. The win preview names the gate closure.
+
+Winning with two unused Pip barks now awards 350 points; saving all three still awards 1,000. One or zero unused barks awards nothing. The bonus is based on remaining barks across the adventure, not the number of fields without a bark. New score metadata says “Pip barks saved”; previously posted scores and bonuses remain unchanged. Help, the HUD, results and share text reflect the new rules.
+
+To undo this tuning while keeping the rest of the feature branch, restore `REST_BONUSES` to `[0,0,0,1000]` and `PRESSURE_THRESHOLDS` to `[18,26]` in `rescue-engine.js`, remove the final-gate step guard there, and restore the corresponding preview, eye classes and copy in `rescue.js`, `rescue.css`, `index.html`, `rescue-services.js`, `rescue-share.js` and `README.md`. Repackage with `node scripts/package-rescue.cjs` and rerun the test suite. Leave historical score rows and the pending Apps Script work intact.
+
+Validation: 180 Node tests pass; the static build succeeds; `git diff --check` is clean. A browser visual check shows the red eyes at the actual wolf trail size. Seeded balance checks complete and are tuning probes, not estimates of human win rates. No production deployment or score submission was made.

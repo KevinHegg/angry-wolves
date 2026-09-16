@@ -5,6 +5,8 @@ const SETTINGS = {
   PRIVATE_SHEET: 'private',
   SUSPECT_SHEET: 'suspect',
   AUTO_PROMOTE_CLEAN: true,
+  // The deployed web app serves standings; the existing Google Form records scores.
+  ALLOW_DIRECT_POST: false,
   DEFAULT_LIMIT: 20,
   MAX_LIMIT: 50,
   MAX_NAME_LENGTH: 10,
@@ -96,6 +98,7 @@ const SUSPECT_HEADERS = [
 ]
 
 function doGet(e) {
+  if (e && e.parameter && e.parameter.api === 'leaderboards-2') return consolidatedBoardResponse_(e)
   if (e && e.parameter && e.parameter.board) return dailyBoardResponse_(e)
   try {
     const limit = clampLimit(e && e.parameter && e.parameter.limit)
@@ -114,6 +117,7 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  if (!SETTINGS.ALLOW_DIRECT_POST) return jsonResponse({ok:false,status:'rejected',reasons:['form_intake_only'],message:'Post scores through the game’s score form.'})
   const lock = LockService.getScriptLock()
   let locked = false
   try {
