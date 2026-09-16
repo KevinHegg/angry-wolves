@@ -1,6 +1,6 @@
 // The main URL loads immutable versioned assets; customer version URLs redirect home.
 const fs=require('node:fs');
-const version='2.47';
+const version='2.48';
 const destination=`play/${version}`;
 fs.mkdirSync(destination,{recursive:true});
 fs.copyFileSync('rescue-daily.js','apps-script/DailyRules.gs');

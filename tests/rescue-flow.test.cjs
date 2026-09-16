@@ -49,8 +49,32 @@ test('visible standings refresh on return and polling, preserve stale data, and 
  assert.equal(h.get('leaderboard-list').children,rendered);assert.match(h.get('board-updated').textContent,/Out of date · last updated/);assert.match(h.get('your-rank').textContent,/#26 of 26/);
  offline=false;rows.push({playerName:'NEW0',score:6000,gameMode:D.MODE,missionTitle:`Daily ${day} ·`,approvedAt:day+'T19:00:00Z'});
  [...h.intervals.values()][0]();await settle();assert.match(h.get('your-rank').textContent,/#27 of 27/);assert.doesNotMatch(h.get('board-updated').textContent,/Out of date/);
- now=Date.parse('2026-09-15T04:00:00Z');h.windowEvents.pageshow({persisted:true});await settle();assert.match(h.get('your-rank').textContent,/not ranked/);assert.equal(h.get('your-standing').hidden,true);assert.match(h.get('board-date').children[0].textContent,/Sep 15/);
+ now=Date.parse('2026-09-15T04:00:00Z');h.windowEvents.pageshow({persisted:true});await settle();assert.match(h.get('your-rank').textContent,/not ranked/);assert.equal(h.get('your-standing').hidden,true);assert.match(h.get('board-date-label').textContent,/Sep 15/);
  a.action();assert.equal(h.intervals.size,0);
+});
+test('daily date controls navigate available challenges and show all available top rows without scrolling',async()=>{
+ const today=D.dayKey(),yesterday=D.shiftDay(today,-1);
+ const rows=[today,yesterday].flatMap((day,index)=>Array.from({length:index?2:4},(_,i)=>({playerName:`AA${String.fromCharCode(65+i)}0`,score:4000-i,gameMode:D.MODE,missionTitle:`Daily ${day} ·`,approvedAt:day+'T18:00:00Z'})));
+ const h=harness(true,undefined,null,{consolidatedBoard:async(view,date,player,scope)=>D.summary(rows,view,date,{player,scope,serverTime:Date.now()})}),a=h.api;
+ a.start();a.showLeaderboard();await settle();
+ assert.equal(h.get('leaderboard-list').children.length,4);assert.equal(h.get('leaderboard-list').classList.contains('short-list'),true);
+ assert.match(h.get('board-date-label').textContent,/Today/);assert.equal(h.get('board-date-next').disabled,true);
+ h.get('board-date-prev').events.click();await settle();
+ assert.match(h.get('board-date-label').textContent,new RegExp(D.label(yesterday,true)));assert.equal(h.get('leaderboard-list').children.length,2);
+ h.get('board-date-toggle').events.click();assert.equal(h.get('board-date-menu').hidden,false);
+ const records=h.get('board-date-menu').children.find(button=>button.dataset.dateChoice==='records');
+ h.get('board-date-menu').events.click({target:{closest:()=>records}});await settle();
+ assert.equal(h.get('board-date-menu').hidden,true);assert.match(h.get('board-date-label').textContent,/Daily records/);
+});
+test('three consecutive free-play restarts disable restart until a herd is whistled home',()=>{
+ const h=harness(),a=h.api;a.start();
+ for(let i=0;i<3;i++){h.get('retry').events.click();assert.equal(a.state.moves,0);}
+ assert.equal(h.get('retry').disabled,true);assert.match(h.get('retry').textContent,/Play a herd/);
+ const board=a.state.board;
+ h.get('retry').events.click();assert.equal(a.state.board,board,'a fourth click cannot reroll the board');
+ a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.select(30);a.commit();
+ assert.equal(a.state.moves,1);assert.equal(h.get('retry').disabled,false);
+ h.get('retry').events.click();assert.equal(a.state.moves,0);assert.equal(h.get('retry').disabled,false);
 });
 test('a successful daily submission forces a fresh standings read even when an older one is pending',async()=>{
  const pending=[];let posted=false;

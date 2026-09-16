@@ -1092,3 +1092,7 @@ Validation at release: 180 Node tests passed; the static build succeeded; `git d
 ## v2.47 — wolf-eye timing
 
 The wolf's red eyes now follow the displayed **Next whistle** count, matching the wolf pressure preview. Small red eyes appear as soon as the label reads 15, and larger eyes when it reads 30, before the player whistles. The movement rules, scores and historical rows are unchanged. To revert this cue, restore the two pressure-class checks in `rescue.js` from v2.46, then package a fresh version; keep the pressure rules in `rescue-engine.js` unchanged.
+
+## v2.48 — daily date picker and Free play restart limit
+
+The Daily leaderboard uses previous/next challenge buttons and a date menu. Its score list holds up to five rows open without inner scrolling; longer lists scroll after the fifth row. Free play permits three consecutive Restart game clicks, then disables that control until a successful herd whistle. The limit resets for a newly started adventure. Daily challenge Give up behavior is unchanged. The previous published commit is tagged `checkpoint/pre-daily-picker-2.47`; its complete runtime remains in `play/2.47/`. To undo the restart limit, remove `MAX_CONSECUTIVE_RESTARTS`, `consecutiveRestarts` and their checks in `rescue.js`. To undo the picker/layout, restore the v2.47 date select and leaderboard rules in `rescue.js` and `rescue.css`. Repackage into a new version and run the release and flow tests. Existing scores and daily attempts require no migration.
