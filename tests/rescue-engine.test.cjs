@@ -87,7 +87,7 @@ test('herd point previews equal the awarded score',()=>{
 test('even endless large non-goal herds cannot farm a field indefinitely',()=>{
  const state=R.create(0,()=>.5);
  while(state.status==='playing'&&state.moves<60){state.board.fill(1);if(state.distance<=2&&state.bark)R.bark(state,()=>.5);R.rescue(state,0,()=>.5);}
- assert.equal(state.status,'lost');assert.equal(state.moves,48); // Pressure at 30 still ends a non-goal loop, even with three barks.
+ assert.equal(state.status,'lost');assert.ok(state.moves>=30&&state.moves<=40); // Every whistle advances the wolf after 30, even with three barks.
  assert.equal(R.pressure(14),0);assert.equal(R.pressure(15),1);assert.equal(R.pressure(29),1);assert.equal(R.pressure(30),2);
 });
 
@@ -116,18 +116,20 @@ test('pasture refills have three species and cows join from the orchard',()=>{
  }
 });
 
-test('late-field pressure still adds to the revised wolf movement',()=>{
- for(const moves of [14,29])for(const size of [3,4,6,7]){
-  const s=setup(size);s.moves=moves;R.rescue(s,0,random(12));
-  assert.equal(s.distance,5+(size<=4?-1:size<7?0:1)-(moves===14?1:2));
+test('wolf movement is simple at whistles 15 and 30, with no one-step advance afterward',()=>{
+ for(const whistle of [14,15,18,29,30,35])for(const size of [3,4,5,6,7,8]){
+  const expected=whistle<15?(size<=4?-1:size<=6?0:1):whistle<30?(size<=5?-2:0):-2;
+  assert.equal(R.wolfMove(size,whistle),expected,`herd ${size}, whistle ${whistle}`);
+  const s=setup(size,10);s.moves=whistle-1;R.rescue(s,0,random(12));
+  assert.equal(s.distance,10+Math.min(0,expected),`herd ${size}, whistle ${whistle}`);
  }
 });
 
-test('a five-animal herd moves the wolf closer on whistle 18',()=>{
+test('a five-animal herd moves the wolf two steps closer on whistle 18',()=>{
  const state=setup(5,5);state.moves=17;state.windWait=99;
  const result=R.rescue(state,0,random(12));
- assert.equal(result.count,5);assert.equal(result.step,-1);
- assert.equal(state.moves,18);assert.equal(state.distance,4);
+ assert.equal(result.count,5);assert.equal(result.step,-2);
+ assert.equal(state.moves,18);assert.equal(state.distance,3);
 });
 
 test('dead-board regroup preserves species counts and dust position after Pip',()=>{

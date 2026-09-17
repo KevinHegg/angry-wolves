@@ -559,15 +559,15 @@ test('whistle 15 and 30 warnings arrive before the move and preview the correct 
   const resetHerd=()=>{a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.state.board[24]=a.state.board[33]=1;};
   resetHerd();a.select(30);a.commit();
   assert.equal(a.state.moves,next-1);
-  assert.equal(h.get('wolf-effect').textContent,R.pressure(next)
-    ? `Next whistle ${next} · 5–6: ${R.pressure(next)} closer`
-    : `Next whistle ${next} · 3–4: 1 closer`);
+  assert.equal(h.get('wolf-effect').textContent,R.pressure(next)===2
+    ? `Next whistle ${next} · any herd: 2 closer`
+    : R.pressure(next)===1?`Next whistle ${next} · 3–5: 2 closer`:`Next whistle ${next} · 3–4: 1 closer`);
   assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next)===1);
   assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next)===2);
-  if(next===15)assert.match(h.get('feedback').textContent,/From whistle 15: 3–4 animals move the wolf 2 steps closer; 5–6, 1 closer; 7\+, stay put/);
-  if(next===30)assert.match(h.get('feedback').textContent,/From whistle 30: 3–4 animals move the wolf 3 steps closer; 5–6, 2 closer; 7\+, 1 closer/);
-  resetHerd();a.select(30);assert.match(h.get('feedback').textContent,new RegExp(`Whistle ${next}:.*The wolf moves ${1+R.pressure(next)} steps? closer`));
-  const before=a.state.distance;a.commit();assert.equal(before-a.state.distance,1+R.pressure(next));
+  if(next===15)assert.match(h.get('feedback').textContent,/From whistle 15: 3–5 animals move the wolf 2 steps closer; 6\+ hold it still/);
+  if(next===30)assert.match(h.get('feedback').textContent,/From whistle 30: every herd moves the wolf 2 steps closer/);
+  resetHerd();a.select(30);assert.match(h.get('feedback').textContent,new RegExp(`Whistle ${next}:.*The wolf moves ${-R.wolfMove(3,next)} steps? closer`));
+  const before=a.state.distance;a.commit();assert.equal(before-a.state.distance,-R.wolfMove(3,next));
   assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next+1)===1);
   assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next+1)===2);
   assert.match(h.get('trail-steps').innerHTML,/wolf-eye-small.*wolf-eye-large/);
@@ -577,9 +577,17 @@ test('medium and large herds preview their distinct whistle-15 effects and a new
  for(const count of [4,5,6,7]){
   const h=harness(),a=h.api;a.start();a.state.chapter=1;a.state.moves=14;a.state.distance=7;
   a.state.board=Array(36).fill(1);for(let i=0;i<count;i++)a.state.board[i]=0;
-  a.select(0);assert.match(h.get('feedback').textContent,count<=4?/moves 2 steps closer/:count<=6?/moves 1 step closer/:/stays put/);
+  a.select(0);assert.match(h.get('feedback').textContent,count<=5?/moves 2 steps closer/:/stays put/);
   a.state.status='won';a.finishField();a.action();assert.equal(a.state.moves,0);
   assert.equal(h.get('wolf-effect').textContent,'Next whistle 1 · 3–4: 1 closer');
+ }
+});
+test('whistle 30 warns that every herd advances two marks and names a pen arrival',()=>{
+ for(const count of [3,5,6,7])for(const distance of [8,1]){
+  const h=harness(),a=h.api;a.start();a.state.chapter=1;a.state.moves=29;a.state.distance=distance;
+  a.state.board=Array(36).fill(1);for(let i=0;i<count;i++)a.state.board[i]=0;
+  a.select(0);
+  assert.match(h.get('feedback').textContent,distance===1?/wolf reaches the pen/:/wolf moves 2 steps closer/);
  }
 });
 
