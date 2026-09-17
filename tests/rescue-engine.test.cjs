@@ -123,6 +123,13 @@ test('late-field pressure still adds to the revised wolf movement',()=>{
  }
 });
 
+test('a five-animal herd moves the wolf closer on whistle 18',()=>{
+ const state=setup(5,5);state.moves=17;state.windWait=99;
+ const result=R.rescue(state,0,random(12));
+ assert.equal(result.count,5);assert.equal(result.step,-1);
+ assert.equal(state.moves,18);assert.equal(state.distance,4);
+});
+
 test('dead-board regroup preserves species counts and dust position after Pip',()=>{
  const state=R.create(2);state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);
  state.board[14]=R.DUST;state.cats={14:2};assert.equal(R.groups(state.board).length,0);

@@ -1100,3 +1100,7 @@ The Daily leaderboard uses previous/next challenge buttons and a date menu. Its 
 ## v2.49 — quiet restart limit and masthead eyes
 
 After three Free play restarts, Restart game retains its label but dims and stays disabled until field two begins. A first-field herd does not reset the counter; a new adventure still does. The masthead wolf eyes pulse red using CSS opacity on its existing SVG, with no per-frame JavaScript. Reduced-motion preferences suppress the pulse. To revert just this pass, restore the v2.48 restart rendering and counter reset in `rescue.js` and remove the masthead eye and disabled-button rules in `rescue.css`, then package a new version. The previous production commit is tagged `checkpoint/pre-quiet-restart-2.48`, and its complete assets remain in `play/2.48/`.
+
+## v2.50 — pressure cue and eye pulse
+
+The wolf's movement rule is unchanged: from whistle 15, a five- or six-animal herd moves it one step toward the pen; from whistle 30, two steps. The trail cue now calls out this consequence after pressure begins. The masthead wolf eyes use a brighter, faster CSS pulse on their existing circles. Reduced-motion preferences still suppress animation. To revert this release, restore the v2.49 text in `rescue.js` and the eye animation in `rescue.css`, then package under a new version. The prior production commit is tagged `checkpoint/pre-pressure-eyes-2.49`, and its complete assets remain in `play/2.49/`.

@@ -559,7 +559,9 @@ test('whistle 15 and 30 warnings arrive before the move and preview the correct 
   const resetHerd=()=>{a.state.board=Array.from({length:36},(_,i)=>(i%6+Math.floor(i/6))%4);a.state.board[30]=a.state.board[31]=a.state.board[32]=0;a.state.board[24]=a.state.board[33]=1;};
   resetHerd();a.select(30);a.commit();
   assert.equal(a.state.moves,next-1);
-  assert.equal(h.get('wolf-effect').textContent,`Next whistle ${next} · 3–4: ${1+R.pressure(next)} closer`);
+  assert.equal(h.get('wolf-effect').textContent,R.pressure(next)
+    ? `Next whistle ${next} · 5–6: ${R.pressure(next)} closer`
+    : `Next whistle ${next} · 3–4: 1 closer`);
   assert.equal(h.get('.wolf-trail').classList.contains('pressure-one'),R.pressure(next)===1);
   assert.equal(h.get('.wolf-trail').classList.contains('pressure-two'),R.pressure(next)===2);
   if(next===15)assert.match(h.get('feedback').textContent,/From whistle 15: 3–4 animals move the wolf 2 steps closer; 5–6, 1 closer; 7\+, stay put/);
