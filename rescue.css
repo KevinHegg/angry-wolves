@@ -155,7 +155,7 @@ dialog>h2,dialog>p,dialog>.primary,dialog>.text-button{flex-shrink:0}
 
 /* One scrolling region per panel; primary actions never scroll out of reach. */
 dialog[open],dialog.leaderboard-view[open]{padding:18px;gap:10px;overflow:hidden;top:calc(var(--visible-top,0px) + var(--visible-height,100dvh)/2);transform:translate(-50%,-50%);max-height:calc(var(--visible-height,100dvh) - 24px)}
-.dialog-body{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;outline:none;padding:3px 4px}
+.dialog-body{flex:0 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;outline:none;padding:3px 6px}
 .dialog-body #dialog-details,.leaderboard-view .dialog-body #dialog-details{overflow:visible;min-height:auto;flex:none;margin-top:12px}
 .dialog-body #dialog-copy{font-size:12px;line-height:1.5;color:var(--muted)}
 #dialog-copy:empty{display:none}
