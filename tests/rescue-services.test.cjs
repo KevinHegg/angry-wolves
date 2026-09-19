@@ -21,6 +21,7 @@ test('score payload uses the current category and actual completed-run metrics',
 });
 test('share caption includes the score, herd animal, bonus and root game link',()=>{
   const text=S.caption(result);for(const expected of ['1,850','14 🐷','+350',S.GAME_URL])assert.ok(text.includes(expected));
+  const bare=S.caption(result,false);assert.ok(!bare.includes(S.GAME_URL));assert.ok(bare.includes('1,850'));assert.ok(bare.endsWith('Can you beat my herd?'));
 });
 test('published CSV preserves quotes and normalizes score rows',()=>{
   const rows=S.csvEntries(csv([publicRow({missionTitle:'Home safe, "well played"'})]));

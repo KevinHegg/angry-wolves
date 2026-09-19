@@ -9,7 +9,7 @@ test('Pages artifact includes only playable assets and preserves historical URLs
   const output=fs.mkdtempSync(path.join(os.tmpdir(),'hungry-wolf-site-'));
   t.after(()=>fs.rmSync(output,{recursive:true,force:true}));
   buildSite(output);
-  const expected=['index.html','classic.html','COPYRIGHT.txt','.nojekyll'];
+  const expected=['index.html','classic.html','COPYRIGHT.txt','hungry-wolf-card.png','.nojekyll'];
   for(const version of fs.readdirSync(path.join(root,'play')).filter(name=>/^2\.\d+$/.test(name))){
     for(const name of ['index.html',...ASSETS]){
       const relative=`play/${version}/${name}`;

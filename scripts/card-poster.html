@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Hungry Wolf · poster card (unpublished)</title>
+<style>body{font:14px/1.5 system-ui;margin:24px;background:#f4edda;color:#263a33;max-width:640px}code{background:#eee7d3;padding:1px 4px}img{display:block;width:100%;border:1px solid #c7bfa4;margin:16px 0}iframe{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}</style>
+<h1>Score-free preview card</h1>
+<p>Development only; the site builder never publishes this page. Run the packager, serve the repo root with <code>python3 -m http.server 8000</code>, then open <code>http://localhost:8000/scripts/card-poster.html</code>. A hidden copy of the game draws the card with its own share code. Save the result as <code>hungry-wolf-card.png</code> at the repo root.</p>
+<p id="status">Loading the game…</p>
+<img id="card" alt="Score-free Hungry Wolf card" hidden>
+<a id="save" download="hungry-wolf-card.png" hidden>Save hungry-wolf-card.png</a>
+<iframe id="game" src="../" title="Hungry Wolf"></iframe>
+<script>
+  const frame=document.getElementById('game'),status=document.getElementById('status');
+  frame.addEventListener('load',async()=>{
+    const game=frame.contentWindow;
+    for(let i=0;i<50&&!(game.RescueShare&&game.RescueIcon);i++)await new Promise(next=>setTimeout(next,100));
+    if(!(game.RescueShare&&game.RescueIcon)){status.textContent='The game did not load. Package first and serve the repo root.';return;}
+    try{
+      const card=await game.RescueShare.makeCard({poster:true,biggest:{type:0}},game.RescueIcon),url=URL.createObjectURL(card.blob);
+      document.getElementById('card').src=url;document.getElementById('card').hidden=false;
+      document.getElementById('save').href=url;document.getElementById('save').hidden=false;
+      status.textContent=`Card ready · ${card.blob.size.toLocaleString()} bytes · 1200×630.`;
+    }catch(error){status.textContent='Could not draw the card: '+error.message;}
+  });
+</script>
+</html>

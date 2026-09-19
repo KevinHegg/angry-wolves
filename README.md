@@ -21,7 +21,7 @@ A small, mobile-first rescue puzzle in three chapters. The gate was left open; b
 - On laptops and desktops, the same portrait interface sits centered horizontally and vertically inside a rounded frame over a woodland background. Desktop popups share that center. The board grows with the available height, with compact controls in short windows. Mouse clicks select a herd and operate every control; click Whistle or the selected herd again to rescue it.
 - There is no clock. Sound is optional; use the speaker control or the sound test under **?**.
 - **Restart game** immediately starts a fresh adventure. After a loss, **Play again** starts field one and **Not now** leaves the finished board inactive.
-- Winning adventures can join the top-20 leaderboard with three letters and an animal badge. Save player locks the choice; Change player unlocks it. Existing scores retain their original names. Share creates an illustrated score card and includes the main game URL. Daily cards carry the gold challenge frame, prominent Daily Challenge title, challenge date and any verified rank.
+- Winning adventures can join the top-20 leaderboard with three letters and an animal badge. Save player locks the choice; Change player unlocks it. Existing scores retain their original names. Share sends an illustrated score card with the score text and the main game URL. **Copy score & link** copies that text with the link; browsers without image sharing also offer **Copy image** and **Save image**. Daily cards carry the gold challenge frame, prominent Daily Challenge title, challenge date and any verified rank.
 
 Keyboard: Tab into the board, arrow keys move focus, Enter selects, Space whistles, Escape clears selection.
 
@@ -62,16 +62,17 @@ The balance script compares seeded automated strategies, including complete adve
 - `rescue-daily.js`: daily dates, random streams and shared leaderboard aggregation.
 - `rescue-voices.js`, `rescue-audio.js`: synthesized calls, gesture-based audio and recovery.
 - `rescue-services.js`: score-sheet connection, player encoding and submission payloads.
-- `rescue-share.js`: local PNG card generation and native sharing.
+- `rescue-share.js`: local PNG card generation, native sharing and desktop copy/save fallbacks.
+- `hungry-wolf-card.png`: static 1200×630 link-preview image. Regenerate it from the unpublished `scripts/card-poster.html`, which draws the score-free card through the packaged share code.
 - `scripts/package-rescue.cjs`: copies runtime assets and maintains historical URL redirects.
 - `HUNGRY_WOLF_AUDIT.md`: September 2026 audit, fixes, remaining priorities and launch recommendations.
 - `ROLLBACK_PLAN.md`: checkpoints and historical experiments, including the retired cats.
 
 ## Release and rollback
 
-Players use `https://kevinhegg.github.io/angry-wolves/`. Release **2.51** simplifies later wolf movement: from whistle 15, herds of 3–5 bring it two steps closer and 6+ hold it still; from whistle 30, every herd brings it two steps closer. The trail preview and help copy match these rules. Restart game dims and disables after three Free play restarts until the orchard. The masthead wolf has a CSS-only red-eye pulse, suppressed by reduced-motion preferences. Official winner finalization remains inactive pending Google authorization. The root loads immutable assets from `play/2.51/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
+Players use `https://kevinhegg.github.io/angry-wolves/`. Release **2.52** shares the score text: native shares carry the caption with the card and link, Copy score & link copies the full caption, and browsers without image sharing offer Copy image and Save image. The card prints its address from `GAME_URL`. Link previews use Open Graph and Twitter card tags with the static score-free card image. Game rules are unchanged from 2.51. Official winner finalization remains inactive pending Google authorization. The root loads immutable assets from `play/2.52/`; the version appears only on the opening screen. All historical `play/2.x/` entry pages and `classic.html` redirect to the main URL. The temporary refresh query bypasses old cached redirects and is removed from the address bar.
 
-For a new release, update the version in root HTML, `rescue-services.js`, the packager and release tests, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
+For a new release, update the version in root HTML, `rescue-services.js`, the packager, release tests, this release paragraph and a new `ROLLBACK_PLAN.md` entry, then package and verify. Keep `GAME_URL` at the root. The Pages workflow publishes `tune/v2-clarity-economy-audio`; no merge to `main` is required. `scripts/build-site.cjs` builds a public artifact containing only the entry pages, copyright notice, link-preview image and versioned runtime assets. Backend source, tests and development notes are excluded. Confirm the Pages build, published bytes and final browser URL before reporting a release as live.
 
 To roll back, restore the chosen checkpoint's runtime sources and package them under a new release version. Historical customer URLs intentionally open the current game; they are not independent rollback targets. Preserve unrelated work and score-sheet changes.
 

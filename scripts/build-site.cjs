@@ -11,7 +11,7 @@ function buildSite(destination,root=path.join(__dirname,'..')){
     fs.mkdirSync(path.dirname(target),{recursive:true});
     fs.copyFileSync(path.join(root,relative),target);
   };
-  for(const name of ['index.html','classic.html','COPYRIGHT.txt'])copy(name);
+  for(const name of ['index.html','classic.html','COPYRIGHT.txt','hungry-wolf-card.png'])copy(name);
   // Keep old runtime assets for players with a cached entry page. Entry URLs
   // themselves redirect to the current root, as maintained by the packager.
   for(const entry of fs.readdirSync(path.join(root,'play'),{withFileTypes:true})){
