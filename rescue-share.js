@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const S = window.RescueServices;
-  const SITE = S.GAME_URL.replace(/^https?:\/\//,'').replace(/\/$/,'');
+  const SITE = S.GAME_URL.replace(/\/$/,'');
   async function makeCard(result, icon) {
     const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 630;
     const ctx = canvas.getContext('2d');
@@ -39,7 +39,7 @@
     ctx.fillStyle = daily?'#eee0b9':'#e3e8cc'; ctx.beginPath(); ctx.roundRect(705,224,412,268,20); ctx.fill();
     ctx.drawImage(token,728,248,174,174);
     ctx.fillStyle = '#315d45';
-    if (poster) { ctx.font = 'bold 30px system-ui'; ctx.fillText('Gather herds.',920,318); ctx.font = '19px system-ui'; ctx.fillText('Time your whistle.',922,357); }
+    if (poster) { ctx.font = 'bold 27px system-ui'; ctx.fillText('Gather herds.',920,318); ctx.font = '19px system-ui'; ctx.fillText('Time your whistle.',922,357); }
     else { ctx.font = 'bold 65px system-ui'; ctx.fillText(String(result.biggest.count),920,326); ctx.font = '19px system-ui'; ctx.fillText('BIGGEST HERD',922,365); }
     ctx.font = '24px Georgia'; ctx.fillText(poster?'The gate was left open.':['A woolly stampede!','A proper pig parade!','The great hen escape!','A magnificent moo-ve!'][result.biggest.type],735,465);
     ctx.fillStyle = '#263a33'; ctx.font = poster?'22px system-ui':'24px system-ui'; ctx.fillText(poster?'The wolf advances only when you whistle a herd home.':`${result.saved} animals home · all three gates shut`,70,418);

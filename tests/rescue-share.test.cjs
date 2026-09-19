@@ -34,9 +34,9 @@ test('card address comes from GAME_URL and the poster card is score-free',async(
  const texts=[];const ctx=new Proxy({fillText:text=>texts.push(String(text))},{get:(obj,key)=>key in obj?obj[key]:()=>{}});
  const window={RescueServices:S},source=fs.readFileSync(require.resolve('../rescue-share.js'),'utf8');assert.doesNotMatch(source,/'kevinhegg\.github\.io/);
  vm.runInNewContext(source,{window,document:{createElement:()=>({getContext:()=>ctx,toBlob:fn=>fn('png')})},Image:class{async decode(){}},URL:{createObjectURL:()=> 'blob:card'}});
- await window.RescueShare.makeCard(result,()=>'<svg></svg>');assert.ok(texts.includes('kevinhegg.github.io/angry-wolves'));
+ await window.RescueShare.makeCard(result,()=>'<svg></svg>');assert.ok(texts.includes('https://kevinhegg.github.io/angry-wolves'));
  texts.length=0;await window.RescueShare.makeCard({poster:true,biggest:{type:0}},()=>'<svg></svg>');
- for(const line of ['Bring them home.','A cozy puzzle with an impatient wolf.','Gather herds.','Time your whistle.','THINK FIRST. THEN WHISTLE.','kevinhegg.github.io/angry-wolves'])assert.ok(texts.includes(line),line);
+ for(const line of ['Bring them home.','A cozy puzzle with an impatient wolf.','Gather herds.','Time your whistle.','THINK FIRST. THEN WHISTLE.','https://kevinhegg.github.io/angry-wolves'])assert.ok(texts.includes(line),line);
  assert.ok(!texts.some(t=>/\d|TOTAL POINTS|BIGGEST HERD|BEAT MY HERD/.test(t)));
 });
 test('unsupported sharing falls back and cancellation never claims success',async()=>{
